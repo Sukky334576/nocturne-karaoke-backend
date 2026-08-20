@@ -1,0 +1,4 @@
+node_modules/
+bin/
+mingit.zip
+*.log
