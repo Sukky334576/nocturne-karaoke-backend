@@ -634,7 +634,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   background: var(--bg-input);
   border: 1px solid rgba(255, 255, 255, 0.04);
   padding: 8px 12px;
@@ -669,10 +669,42 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Dedicated Music Volume Slider */
+.music-vol-control {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--bg-module);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  min-width: 140px;
+  max-width: 180px;
+  flex-shrink: 0;
+}
+
+.music-vol-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.music-vol-header .vol-icon {
+  color: var(--gold-primary);
+  flex-shrink: 0;
+}
+
+.music-vol-control input[type="range"] {
+  height: 4px;
+}
+
 .playback-controls {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 /* Progress bar */
@@ -847,6 +879,73 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 /* ==========================================================================
+   Vocal Presets Card
+   ========================================================================== */
+.vocal-presets-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.presets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.presets-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gold-primary);
+}
+
+.presets-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.preset-pill-group {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.preset-pill {
+  font-family: 'Outfit', 'Kanit', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 7px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-module);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.preset-pill:hover {
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.preset-pill.active {
+  background: rgba(216, 177, 93, 0.16);
+  border-color: var(--gold-primary);
+  color: var(--gold-bright);
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(216, 177, 93, 0.15);
+}
+
+/* ==========================================================================
    Right Column DSP Racks & Controls
    ========================================================================== */
 .control-grid-2 {
@@ -877,6 +976,34 @@ input[type="range"]::-webkit-slider-thumb:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gate-led {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  letter-spacing: 0.04em;
+  transition: background 80ms ease, color 80ms ease;
+}
+
+.gate-led.open {
+  background: rgba(27, 153, 139, 0.2);
+  border: 1px solid var(--emerald-bright);
+  color: #8ce8de;
+}
+
+.gate-led.gate {
+  background: rgba(158, 42, 43, 0.2);
+  border: 1px solid #ff4757;
+  color: #ff9f9f;
 }
 
 .val-text {
@@ -1398,6 +1525,15 @@ kbd {
   .search-box-compact {
     max-width: 100%;
   }
+
+  .now-playing-bar {
+    flex-wrap: wrap;
+  }
+
+  .music-vol-control {
+    max-width: 100%;
+    width: 100%;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1405,6 +1541,10 @@ kbd {
     padding: 12px;
   }
   
+  .preset-pill-group {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   .pitch-buttons {
     grid-template-columns: repeat(4, 1fr);
   }

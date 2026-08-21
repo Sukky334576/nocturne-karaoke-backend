@@ -10,6 +10,11 @@ let headphoneGain = null;
 let cableGain = null;
 let cableSyncDelayNode = null;
 
+// Vocal Dynamics Nodes
+let noiseGateNode = null;
+let vocalCompressorNode = null;
+let isDynamicsEnabled = true;
+
 let convolverNode = null;
 let reverbInputGain = null;
 let reverbGain = null;
@@ -40,6 +45,7 @@ let currentUser = {
   isGuest: false,
   preset: {
     syncOffsetMs: 120,
+    musicVol: 1.0,
     headphoneVol: 0.8,
     cableVol: 0.9,
     reverbMix: 0.25,
@@ -49,7 +55,11 @@ let currentUser = {
     autotuneKey: 0,
     autotuneScale: 0,
     autotuneSpeed: 0.1,
-    autotuneAmount: 1.0
+    autotuneAmount: 1.0,
+    noiseGateThreshold: -45,
+    compressorRatio: 4,
+    dynamicsEnabled: true,
+    activePreset: 'pop'
   }
 };
 
@@ -98,6 +108,8 @@ const ytPlayerDiv = document.getElementById('ytPlayerDiv');
 
 const currentTrackTitle = document.getElementById('currentTrackTitle');
 const currentTrackArtist = document.getElementById('currentTrackArtist');
+const musicVolSlider = document.getElementById('musicVolSlider');
+const musicVolText = document.getElementById('musicVolText');
 const playPauseBtn = document.getElementById('playPauseBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
@@ -108,6 +120,15 @@ const totalDurationText = document.getElementById('totalDuration');
 const pitchDisplay = document.getElementById('pitchDisplay');
 const pitchSlider = document.getElementById('pitchSlider');
 const pitchButtons = document.querySelectorAll('.pitch-btn');
+
+// Vocal Dynamics DOM
+const dynamicsToggle = document.getElementById('dynamicsToggle');
+const noiseGateSlider = document.getElementById('noiseGateSlider');
+const noiseGateText = document.getElementById('noiseGateText');
+const gateLedIndicator = document.getElementById('gateLedIndicator');
+const compressorSlider = document.getElementById('compressorSlider');
+const compressorText = document.getElementById('compressorText');
+const presetPills = document.querySelectorAll('.preset-pill');
 
 // Auto-Tune DOM
 const autotuneToggle = document.getElementById('autotuneToggle');
@@ -192,6 +213,68 @@ const recordedAudioPlayer = document.getElementById('recordedAudioPlayer');
 const modalSyncOffset = document.getElementById('modalSyncOffset');
 const modalSyncOffsetText = document.getElementById('modalSyncOffsetText');
 
+// --- Vocal Presets Configuration ---
+const VOCAL_PRESETS = {
+  pop: {
+    autotuneEnabled: true,
+    autotuneKey: 0,
+    autotuneScale: 0,
+    autotuneSpeed: 0.10,
+    autotuneAmount: 1.0,
+    reverbEnabled: true,
+    reverbMix: 0.25,
+    reverbDecay: 1.8,
+    roomSize: 2,
+    noiseGateThreshold: -45,
+    compressorRatio: 4,
+    dynamicsEnabled: true
+  },
+  tpain: {
+    autotuneEnabled: true,
+    autotuneKey: 0,
+    autotuneScale: 1, // Minor
+    autotuneSpeed: 0.0,
+    autotuneAmount: 1.0,
+    reverbEnabled: true,
+    reverbMix: 0.35,
+    reverbDecay: 2.2,
+    roomSize: 3,
+    noiseGateThreshold: -40,
+    compressorRatio: 6,
+    dynamicsEnabled: true
+  },
+  rock: {
+    autotuneEnabled: false,
+    reverbEnabled: true,
+    reverbMix: 0.40,
+    reverbDecay: 2.8,
+    roomSize: 4,
+    noiseGateThreshold: -48,
+    compressorRatio: 5,
+    dynamicsEnabled: true
+  },
+  lofi: {
+    autotuneEnabled: false,
+    reverbEnabled: true,
+    reverbMix: 0.20,
+    reverbDecay: 1.2,
+    roomSize: 1,
+    noiseGateThreshold: -50,
+    compressorRatio: 2.5,
+    dynamicsEnabled: true
+  },
+  talk: {
+    autotuneEnabled: false,
+    reverbEnabled: false,
+    reverbMix: 0.0,
+    reverbDecay: 1.0,
+    roomSize: 1,
+    noiseGateThreshold: -40,
+    compressorRatio: 3,
+    dynamicsEnabled: true
+  }
+};
+
 // --- User Profile & Preset Storage ---
 function loadUserProfile() {
   const saved = localStorage.getItem('karaoke_current_user');
@@ -207,6 +290,7 @@ function loadUserProfile() {
 function saveUserProfile() {
   currentUser.preset = {
     syncOffsetMs: cableSyncOffsetMs,
+    musicVol: musicVolSlider ? parseFloat(musicVolSlider.value) : 1.0,
     headphoneVol: parseFloat(headphoneVol.value),
     cableVol: parseFloat(cableVol.value),
     reverbMix: parseFloat(reverbMix.value),
@@ -216,7 +300,10 @@ function saveUserProfile() {
     autotuneKey: parseInt(autotuneKeySelect.value),
     autotuneScale: parseInt(autotuneScaleSelect.value),
     autotuneSpeed: parseFloat(atSpeed.value),
-    autotuneAmount: parseFloat(atAmount.value)
+    autotuneAmount: parseFloat(atAmount.value),
+    noiseGateThreshold: noiseGateSlider ? parseFloat(noiseGateSlider.value) : -45,
+    compressorRatio: compressorSlider ? parseFloat(compressorSlider.value) : 4,
+    dynamicsEnabled: isDynamicsEnabled
   };
   localStorage.setItem('karaoke_current_user', JSON.stringify(currentUser));
 }
@@ -224,6 +311,12 @@ function saveUserProfile() {
 function applyUserPreset(preset) {
   if (!preset) return;
   setSyncOffset(preset.syncOffsetMs !== undefined ? preset.syncOffsetMs : 120);
+
+  if (preset.musicVol !== undefined && musicVolSlider) {
+    musicVolSlider.value = preset.musicVol;
+    musicVolText.innerText = Math.round(preset.musicVol * 100) + '%';
+    if (masterGain && audioCtx) masterGain.gain.setValueAtTime(preset.musicVol, audioCtx.currentTime);
+  }
 
   if (preset.autotuneKey !== undefined) autotuneKeySelect.value = preset.autotuneKey;
   if (preset.autotuneScale !== undefined) autotuneScaleSelect.value = preset.autotuneScale;
@@ -235,6 +328,81 @@ function applyUserPreset(preset) {
     atAmount.value = preset.autotuneAmount;
     atAmountText.innerText = Math.round(preset.autotuneAmount * 100) + '%';
   }
+
+  if (preset.noiseGateThreshold !== undefined && noiseGateSlider) {
+    noiseGateSlider.value = preset.noiseGateThreshold;
+    noiseGateText.innerText = preset.noiseGateThreshold + ' dB';
+  }
+
+  if (preset.compressorRatio !== undefined && compressorSlider) {
+    compressorSlider.value = preset.compressorRatio;
+    compressorText.innerText = preset.compressorRatio + ':1 Ratio';
+  }
+
+  if (preset.dynamicsEnabled !== undefined && dynamicsToggle) {
+    dynamicsToggle.checked = preset.dynamicsEnabled;
+    isDynamicsEnabled = preset.dynamicsEnabled;
+  }
+}
+
+function applyVocalPreset(presetKey) {
+  const cfg = VOCAL_PRESETS[presetKey];
+  if (!cfg) return;
+
+  // Highlight Active Pill
+  presetPills.forEach(pill => {
+    pill.classList.toggle('active', pill.getAttribute('data-preset') === presetKey);
+  });
+
+  // Apply Auto-Tune
+  isAutotuneEnabled = cfg.autotuneEnabled;
+  autotuneToggle.checked = cfg.autotuneEnabled;
+  if (cfg.autotuneKey !== undefined) autotuneKeySelect.value = cfg.autotuneKey;
+  if (cfg.autotuneScale !== undefined) autotuneScaleSelect.value = cfg.autotuneScale;
+  if (cfg.autotuneSpeed !== undefined) {
+    atSpeed.value = cfg.autotuneSpeed;
+    updateAutotuneSpeedDisplay(cfg.autotuneSpeed);
+  }
+  if (cfg.autotuneAmount !== undefined) {
+    atAmount.value = cfg.autotuneAmount;
+    atAmountText.innerText = Math.round(cfg.autotuneAmount * 100) + '%';
+  }
+
+  // Apply Reverb
+  isReverbEnabled = cfg.reverbEnabled;
+  reverbToggle.checked = cfg.reverbEnabled;
+  if (cfg.reverbMix !== undefined) {
+    reverbMix.value = cfg.reverbMix;
+    reverbMixText.innerText = Math.round(cfg.reverbMix * 100) + '%';
+  }
+  if (cfg.reverbDecay !== undefined) {
+    reverbDecay.value = cfg.reverbDecay;
+    reverbDecayText.innerText = cfg.reverbDecay.toFixed(1) + 's';
+  }
+  if (cfg.roomSize !== undefined) {
+    roomSize.value = cfg.roomSize;
+    updateRoomSizeText(cfg.roomSize);
+  }
+
+  // Apply Dynamics
+  if (cfg.noiseGateThreshold !== undefined && noiseGateSlider) {
+    noiseGateSlider.value = cfg.noiseGateThreshold;
+    noiseGateText.innerText = cfg.noiseGateThreshold + ' dB';
+  }
+  if (cfg.compressorRatio !== undefined && compressorSlider) {
+    compressorSlider.value = cfg.compressorRatio;
+    compressorText.innerText = cfg.compressorRatio + ':1 Ratio';
+  }
+  if (cfg.dynamicsEnabled !== undefined && dynamicsToggle) {
+    dynamicsToggle.checked = cfg.dynamicsEnabled;
+    isDynamicsEnabled = cfg.dynamicsEnabled;
+  }
+
+  // Sync to Audio Nodes
+  updateAutotuneParams();
+  updateReverbImpulse();
+  updateDynamicsParams();
+  saveUserProfile();
 }
 
 function updateAuthUI() {
@@ -247,18 +415,44 @@ function updateAuthUI() {
   }
 }
 
+// Preset Pills Listeners
+presetPills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    const key = pill.getAttribute('data-preset');
+    applyVocalPreset(key);
+  });
+});
+
 // Setup Guide Modal Listeners
 openSetupGuideBtn.addEventListener('click', () => {
   setupGuideModal.classList.remove('hidden');
 });
-
 closeSetupGuideBtn.addEventListener('click', () => {
   setupGuideModal.classList.add('hidden');
 });
-
 finishSetupGuideBtn.addEventListener('click', () => {
   setupGuideModal.classList.add('hidden');
   initAudioEngine();
+});
+
+// Auth Modal Listeners
+userProfileBtn.addEventListener('click', () => {
+  authModal.classList.remove('hidden');
+});
+closeAuthModalBtn.addEventListener('click', () => {
+  authModal.classList.add('hidden');
+});
+guestAuthBtn.addEventListener('click', () => {
+  authModal.classList.add('hidden');
+});
+submitAuthBtn.addEventListener('click', () => {
+  const uname = authUsernameInput.value.trim();
+  if (uname) {
+    currentUser.username = uname;
+    saveUserProfile();
+    updateAuthUI();
+    authModal.classList.add('hidden');
+  }
 });
 
 // Scroll smoothly to Record Test Section
@@ -266,7 +460,7 @@ openRecordTestBtn.addEventListener('click', () => {
   initAudioEngine();
   if (embeddedRecordSection) {
     embeddedRecordSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    embeddedRecordSection.style.boxShadow = '0 0 25px rgba(212, 175, 55, 0.4)';
+    embeddedRecordSection.style.boxShadow = '0 0 25px rgba(216, 177, 93, 0.4)';
     setTimeout(() => {
       embeddedRecordSection.style.boxShadow = '';
     }, 1200);
@@ -324,24 +518,31 @@ function initYtPlayer(videoId, startSec = 0) {
   startYtProgressTracker();
 }
 
-// Continuous Progress Tracker from YouTube Player
 function startYtProgressTracker() {
   if (ytProgressInterval) clearInterval(ytProgressInterval);
   ytProgressInterval = setInterval(() => {
-    if (!isUserSeeking && ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && typeof ytPlayer.getDuration === 'function') {
-      const cur = ytPlayer.getCurrentTime() || 0;
-      const dur = ytPlayer.getDuration() || trackDurationSeconds || 240;
-      if (dur > 0) {
-        trackDurationSeconds = dur;
-        totalDurationText.innerText = formatTime(dur);
-        currentTimeText.innerText = formatTime(cur);
-        progressBar.value = (cur / dur) * 100;
-      }
+    if (!isPlaying || isUserSeeking) return;
+
+    let curr = 0;
+    let dur = trackDurationSeconds;
+
+    if (audioSourceElement && !audioSourceElement.paused && audioSourceElement.duration) {
+      curr = audioSourceElement.currentTime + streamOffsetSeconds;
+      if (audioSourceElement.duration > 10) dur = audioSourceElement.duration;
+    } else if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+      curr = ytPlayer.getCurrentTime() || 0;
+      dur = ytPlayer.getDuration() || trackDurationSeconds;
     }
-  }, 250);
+
+    if (dur > 0) {
+      currentTimeText.innerText = formatTime(curr);
+      totalDurationText.innerText = formatTime(dur);
+      progressBar.value = (curr / dur) * 100;
+    }
+  }, 400);
 }
 
-// Initialize Web Audio Engine
+// --- Initialize Web Audio Graph ---
 async function initAudioEngine() {
   if (isAudioInitialized) {
     if (audioCtx && audioCtx.state === 'suspended') {
@@ -372,12 +573,40 @@ async function initAudioEngine() {
       console.warn('Pitch Shifter Worklet note:', e);
     }
 
+    // Load Noise Gate AudioWorklet
+    try {
+      await audioCtx.audioWorklet.addModule('noise-gate-processor.js');
+      noiseGateNode = new AudioWorkletNode(audioCtx, 'noise-gate-processor');
+      noiseGateNode.port.onmessage = (e) => {
+        if (e.data && gateLedIndicator) {
+          if (e.data.isOpen) {
+            gateLedIndicator.innerText = 'OPEN';
+            gateLedIndicator.className = 'gate-led open';
+          } else {
+            gateLedIndicator.innerText = 'MUTED';
+            gateLedIndicator.className = 'gate-led gate';
+          }
+        }
+      };
+    } catch (e) {
+      console.warn('Noise Gate Worklet note:', e);
+    }
+
+    // Create Studio Vocal Compressor / Limiter
+    vocalCompressorNode = audioCtx.createDynamicsCompressor();
+    vocalCompressorNode.threshold.setValueAtTime(-24, audioCtx.currentTime);
+    vocalCompressorNode.knee.setValueAtTime(30, audioCtx.currentTime);
+    vocalCompressorNode.ratio.setValueAtTime(compressorSlider ? parseFloat(compressorSlider.value) : 4, audioCtx.currentTime);
+    vocalCompressorNode.attack.setValueAtTime(0.003, audioCtx.currentTime);
+    vocalCompressorNode.release.setValueAtTime(0.25, audioCtx.currentTime);
+
     // Gain Nodes
     duckingGain = audioCtx.createGain();
     duckingGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
     masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+    const initialMusicVol = musicVolSlider ? parseFloat(musicVolSlider.value) : 1.0;
+    masterGain.gain.setValueAtTime(initialMusicVol, audioCtx.currentTime);
 
     headphoneGain = audioCtx.createGain();
     headphoneGain.gain.setValueAtTime(parseFloat(headphoneVol.value), audioCtx.currentTime);
@@ -404,7 +633,7 @@ async function initAudioEngine() {
     reverbGain = audioCtx.createGain();
     reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
 
-    // Headphone Reverb Gain (Boosted so singer clearly hears their lush reverb tail!)
+    // Headphone Reverb Gain
     headphoneReverbGain = audioCtx.createGain();
     headphoneReverbGain.gain.setValueAtTime(1.3, audioCtx.currentTime);
 
@@ -498,20 +727,21 @@ async function initAudioEngine() {
     mediaElementSource = audioCtx.createMediaElementSource(audioSourceElement);
     mediaElementSource.connect(duckingGain);
 
-    // Request Microphone
+    // Request Microphone & wire through Dynamics Chain
     await initMicrophoneStream();
 
     setupAudioElementEvents();
     startVuMeters();
+    updateDynamicsParams();
 
     await enumerateAudioDevices();
 
     isAudioInitialized = true;
     audioInitBtn.innerHTML = '<span>✦ ENGINE ACTIVE</span>';
     audioInitBtn.classList.remove('glow-btn');
-    audioInitBtn.style.background = 'rgba(212, 175, 55, 0.15)';
-    audioInitBtn.style.color = '#f3e5ab';
-    audioInitBtn.style.border = '1px solid #d4af37';
+    audioInitBtn.style.background = 'rgba(216, 177, 93, 0.15)';
+    audioInitBtn.style.color = '#f4e6c3';
+    audioInitBtn.style.border = '1px solid #d8b15d';
 
     console.log('⚡ Audio Engine Initialized Successfully');
   } catch (err) {
@@ -539,7 +769,7 @@ function updateReverbImpulse() {
   convolverNode.buffer = ir;
 }
 
-// Initialize Microphone Stream with Auto-Tune & Reverb
+// Initialize Microphone Stream with Vocal Dynamics Chain
 async function initMicrophoneStream(deviceId) {
   try {
     const constraints = {
@@ -559,20 +789,48 @@ async function initMicrophoneStream(deviceId) {
     micSource = audioCtx.createMediaStreamSource(stream);
     micSource.connect(micAnalyser);
 
+    // Connect through Vocal Dynamics Chain (Noise Gate -> Compressor -> FX)
+    let vocalChainSource = micSource;
+
+    if (noiseGateNode && vocalCompressorNode) {
+      micSource.connect(noiseGateNode);
+      noiseGateNode.connect(vocalCompressorNode);
+      vocalChainSource = vocalCompressorNode;
+    }
+
     if (reverbInputGain) {
-      micSource.connect(reverbInputGain);
+      vocalChainSource.connect(reverbInputGain);
     }
 
     if (autotuneNode) {
-      micSource.connect(autotuneNode);
+      vocalChainSource.connect(autotuneNode);
     }
 
     if (recordMicGain) {
-      micSource.connect(recordMicGain);
+      vocalChainSource.connect(recordMicGain);
     }
   } catch (err) {
     console.warn('Microphone access note:', err.message);
   }
+}
+
+// Update Vocal Dynamics (Gate & Compressor)
+function updateDynamicsParams() {
+  if (!audioCtx) return;
+
+  if (noiseGateNode) {
+    const pEnabled = noiseGateNode.parameters.get('enabled');
+    const pThreshold = noiseGateNode.parameters.get('threshold');
+    if (pEnabled) pEnabled.setValueAtTime(isDynamicsEnabled ? 1 : 0, audioCtx.currentTime);
+    if (pThreshold && noiseGateSlider) pThreshold.setValueAtTime(parseFloat(noiseGateSlider.value), audioCtx.currentTime);
+  }
+
+  if (vocalCompressorNode && compressorSlider) {
+    const ratioVal = isDynamicsEnabled ? parseFloat(compressorSlider.value) : 1;
+    vocalCompressorNode.ratio.setValueAtTime(ratioVal, audioCtx.currentTime);
+  }
+
+  saveUserProfile();
 }
 
 // Update Auto-Tune AudioWorklet Parameters
@@ -606,13 +864,56 @@ function updateAutotuneParams() {
 
 function updateAutotuneSpeedDisplay(val) {
   const speed = parseFloat(val);
-  if (speed <= 0.15) {
+  if (speed <= 0.05) {
     atSpeedText.innerText = `T-Pain (${speed.toFixed(2)})`;
-  } else if (speed <= 0.5) {
+  } else if (speed <= 0.3) {
     atSpeedText.innerText = `Pop (${speed.toFixed(2)})`;
   } else {
     atSpeedText.innerText = `Natural (${speed.toFixed(2)})`;
   }
+}
+
+function updateRoomSizeText(val) {
+  const s = parseInt(val);
+  const names = ['Room', 'Studio', 'Hall', 'Arena'];
+  roomSizeText.innerText = names[s - 1] || 'Studio';
+}
+
+// Music Volume Slider Listener
+if (musicVolSlider) {
+  musicVolSlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    musicVolText.innerText = Math.round(val * 100) + '%';
+    if (masterGain && audioCtx) {
+      masterGain.gain.setValueAtTime(val, audioCtx.currentTime);
+    }
+    if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+      ytPlayer.setVolume(Math.min(100, Math.round(val * 100)));
+    }
+    saveUserProfile();
+  });
+}
+
+// Dynamics Sliders Listeners
+if (dynamicsToggle) {
+  dynamicsToggle.addEventListener('change', (e) => {
+    isDynamicsEnabled = e.target.checked;
+    updateDynamicsParams();
+  });
+}
+
+if (noiseGateSlider) {
+  noiseGateSlider.addEventListener('input', (e) => {
+    noiseGateText.innerText = e.target.value + ' dB';
+    updateDynamicsParams();
+  });
+}
+
+if (compressorSlider) {
+  compressorSlider.addEventListener('input', (e) => {
+    compressorText.innerText = e.target.value + ':1 Ratio';
+    updateDynamicsParams();
+  });
 }
 
 autotuneToggle.addEventListener('change', (e) => {
@@ -657,7 +958,7 @@ function startVuMeters() {
         if (micData[i] > maxVal) maxVal = micData[i];
       }
       const percent = Math.min(100, Math.round((sum / micData.length / 128) * 100));
-      micVuBar.style.width = percent + '%';
+      micVuBar.style.transform = `scaleX(${percent / 100})`;
 
       if (isMetronomeRunning && maxVal > 140 && (performance.now() - lastClapTime > 350)) {
         lastClapTime = performance.now();
@@ -675,7 +976,7 @@ function startVuMeters() {
       let sum = 0;
       for (let i = 0; i < hpData.length; i++) sum += hpData[i];
       const percent = Math.min(100, Math.round((sum / hpData.length / 128) * 100));
-      headphoneVuBar.style.width = percent + '%';
+      headphoneVuBar.style.transform = `scaleX(${percent / 100})`;
     }
 
     if (cableAnalyser && cableVuBar) {
@@ -683,7 +984,7 @@ function startVuMeters() {
       let sum = 0;
       for (let i = 0; i < cbData.length; i++) sum += cbData[i];
       const percent = Math.min(100, Math.round((sum / cbData.length / 128) * 100));
-      cableVuBar.style.width = percent + '%';
+      cableVuBar.style.transform = `scaleX(${percent / 100})`;
     }
   }
   draw();
@@ -754,10 +1055,9 @@ function startRecordingTest() {
   isRecordingTest = true;
   recordSeconds = 0;
   recTimerText.innerText = '00:00';
-  recIndicator.classList.add('recording');
-  toggleRecordBtn.innerText = '⏹️ หยุดอัด & ฟังเสียงย้อนหลัง';
-  toggleRecordBtn.style.background = 'var(--emerald-gradient)';
-  toggleRecordBtn.style.color = '#fff';
+  toggleRecordBtn.innerHTML = '<svg class="btn-icon-svg" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg> <span>หยุดอัดเสียง (Stop Recording)</span>';
+  toggleRecordBtn.classList.add('recording');
+  recIndicator.style.background = '#ff4757';
 
   recordTimerInterval = setInterval(() => {
     recordSeconds++;
@@ -768,340 +1068,286 @@ function startRecordingTest() {
 }
 
 function stopRecordingTest() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+  if (mediaRecorder && isRecordingTest) {
     mediaRecorder.stop();
+    isRecordingTest = false;
+    if (recordTimerInterval) clearInterval(recordTimerInterval);
+    toggleRecordBtn.innerHTML = '<svg class="btn-icon-svg" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> <span>เริ่มอัดเสียงทดสอบ (Start Recording)</span>';
+    toggleRecordBtn.classList.remove('recording');
+    recIndicator.style.background = '#666';
   }
-  isRecordingTest = false;
-  clearInterval(recordTimerInterval);
-  recIndicator.classList.remove('recording');
-  toggleRecordBtn.innerText = '🔴 เริ่มอัดเสียงทดสอบใหม่ (Record Again)';
-  toggleRecordBtn.style.background = 'var(--ruby-gradient)';
-  toggleRecordBtn.style.color = '#fff';
 }
 
 toggleRecordBtn.addEventListener('click', () => {
-  if (isRecordingTest) {
-    stopRecordingTest();
-  } else {
+  if (!isRecordingTest) {
     startRecordingTest();
+  } else {
+    stopRecordingTest();
   }
 });
 
-// Sync Offset Setter
+// Modal Sync Offset Slider Listener
+modalSyncOffset.addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  setSyncOffset(val);
+});
+
 function setSyncOffset(val) {
-  cableSyncOffsetMs = parseInt(val);
-  cableSyncOffsetSlider.value = cableSyncOffsetMs;
-  cableSyncOffsetText.innerText = cableSyncOffsetMs + ' ms';
-  modalSyncOffset.value = cableSyncOffsetMs;
-  modalSyncOffsetText.innerText = cableSyncOffsetMs + ' ms';
+  cableSyncOffsetMs = val;
+  cableSyncOffsetSlider.value = val;
+  modalSyncOffset.value = val;
+  cableSyncOffsetText.innerText = val + ' ms';
+  modalSyncOffsetText.innerText = val + ' ms';
 
   if (cableSyncDelayNode && audioCtx) {
-    cableSyncDelayNode.delayTime.setValueAtTime(cableSyncOffsetMs / 1000, audioCtx.currentTime);
+    cableSyncDelayNode.delayTime.setValueAtTime(val / 1000, audioCtx.currentTime);
   }
-  updateAuthUI();
   saveUserProfile();
 }
 
-cableSyncOffsetSlider.addEventListener('input', (e) => setSyncOffset(e.target.value));
-modalSyncOffset.addEventListener('input', (e) => setSyncOffset(e.target.value));
-
-// Auth Modal Actions
-userProfileBtn.addEventListener('click', () => {
-  authModal.classList.remove('hidden');
+cableSyncOffsetSlider.addEventListener('input', (e) => {
+  setSyncOffset(parseInt(e.target.value));
 });
 
-closeAuthModalBtn.addEventListener('click', () => {
-  authModal.classList.add('hidden');
-});
-
-tabLoginBtn.addEventListener('click', () => {
-  tabLoginBtn.classList.add('active');
-  tabRegisterBtn.classList.remove('active');
-  submitAuthBtn.innerText = 'เข้าสู่ระบบ (Login)';
-});
-
-tabRegisterBtn.addEventListener('click', () => {
-  tabRegisterBtn.classList.add('active');
-  tabLoginBtn.classList.remove('active');
-  submitAuthBtn.innerText = 'สมัครสมาชิกใหม่ (Register)';
-});
-
-submitAuthBtn.addEventListener('click', () => {
-  const username = authUsernameInput.value.trim() || 'tong3';
-  currentUser.username = username;
-  currentUser.isGuest = false;
-  saveUserProfile();
-  updateAuthUI();
-  authModal.classList.add('hidden');
-  alert(`ยินดีต้อนรับคุณ ${username}! ระบบบันทึกค่า Preset 120ms และการตั้งค่าเรียบร้อยแล้ว`);
-});
-
-guestAuthBtn.addEventListener('click', () => {
-  currentUser.username = 'Guest User';
-  currentUser.isGuest = true;
-  updateAuthUI();
-  authModal.classList.add('hidden');
-});
-
-// Sync Modal Open / Close
-openSyncModalBtn.addEventListener('click', async () => {
-  await initAudioEngine();
-  syncModal.classList.remove('hidden');
-});
-
-closeSyncModalBtn.addEventListener('click', () => {
-  syncModal.classList.add('hidden');
-  stopMetronomeTester();
-});
-
-// Enumerate Output & Input Audio Devices
-async function enumerateAudioDevices() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-
-    headphoneSelect.innerHTML = '';
-    virtualCableSelect.innerHTML = '';
-    micSelect.innerHTML = '';
-
-    devices.forEach(device => {
-      const option = document.createElement('option');
-      option.value = device.deviceId;
-      option.text = device.label || `${device.kind} (${device.deviceId.slice(0, 5)})`;
-
-      if (device.kind === 'audiooutput') {
-        headphoneSelect.appendChild(option.cloneNode(true));
-        virtualCableSelect.appendChild(option.cloneNode(true));
-      } else if (device.kind === 'audioinput') {
-        micSelect.appendChild(option.cloneNode(true));
-      }
-    });
-
-    Array.from(headphoneSelect.options).forEach(opt => {
-      const text = opt.text.toLowerCase();
-      if (text.includes('maono') || text.includes('fairy') || text.includes('headphones') || text.includes('speakers')) {
-        headphoneSelect.value = opt.value;
-      }
-    });
-
-    Array.from(virtualCableSelect.options).forEach(opt => {
-      const text = opt.text.toLowerCase();
-      if (text.includes('cable') || text.includes('vb-audio')) {
-        virtualCableSelect.value = opt.value;
-      }
-    });
-
-    Array.from(micSelect.options).forEach(opt => {
-      const text = opt.text.toLowerCase();
-      if (text.includes('maono') || text.includes('fairy') || text.includes('microphone')) {
-        micSelect.value = opt.value;
-      }
-    });
-
-    await applyAudioSinkRouting();
-  } catch (err) {
-    console.error('Device enumeration error:', err);
-  }
-}
-
-// Apply Sink ID routing to outputs
-async function applyAudioSinkRouting() {
-  if (audioElCable && typeof audioElCable.setSinkId === 'function' && virtualCableSelect.value) {
-    try {
-      await audioElCable.setSinkId(virtualCableSelect.value);
-      await audioElCable.play().catch(() => {});
-      console.log('🎙️ Backing track connected to CABLE Input:', virtualCableSelect.value);
-    } catch (e) { console.warn('Cable setSinkId error:', e); }
-  }
-}
-
-// Event Listeners for Devices & Sliders
-headphoneSelect.addEventListener('change', applyAudioSinkRouting);
-virtualCableSelect.addEventListener('change', applyAudioSinkRouting);
-micSelect.addEventListener('change', () => initMicrophoneStream(micSelect.value));
-
-headphoneVol.addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  headphoneVolText.innerText = Math.round(val * 100) + '%';
-  if (headphoneGain && audioCtx) headphoneGain.gain.setValueAtTime(val, audioCtx.currentTime);
-  saveUserProfile();
-});
-
-cableVol.addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  cableVolText.innerText = Math.round(val * 100) + '%';
-  if (cableGain && audioCtx) cableGain.gain.setValueAtTime(val, audioCtx.currentTime);
-  saveUserProfile();
-});
-
-// Reverb Controls
-reverbToggle.addEventListener('change', (e) => {
-  isReverbEnabled = e.target.checked;
-  if (!reverbGain || !audioCtx) return;
-  if (isReverbEnabled) {
-    reverbGain.gain.setValueAtTime(parseFloat(reverbMix.value), audioCtx.currentTime);
-  } else {
-    reverbGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
-  }
-});
-
-reverbMix.addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  reverbMixText.innerText = Math.round(val * 100) + '%';
-  if (reverbGain && audioCtx && isReverbEnabled) {
-    reverbGain.gain.setValueAtTime(val, audioCtx.currentTime);
-  }
-  saveUserProfile();
-});
-
-reverbDecay.addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  reverbDecayText.innerText = val.toFixed(1) + 's';
-  updateReverbImpulse();
-  saveUserProfile();
-});
-
-roomSize.addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  const names = ['', 'Room', 'Studio', 'Hall', 'Arena'];
-  roomSizeText.innerText = names[val] || 'Studio';
-  updateReverbImpulse();
-  saveUserProfile();
-});
-
-// Metronome Beep Generator
-function playMetronomeBeep(time, isDownbeat) {
+// Metronome Beep Generator (1000Hz, 40ms Click)
+function playMetronomeBeep() {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
 
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(isDownbeat ? 1000 : 600, time);
+  osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
 
-  gain.gain.setValueAtTime(0.6, time);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+  gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
 
   osc.connect(gain);
-  if (masterGain) {
-    gain.connect(masterGain);
-  } else if (audioCtx.destination) {
-    gain.connect(audioCtx.destination);
-  }
+  gain.connect(audioCtx.destination);
+  gain.connect(destCable);
 
-  osc.start(time);
-  osc.stop(time + 0.07);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 0.05);
+
+  lastBeepAudioTime = audioCtx.currentTime;
+  outputBeepStatus.innerText = `ส่งเสียงแล้ว (รอบที่ ${currentBeat})`;
+
+  metroIndicator.classList.add('flash-beep');
+  setTimeout(() => {
+    metroIndicator.classList.remove('flash-beep');
+  }, 80);
 }
 
-async function startMetronomeTester() {
-  if (!audioCtx || !isAudioInitialized) {
-    await initAudioEngine();
+function startMetronome() {
+  if (!audioCtx) {
+    initAudioEngine();
   }
   isMetronomeRunning = true;
   currentBeat = 0;
-  toggleMetronomeBtn.innerText = '⏹️ หยุดเคาะจังหวะ (Stop)';
-  toggleMetronomeBtn.style.background = 'var(--ruby-gradient)';
-  metroStatus.innerText = '🔊 กำลังเคาะจังหวะ... ให้ปรบมือ หรือ ร้อง "ต๊อก" ตามจังหวะไฟกระพริบ';
-
-  const beatIntervalMs = 600;
+  toggleMetronomeBtn.innerText = 'หยุดเคาะจังหวะ (Stop Metronome)';
+  toggleMetronomeBtn.classList.remove('btn-primary');
+  toggleMetronomeBtn.classList.add('btn-garnet');
+  metroStatus.innerText = 'กำลังส่งเสียงเคาะจังหวะ... ให้ปรบมือตามทันทีที่ได้ยิน';
 
   metronomeTimer = setInterval(() => {
     currentBeat = (currentBeat % 4) + 1;
-    const isDownbeat = currentBeat === 1;
-
-    lastBeepAudioTime = audioCtx ? audioCtx.currentTime : 0;
-    playMetronomeBeep(lastBeepAudioTime, isDownbeat);
-
-    outputBeepStatus.innerText = `ปล่อยเสียงเคาะจังหวะ ${currentBeat}`;
     metroBeatNum.innerText = currentBeat;
-
-    metroIndicator.className = 'metro-circle ' + (isDownbeat ? 'flash-downbeat' : 'flash-beat');
-    setTimeout(() => {
-      metroIndicator.className = 'metro-circle';
-    }, 120);
-
-  }, beatIntervalMs);
+    playMetronomeBeep();
+  }, 1000);
 }
 
-function stopMetronomeTester() {
+function stopMetronome() {
   isMetronomeRunning = false;
   if (metronomeTimer) clearInterval(metronomeTimer);
-  toggleMetronomeBtn.innerText = '🔊 เริ่มเคาะจังหวะ (Start Metronome)';
-  toggleMetronomeBtn.style.background = '';
-  metroStatus.innerText = 'หยุดการเคาะจังหวะแล้ว';
-  outputBeepStatus.innerText = 'รอสัญญาณ';
+  toggleMetronomeBtn.innerText = 'เริ่มเคาะจังหวะ (Start Metronome)';
+  toggleMetronomeBtn.classList.add('btn-primary');
+  toggleMetronomeBtn.classList.remove('btn-garnet');
+  metroStatus.innerText = 'หยุดการทดสอบแล้ว';
 }
 
 toggleMetronomeBtn.addEventListener('click', () => {
   if (isMetronomeRunning) {
-    stopMetronomeTester();
+    stopMetronome();
   } else {
-    startMetronomeTester();
+    startMetronome();
   }
 });
 
 applyMeasuredOffsetBtn.addEventListener('click', () => {
   if (calculatedAverageMs > 0) {
     setSyncOffset(calculatedAverageMs);
-    alert(`นำค่าความหน่วงเฉลี่ย +${calculatedAverageMs} ms ไปปรับชดเชยเรียบร้อยแล้ว!`);
+    alert(`นำค่าความหน่วงเฉลี่ย ${calculatedAverageMs} ms ไปบันทึกลงในระบบเรียบร้อยแล้ว!`);
     syncModal.classList.add('hidden');
-    stopMetronomeTester();
+    stopMetronome();
   } else {
-    alert('ยังไม่ได้วัดค่าดีเลย์ กรุณากดเริ่มเคาะจังหวะแล้วปรบมือ 3-5 ครั้งก่อนครับ');
+    alert('ยังไม่มีข้อมูลการวัดค่า กรุณาปรบมือตามจังหวะเคาะ 3-5 ครั้งก่อนครับ');
   }
 });
 
-// Pitch Shifter Handling (Backing Track)
-function setSemitone(semi) {
-  currentSemitone = parseInt(semi);
-  pitchSlider.value = currentSemitone;
-  pitchDisplay.innerText = currentSemitone === 0 ? 'ORIGINAL (0)' : (currentSemitone > 0 ? `+${currentSemitone} SEMI` : `${currentSemitone} SEMI`);
+openSyncModalBtn.addEventListener('click', () => {
+  initAudioEngine();
+  syncModal.classList.remove('hidden');
+});
+
+closeSyncModalBtn.addEventListener('click', () => {
+  syncModal.classList.add('hidden');
+  stopMetronome();
+});
+
+// Enumerate Audio Devices & Set Sinks
+async function enumerateAudioDevices() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    headphoneSelect.innerHTML = '';
+    virtualCableSelect.innerHTML = '';
+    micSelect.innerHTML = '';
+
+    devices.forEach(device => {
+      const opt = document.createElement('option');
+      opt.value = device.deviceId;
+      opt.text = device.label || `${device.kind} (${device.deviceId.slice(0, 5)})`;
+
+      if (device.kind === 'audiooutput') {
+        headphoneSelect.appendChild(opt.cloneNode(true));
+        virtualCableSelect.appendChild(opt.cloneNode(true));
+      } else if (device.kind === 'audioinput') {
+        micSelect.appendChild(opt.cloneNode(true));
+      }
+    });
+
+    for (let i = 0; i < virtualCableSelect.options.length; i++) {
+      const opt = virtualCableSelect.options[i];
+      if (opt.text.toLowerCase().includes('cable input') || opt.text.toLowerCase().includes('vb-audio')) {
+        virtualCableSelect.selectedIndex = i;
+        setSinkCable(opt.value);
+        break;
+      }
+    }
+  } catch (err) {
+    console.warn('Enumerate audio devices note:', err);
+  }
+}
+
+async function setSinkCable(deviceId) {
+  if (audioElCable && typeof audioElCable.setSinkId === 'function') {
+    try {
+      await audioElCable.setSinkId(deviceId);
+      console.log('✅ Backing track connected to CABLE Input:', deviceId);
+    } catch (e) {
+      console.warn('setSinkId CABLE error:', e);
+    }
+  }
+}
+
+virtualCableSelect.addEventListener('change', (e) => {
+  setSinkCable(e.target.value);
+});
+
+micSelect.addEventListener('change', (e) => {
+  if (audioCtx) {
+    initMicrophoneStream(e.target.value);
+  }
+});
+
+// Volume Sliders
+headphoneVol.addEventListener('input', (e) => {
+  headphoneVolText.innerText = Math.round(e.target.value * 100) + '%';
+  if (headphoneGain && audioCtx) {
+    headphoneGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
+  }
+  saveUserProfile();
+});
+
+cableVol.addEventListener('input', (e) => {
+  cableVolText.innerText = Math.round(e.target.value * 100) + '%';
+  if (cableGain && audioCtx) {
+    cableGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
+  }
+  saveUserProfile();
+});
+
+// Reverb Sliders
+reverbToggle.addEventListener('change', (e) => {
+  isReverbEnabled = e.target.checked;
+  if (reverbGain && audioCtx) {
+    reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
+  }
+  saveUserProfile();
+});
+
+reverbMix.addEventListener('input', (e) => {
+  reverbMixText.innerText = Math.round(e.target.value * 100) + '%';
+  if (reverbGain && audioCtx && isReverbEnabled) {
+    reverbGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
+  }
+  saveUserProfile();
+});
+
+reverbDecay.addEventListener('input', (e) => {
+  reverbDecayText.innerText = parseFloat(e.target.value).toFixed(1) + 's';
+  updateReverbImpulse();
+  saveUserProfile();
+});
+
+roomSize.addEventListener('input', (e) => {
+  updateRoomSizeText(e.target.value);
+  updateReverbImpulse();
+  saveUserProfile();
+});
+
+// Backing Track Key Shifter (Pitch Shift)
+function setPitchShift(semitone) {
+  currentSemitone = semitone;
+  pitchDisplay.innerText = `${semitone > 0 ? '+' : ''}${semitone} SEMITONES`;
+  pitchSlider.value = semitone;
 
   pitchButtons.forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.dataset.semi) === currentSemitone);
+    const semi = parseInt(btn.getAttribute('data-semi'));
+    btn.classList.toggle('active', semi === semitone);
   });
 
-  const ratio = Math.pow(2, currentSemitone / 12);
   if (pitchNode && audioCtx) {
-    const param = pitchNode.parameters.get('pitchRatio');
-    if (param) param.setValueAtTime(ratio, audioCtx.currentTime);
+    const param = pitchNode.parameters.get('semitones');
+    if (param) {
+      param.setValueAtTime(semitone, audioCtx.currentTime);
+    }
   }
 }
 
 pitchButtons.forEach(btn => {
-  btn.addEventListener('click', () => setSemitone(btn.dataset.semi));
+  btn.addEventListener('click', () => {
+    const semi = parseInt(btn.getAttribute('data-semi'));
+    setPitchShift(semi);
+  });
 });
 
-pitchSlider.addEventListener('input', (e) => setSemitone(e.target.value));
+pitchSlider.addEventListener('input', (e) => {
+  setPitchShift(parseInt(e.target.value));
+});
 
-// Ducking / Talk Mode Toggle
+// Ducking Toggle
 function toggleDucking() {
+  if (!duckingGain || !audioCtx) return;
   isDucked = !isDucked;
   if (isDucked) {
+    duckingGain.gain.setTargetAtTime(0.2, audioCtx.currentTime, 0.08);
     duckingBtn.classList.add('ducked');
-    duckingStatusText.innerText = '🎤 TALK MODE (Ducked)';
-    if (duckingGain && audioCtx) {
-      duckingGain.gain.setTargetAtTime(0.2, audioCtx.currentTime, 0.05);
-    }
+    duckingStatusText.innerText = 'TALKING (DUCKED)';
   } else {
+    duckingGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.12);
     duckingBtn.classList.remove('ducked');
-    duckingStatusText.innerText = '🎵 SINGING MODE';
-    if (duckingGain && audioCtx) {
-      duckingGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.05);
-    }
+    duckingStatusText.innerText = 'SINGING MODE';
   }
 }
 
 duckingBtn.addEventListener('click', toggleDucking);
 
-// Global Keyboard Shortcuts
+// Global Hotkeys (F8, Numpad -, `)
 window.addEventListener('keydown', (e) => {
-  if (document.activeElement === searchInput || document.activeElement === authUsernameInput || document.activeElement === authPasswordInput) return;
-
   if (e.key === 'F8' || e.code === 'NumpadSubtract' || e.key === '`') {
-    e.preventDefault();
-    toggleDucking();
-  } else if (e.code === 'Space') {
-    e.preventDefault();
-    togglePlayPause();
+    if (e.target.tagName !== 'INPUT') {
+      e.preventDefault();
+      toggleDucking();
+    }
   }
 });
 
@@ -1187,7 +1433,6 @@ async function getBestSearchUrl(query) {
   return `/api/search?q=${encodeURIComponent(query)}`;
 }
 
-
 // Play Track (Ultra-Reliable Dual Routing to Discord & Headphones)
 async function playTrack(track, seekSeconds = 0) {
   await initAudioEngine();
@@ -1217,7 +1462,6 @@ async function playTrack(track, seekSeconds = 0) {
     console.warn('AudioSource play note:', err);
   }
 }
-
 
 async function playTrackFromUrl(url) {
   await initAudioEngine();
@@ -1335,7 +1579,7 @@ function renderQueue() {
     item.className = 'queue-item';
     item.innerHTML = `
       <span class="queue-item-title">${idx + 1}. ${track.title}</span>
-      <button class="btn-link" onclick="removeFromQueue(${idx})" style="color: #e74c3c;">✖</button>
+      <button class="btn-link-danger" onclick="removeFromQueue(${idx})">✕</button>
     `;
     queueList.appendChild(item);
   });

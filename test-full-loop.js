@@ -108,6 +108,7 @@ async function runTests() {
       '/index.html',
       '/style.css',
       '/app.js',
+      '/noise-gate-processor.js',
       '/autotune-processor.js',
       '/pitch-shifter-processor.js',
       '/reverb-generator.js',
@@ -122,7 +123,7 @@ async function runTests() {
       }
     }
     if (allAssetsOk) {
-      console.log(`  ✅ Passed: All 7 critical static assets verified (200 OK)`);
+      console.log(`  ✅ Passed: All 8 critical static assets verified (200 OK)`);
       passed++;
     } else {
       failed++;

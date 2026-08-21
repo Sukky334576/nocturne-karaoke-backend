@@ -108,13 +108,24 @@
             <div id="ytPlayerDiv" class="video-iframe hidden"></div>
           </div>
 
-          <!-- Track Info & Controls -->
+          <!-- Track Info, Music Volume & Controls -->
           <div class="now-playing-bar">
             <div class="track-details">
               <span class="track-status-label">CURRENT TRACK</span>
               <h3 id="currentTrackTitle">ยังไม่มีเพลงที่เล่น</h3>
               <p id="currentTrackArtist">เลือกเพลงจากช่องค้นหาหรือคิวเพลง</p>
             </div>
+
+            <!-- Dedicated Backing Track Music Volume Slider -->
+            <div class="music-vol-control" title="ปรับระดับเสียงดนตรีคาราโอเกะ (Backing Track Volume)">
+              <div class="music-vol-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="vol-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                <span>เสียงเพลง:</span>
+                <span id="musicVolText" class="val-gold mono-num">100%</span>
+              </div>
+              <input type="range" id="musicVolSlider" min="0" max="1.5" step="0.05" value="1.0" aria-label="ระดับเสียงดนตรี">
+            </div>
+
             <div class="playback-controls">
               <button id="prevBtn" class="btn-icon" title="เพลงก่อนหน้า">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="3"/></svg>
@@ -202,7 +213,59 @@
 
       <!-- Right Column: DSP Effects & Hardware Routing -->
       <section class="studio-rack-col">
-        <!-- 1. Real-Time Vocal Auto-Tune Rack -->
+        <!-- One-Click Vocal FX Presets Toolbar -->
+        <div class="vocal-presets-card">
+          <div class="presets-header">
+            <span class="presets-title">PRO VOCAL PRESETS</span>
+            <span class="presets-desc">คลิกเดียวเซ็ตเสียงร้องระดับสตูดิโอ</span>
+          </div>
+          <div class="preset-pill-group">
+            <button class="preset-pill active" data-preset="pop" title="เสียงร้องคมชัดใสธรรมชาติ มี Reverb พอดีๆ">Studio Pop</button>
+            <button class="preset-pill" data-preset="tpain" title="Auto-Tune ดึงโน้ตเร็วสไตล์ T-Pain / Trap">T-Pain Trap</button>
+            <button class="preset-pill" data-preset="rock" title="เสียงก้องสเตเดียม ทรงพลัง">Rock Arena</button>
+            <button class="preset-pill" data-preset="lofi" title="เสียงร้องอุ่นนุ่มนวล สไตล์ Lo-Fi">Lo-Fi Warm</button>
+            <button class="preset-pill" data-preset="talk" title="ปิดเอฟเฟกต์ทั้งหมดเพื่อคุยปกติ">Clean Talk</button>
+          </div>
+        </div>
+
+        <!-- 1. Vocal Dynamics (Noise Gate & Compressor) -->
+        <div class="studio-module">
+          <div class="module-header">
+            <div>
+              <h2>Vocal Dynamics & Noise Gate</h2>
+              <p class="module-desc">ตัดเสียงพัดลม/คีย์บอร์ด & บีบเสียงร้องไม่ให้แตกใน Discord (ไม่ตัดเพลง)</p>
+            </div>
+            <label class="switch" title="เปิด/ปิด Noise Gate & Dynamics">
+              <input type="checkbox" id="dynamicsToggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="control-grid-2">
+            <!-- Noise Gate Control -->
+            <div class="control-group">
+              <div class="group-header">
+                <div class="title-with-badge">
+                  <label for="noiseGateSlider">Noise Gate</label>
+                  <span id="gateLedIndicator" class="gate-led open">OPEN</span>
+                </div>
+                <span id="noiseGateText" class="val-text mono-num">-45 dB</span>
+              </div>
+              <input type="range" id="noiseGateSlider" min="-75" max="-20" step="1" value="-45" aria-label="ระดับตัดเสียงรบกวน">
+            </div>
+
+            <!-- Studio Compressor / Limiter -->
+            <div class="control-group">
+              <div class="group-header">
+                <label for="compressorSlider">Vocal Compressor</label>
+                <span id="compressorText" class="val-text val-green mono-num">4:1 Ratio</span>
+              </div>
+              <input type="range" id="compressorSlider" min="1" max="8" step="0.5" value="4" aria-label="ระดับการบีบอัดเสียงร้อง">
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Real-Time Vocal Auto-Tune Rack -->
         <div class="studio-module">
           <div class="module-header">
             <div>
@@ -277,7 +340,7 @@
           </div>
         </div>
 
-        <!-- 2. Dual Audio Routing (Headphones + Discord Cable) -->
+        <!-- 3. Dual Audio Routing (Headphones + Discord Cable) -->
         <div class="studio-module">
           <div class="module-header">
             <div>
@@ -319,7 +382,7 @@
           </div>
         </div>
 
-        <!-- 3. Vocal FX Rack (Studio Reverb) -->
+        <!-- 4. Vocal FX Rack (Studio Reverb) -->
         <div class="studio-module">
           <div class="module-header">
             <div>
@@ -367,7 +430,7 @@
           </div>
         </div>
 
-        <!-- 4. Song Queue -->
+        <!-- 5. Song Queue -->
         <div class="studio-module">
           <div class="module-header">
             <h2>Song Queue</h2>
