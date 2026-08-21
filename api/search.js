@@ -2,8 +2,8 @@ const https = require('https');
 const yts = require('yt-search');
 
 const BACKEND_TUNNELS = [
-  'https://nocturne-karaoke-backend.onrender.com',
-  'https://surge-buy-covering-favors.trycloudflare.com'
+  'https://explicit-broadway-potato-judicial.trycloudflare.com',
+  'https://nocturne-karaoke-backend.onrender.com'
 ];
 
 async function searchFromBackend(backendUrl, query) {
@@ -24,7 +24,8 @@ async function searchFromBackend(backendUrl, query) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const query = req.query.q;
@@ -32,7 +33,6 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Query parameter q is required' });
   }
 
-  // 1. Try Cloud 24/7 and Tunnel backends
   for (const backend of BACKEND_TUNNELS) {
     try {
       const data = await searchFromBackend(backend, query);
@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
     }
   }
 
-  // 2. Fallback to direct yts search
+  // Fallback to direct yts search
   try {
     const results = await yts(query);
     const videos = results.videos.slice(0, 15).map(v => ({

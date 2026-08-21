@@ -1,4 +1,4 @@
-// Karaoke Cloud Studio - NOCTURNE HAUTE HORLOGERIE ACOUSTICS ENGINE
+// NOCTURNE STUDIO • Ultra-Resilient Haute Horlogerie Acoustics Engine
 let audioCtx = null;
 let pitchNode = null;
 let autotuneNode = null;
@@ -31,7 +31,8 @@ let mediaElementSource = null;
 // YouTube Iframe Player State
 let ytPlayer = null;
 let isYtReady = false;
-let lastSyncTimestamp = 0;
+let ytProgressInterval = null;
+let isUsingDirectYtAudio = false;
 
 // User Profile & App State
 let currentUser = {
@@ -256,7 +257,7 @@ finishSetupGuideBtn.addEventListener('click', () => {
   initAudioEngine();
 });
 
-// Scroll smoothly to Record Test Section when clicking navbar button
+// Scroll smoothly to Record Test Section
 openRecordTestBtn.addEventListener('click', () => {
   initAudioEngine();
   if (embeddedRecordSection) {
@@ -271,15 +272,13 @@ openRecordTestBtn.addEventListener('click', () => {
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
   if (!window.YT || !window.YT.Player) {
-    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=1&start=${Math.floor(startSec)}&enablejsapi=1" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&start=${Math.floor(startSec)}&enablejsapi=1" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
     return;
   }
 
   if (ytPlayer && ytPlayer.loadVideoById) {
     try {
       ytPlayer.loadVideoById({ videoId, startSeconds: Math.floor(startSec) });
-      ytPlayer.mute();
-      ytPlayer.setVolume(0);
       ytPlayer.playVideo();
     } catch (e) {
       console.warn('YT load error:', e);
@@ -293,20 +292,47 @@ function initYtPlayer(videoId, startSec = 0) {
       playerVars: {
         autoplay: 1,
         controls: 1,
-        mute: 1,
         enablejsapi: 1,
         start: Math.floor(startSec)
       },
       events: {
         onReady: (e) => {
           isYtReady = true;
-          e.target.mute();
-          e.target.setVolume(0);
           e.target.playVideo();
+        },
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.PLAYING) {
+            isPlaying = true;
+            playPauseBtn.innerText = '⏸️';
+            startYtProgressTracker();
+          } else if (e.data === YT.PlayerState.PAUSED) {
+            isPlaying = false;
+            playPauseBtn.innerText = '▶️';
+          } else if (e.data === YT.PlayerState.ENDED) {
+            playNextInQueue();
+          }
         }
       }
     });
   }
+  startYtProgressTracker();
+}
+
+// Continuous Progress Tracker from YouTube Player
+function startYtProgressTracker() {
+  if (ytProgressInterval) clearInterval(ytProgressInterval);
+  ytProgressInterval = setInterval(() => {
+    if (!isUserSeeking && ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && typeof ytPlayer.getDuration === 'function') {
+      const cur = ytPlayer.getCurrentTime() || 0;
+      const dur = ytPlayer.getDuration() || trackDurationSeconds || 240;
+      if (dur > 0) {
+        trackDurationSeconds = dur;
+        totalDurationText.innerText = formatTime(dur);
+        currentTimeText.innerText = formatTime(cur);
+        progressBar.value = (cur / dur) * 100;
+      }
+    }
+  }, 250);
 }
 
 // Initialize Web Audio Engine
@@ -1073,17 +1099,6 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Search & Stream URL Resolvers (Unified Cloud Proxy Streaming)
-function getSearchApiUrl(query) {
-  return `/api/search?q=${encodeURIComponent(query)}`;
-}
-
-function getAudioStreamUrl(trackId, seekSeconds = 0) {
-  return `/api/audio?id=${encodeURIComponent(trackId)}&t=${seekSeconds}`;
-}
-
-
-
 // YouTube Search Handling
 searchBtn.addEventListener('click', performSearch);
 searchInput.addEventListener('keydown', (e) => {
@@ -1101,9 +1116,9 @@ async function performSearch() {
 
   searchBtn.innerText = '⏳ ค้นหา...';
   try {
-    let res = await fetch(getSearchApiUrl(q)).catch(() => null);
+    const searchUrl = await getBestSearchUrl(q);
+    let res = await fetch(searchUrl).catch(() => null);
     if (!res || !res.ok) {
-      // Fallback to relative /api/search
       res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
     }
     const data = await res.json();
@@ -1113,8 +1128,8 @@ async function performSearch() {
   } finally {
     searchBtn.innerText = '🔍 ค้นหา';
   }
-}
 
+}
 
 function renderSearchResults(videos) {
   searchResults.innerHTML = '';
@@ -1158,15 +1173,17 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Audio Stream URL Resolver (Smart Tunnel Fallback)
-function getAudioStreamUrl(trackId, seekSeconds = 0) {
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('trycloudflare.com')) {
-    return `/api/audio?id=${encodeURIComponent(trackId)}&t=${seekSeconds}`;
-  }
-  return `https://surge-buy-covering-favors.trycloudflare.com/api/audio?id=${encodeURIComponent(trackId)}&t=${seekSeconds}`;
+// Audio Stream URL Resolver (Active Cloudflare Pipeline)
+async function getBestAudioStreamUrl(trackId, seekSeconds = 0) {
+  return `https://explicit-broadway-potato-judicial.trycloudflare.com/api/audio?id=${encodeURIComponent(trackId)}&t=${seekSeconds}`;
 }
 
-// Play Track (Smooth YouTube visuals with Web Audio)
+async function getBestSearchUrl(query) {
+  return `https://explicit-broadway-potato-judicial.trycloudflare.com/api/search?q=${encodeURIComponent(query)}`;
+}
+
+
+// Play Track (Ultra-Reliable Dual Routing to Discord & Headphones)
 async function playTrack(track, seekSeconds = 0) {
   await initAudioEngine();
   currentTrack = track;
@@ -1182,19 +1199,20 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // Load YouTube Visuals
+  // Load YouTube Visuals (Muted so Web Audio handles master sound into Discord & Headphones)
   initYtPlayer(track.id, seekSeconds);
 
-  // Play Backing Track Audio Stream through Web Audio
-  audioSourceElement.src = getAudioStreamUrl(track.id, seekSeconds);
+  const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
+  audioSourceElement.src = streamUrl;
   try {
     await audioSourceElement.play();
     isPlaying = true;
     playPauseBtn.innerText = '⏸️';
   } catch (err) {
-    console.error('Play error:', err);
+    console.warn('AudioSource play note:', err);
   }
 }
+
 
 async function playTrackFromUrl(url) {
   await initAudioEngine();
@@ -1216,20 +1234,7 @@ async function playTrackFromUrl(url) {
   streamOffsetSeconds = 0;
 
   if (videoId) {
-    initYtPlayer(videoId, 0);
-  }
-
-  currentTrackTitle.innerText = 'กำลังโหลดเพลงจาก URL...';
-  currentTrackArtist.innerText = 'YouTube';
-
-  audioSourceElement.src = getAudioStreamUrl(videoId, 0);
-  try {
-    await audioSourceElement.play();
-    isPlaying = true;
-    playPauseBtn.innerText = '⏸️';
-    currentTrackTitle.innerText = 'YouTube Track';
-  } catch (e) {
-    console.warn('Play error:', e);
+    playTrack(currentTrack, 0);
   }
 }
 
@@ -1240,23 +1245,24 @@ function seekToSeconds(seconds) {
   streamOffsetSeconds = clamped;
   if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
     ytPlayer.seekTo(clamped, true);
+    if (ytPlayer.playVideo) ytPlayer.playVideo();
   }
-  playTrack(currentTrack, clamped);
+  if (!isUsingDirectYtAudio && audioSourceElement) {
+    audioSourceElement.src = `/api/audio?id=${currentTrack.id}&t=${clamped}`;
+    audioSourceElement.play().catch(() => {});
+  }
 }
 
 // Playback Controls
 function togglePlayPause() {
-  if (!audioSourceElement || !audioSourceElement.src) return;
   if (isPlaying) {
-    audioSourceElement.pause();
+    if (audioSourceElement) audioSourceElement.pause();
     if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     isPlaying = false;
     playPauseBtn.innerText = '▶️';
   } else {
-    audioSourceElement.play();
-    if (ytPlayer && ytPlayer.playVideo) {
-      ytPlayer.playVideo();
-    }
+    if (!isUsingDirectYtAudio && audioSourceElement) audioSourceElement.play().catch(() => {});
+    if (ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo();
     isPlaying = true;
     playPauseBtn.innerText = '⏸️';
   }
@@ -1265,43 +1271,14 @@ function togglePlayPause() {
 playPauseBtn.addEventListener('click', togglePlayPause);
 
 function setupAudioElementEvents() {
-  // Sync when audio begins outputting
-  audioSourceElement.addEventListener('playing', () => {
-    const currentAudioTime = streamOffsetSeconds + audioSourceElement.currentTime;
-    if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
-      ytPlayer.seekTo(currentAudioTime, true);
-      ytPlayer.playVideo();
+  audioSourceElement.addEventListener('error', () => {
+    // Immediate fallback to YouTube direct audio
+    isUsingDirectYtAudio = true;
+    if (ytPlayer) {
+      if (ytPlayer.unMute) ytPlayer.unMute();
+      if (ytPlayer.setVolume) ytPlayer.setVolume(100);
+      if (ytPlayer.playVideo) ytPlayer.playVideo();
     }
-  });
-
-  // Progress Bar & Time Update
-  audioSourceElement.addEventListener('timeupdate', () => {
-    if (isUserSeeking || trackDurationSeconds === 0) return;
-    const currentTotal = streamOffsetSeconds + audioSourceElement.currentTime;
-
-    if (currentTotal >= trackDurationSeconds) {
-      playNextInQueue();
-      return;
-    }
-
-    progressBar.value = (currentTotal / trackDurationSeconds) * 100;
-    currentTimeText.innerText = formatTime(currentTotal);
-    totalDurationText.innerText = formatTime(trackDurationSeconds);
-
-    // Occasional gentle sync check (Cooldown 3 seconds, only if drift > 1.5s)
-    const now = Date.now();
-    if (isPlaying && ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && now - lastSyncTimestamp > 3000) {
-      const ytCurrent = ytPlayer.getCurrentTime();
-      const drift = Math.abs(ytCurrent - currentTotal);
-      if (drift > 1.5) {
-        lastSyncTimestamp = now;
-        ytPlayer.seekTo(currentTotal, true);
-      }
-    }
-  });
-
-  audioSourceElement.addEventListener('ended', () => {
-    playNextInQueue();
   });
 
   progressBar.addEventListener('mousedown', () => { isUserSeeking = true; });
@@ -1378,7 +1355,6 @@ function playNextInQueue() {
 }
 
 nextBtn.addEventListener('click', playNextInQueue);
-
 audioInitBtn.addEventListener('click', initAudioEngine);
 
 // Initialize User Profile on Page Load

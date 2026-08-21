@@ -1,8 +1,8 @@
 const https = require('https');
 
 const BACKEND_TUNNELS = [
-  'https://nocturne-karaoke-backend.onrender.com',
-  'https://surge-buy-covering-favors.trycloudflare.com'
+  'https://explicit-broadway-potato-judicial.trycloudflare.com',
+  'https://nocturne-karaoke-backend.onrender.com'
 ];
 
 async function streamFromTunnel(url, res) {
@@ -12,6 +12,8 @@ async function streamFromTunnel(url, res) {
       res.writeHead(resp.statusCode, {
         'Content-Type': resp.headers['content-type'] || 'audio/mpeg',
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*',
         'Accept-Ranges': 'none'
       });
       resp.pipe(res);
@@ -24,7 +26,8 @@ async function streamFromTunnel(url, res) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const id = req.query.id || req.query.v || req.query.url;
