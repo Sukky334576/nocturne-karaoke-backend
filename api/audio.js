@@ -1,7 +1,7 @@
 const https = require('https');
 
 const BACKEND_TUNNELS = [
-  'https://explicit-broadway-potato-judicial.trycloudflare.com',
+  'https://prep-tied-cables-accordance.trycloudflare.com',
   'https://nocturne-karaoke-backend.onrender.com'
 ];
 

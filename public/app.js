@@ -82,6 +82,10 @@ let isRecordingTest = false;
 let recordTimerInterval = null;
 let recordSeconds = 0;
 
+// SVG Icons
+const SVG_PLAY = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+const SVG_PAUSE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+
 // DOM Elements
 const audioInitBtn = document.getElementById('audioInitBtn');
 const duckingBtn = document.getElementById('duckingBtn');
@@ -235,11 +239,11 @@ function applyUserPreset(preset) {
 
 function updateAuthUI() {
   if (currentUser.username) {
-    userProfileLabel.innerHTML = `👤 <b>${currentUser.username}</b> (Offset: ${cableSyncOffsetMs}ms)`;
-    userProfileBtn.style.borderColor = 'rgba(212, 175, 55, 0.4)';
-    userProfileBtn.style.color = '#f3e5ab';
+    userProfileLabel.innerHTML = `<b>${currentUser.username}</b> (${cableSyncOffsetMs}ms)`;
+    userProfileBtn.style.borderColor = 'rgba(216, 177, 93, 0.4)';
+    userProfileBtn.style.color = '#f4e6c3';
   } else {
-    userProfileLabel.innerText = '👤 สมาชิก / Preset';
+    userProfileLabel.innerText = 'สมาชิก / Preset';
   }
 }
 
@@ -271,8 +275,9 @@ openRecordTestBtn.addEventListener('click', () => {
 
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
+  const origin = window.location.origin;
   if (!window.YT || !window.YT.Player) {
-    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&start=${Math.floor(startSec)}&enablejsapi=1" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
     return;
   }
 
@@ -293,6 +298,7 @@ function initYtPlayer(videoId, startSec = 0) {
         autoplay: 1,
         controls: 1,
         enablejsapi: 1,
+        origin: origin,
         start: Math.floor(startSec)
       },
       events: {
@@ -303,11 +309,11 @@ function initYtPlayer(videoId, startSec = 0) {
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
             isPlaying = true;
-            playPauseBtn.innerText = '⏸️';
+            playPauseBtn.innerHTML = SVG_PAUSE;
             startYtProgressTracker();
           } else if (e.data === YT.PlayerState.PAUSED) {
             isPlaying = false;
-            playPauseBtn.innerText = '▶️';
+            playPauseBtn.innerHTML = SVG_PLAY;
           } else if (e.data === YT.PlayerState.ENDED) {
             playNextInQueue();
           }
@@ -1114,7 +1120,7 @@ async function performSearch() {
     return;
   }
 
-  searchBtn.innerText = '⏳ ค้นหา...';
+  searchBtn.innerText = 'ค้นหา...';
   try {
     const searchUrl = await getBestSearchUrl(q);
     let res = await fetch(searchUrl).catch(() => null);
@@ -1126,9 +1132,8 @@ async function performSearch() {
   } catch (err) {
     alert('ค้นหาไม่สำเร็จ: ' + err.message);
   } finally {
-    searchBtn.innerText = '🔍 ค้นหา';
+    searchBtn.innerText = 'ค้นหา';
   }
-
 }
 
 function renderSearchResults(videos) {
@@ -1143,12 +1148,12 @@ function renderSearchResults(videos) {
     const item = document.createElement('div');
     item.className = 'search-item';
     item.innerHTML = `
-      <img src="${v.thumbnail}" alt="">
+      <img src="${v.thumbnail}" alt="" class="search-item-thumb">
       <div class="search-item-info">
         <div class="search-item-title">${v.title}</div>
         <div class="search-item-meta">${v.author} • ${v.duration}</div>
       </div>
-      <button class="btn btn-luxury-gold add-q-btn" style="padding: 4px 10px; font-size: 0.72rem;">+ คิว</button>
+      <button class="btn btn-gold add-q-btn" style="padding: 3px 8px; font-size: 0.72rem;">+ คิว</button>
     `;
 
     item.addEventListener('click', (e) => {
@@ -1168,18 +1173,18 @@ function renderSearchResults(videos) {
 }
 
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.search-box')) {
+  if (!e.target.closest('.search-box') && !e.target.closest('.search-box-compact')) {
     searchResults.classList.add('hidden');
   }
 });
 
-// Audio Stream URL Resolver (Active Cloudflare Pipeline)
+// Audio Stream URL Resolver
 async function getBestAudioStreamUrl(trackId, seekSeconds = 0) {
-  return `https://explicit-broadway-potato-judicial.trycloudflare.com/api/audio?id=${encodeURIComponent(trackId)}&t=${seekSeconds}`;
+  return `/api/audio?id=${encodeURIComponent(trackId)}&t=${seekSeconds}`;
 }
 
 async function getBestSearchUrl(query) {
-  return `https://explicit-broadway-potato-judicial.trycloudflare.com/api/search?q=${encodeURIComponent(query)}`;
+  return `/api/search?q=${encodeURIComponent(query)}`;
 }
 
 
@@ -1207,7 +1212,7 @@ async function playTrack(track, seekSeconds = 0) {
   try {
     await audioSourceElement.play();
     isPlaying = true;
-    playPauseBtn.innerText = '⏸️';
+    playPauseBtn.innerHTML = SVG_PAUSE;
   } catch (err) {
     console.warn('AudioSource play note:', err);
   }
@@ -1259,12 +1264,12 @@ function togglePlayPause() {
     if (audioSourceElement) audioSourceElement.pause();
     if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     isPlaying = false;
-    playPauseBtn.innerText = '▶️';
+    playPauseBtn.innerHTML = SVG_PLAY;
   } else {
     if (!isUsingDirectYtAudio && audioSourceElement) audioSourceElement.play().catch(() => {});
     if (ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo();
     isPlaying = true;
-    playPauseBtn.innerText = '⏸️';
+    playPauseBtn.innerHTML = SVG_PAUSE;
   }
 }
 

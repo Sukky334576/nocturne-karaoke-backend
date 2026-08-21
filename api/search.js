@@ -2,14 +2,14 @@ const https = require('https');
 const yts = require('yt-search');
 
 const BACKEND_TUNNELS = [
-  'https://explicit-broadway-potato-judicial.trycloudflare.com',
+  'https://prep-tied-cables-accordance.trycloudflare.com',
   'https://nocturne-karaoke-backend.onrender.com'
 ];
 
 async function searchFromBackend(backendUrl, query) {
   return new Promise((resolve, reject) => {
     const url = `${backendUrl}/api/search?q=${encodeURIComponent(query)}`;
-    const reqT = https.get(url, { timeout: 6000 }, (resp) => {
+    const reqT = https.get(url, { timeout: 4000 }, (resp) => {
       if (resp.statusCode !== 200) return reject('Status ' + resp.statusCode);
       let body = '';
       resp.on('data', chunk => body += chunk);
@@ -33,6 +33,26 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Query parameter q is required' });
   }
 
+  // 1. Direct yts search on Serverless (fastest & 0-dependency)
+  try {
+    const results = await yts(query);
+    if (results && results.videos && results.videos.length > 0) {
+      const videos = results.videos.slice(0, 15).map(v => ({
+        id: v.videoId,
+        title: v.title,
+        url: v.url,
+        duration: v.duration.timestamp,
+        seconds: v.duration.seconds,
+        author: v.author.name,
+        thumbnail: v.thumbnail
+      }));
+      return res.status(200).json({ videos });
+    }
+  } catch (err) {
+    console.warn('Direct yts search failed, trying backend tunnels:', err.message);
+  }
+
+  // 2. Tunnel fallback
   for (const backend of BACKEND_TUNNELS) {
     try {
       const data = await searchFromBackend(backend, query);
@@ -40,25 +60,9 @@ module.exports = async (req, res) => {
         return res.status(200).json(data);
       }
     } catch (e) {
-      console.warn(`Search failed on ${backend}, trying next...`);
+      // try next
     }
   }
 
-  // Fallback to direct yts search
-  try {
-    const results = await yts(query);
-    const videos = results.videos.slice(0, 15).map(v => ({
-      id: v.videoId,
-      title: v.title,
-      url: v.url,
-      duration: v.duration.timestamp,
-      seconds: v.duration.seconds,
-      author: v.author.name,
-      thumbnail: v.thumbnail
-    }));
-    res.status(200).json({ videos });
-  } catch (err) {
-    console.error('Search error:', err);
-    res.status(500).json({ error: 'Failed to search: ' + err.message });
-  }
+  res.status(500).json({ error: 'Failed to search YouTube' });
 };

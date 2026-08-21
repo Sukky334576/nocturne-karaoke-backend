@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NOCTURNE STUDIO • Precision Vocal & Karaoke Engine</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d8b15d'><circle cx='12' cy='12' r='10'/></svg>">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,21 +73,23 @@
       <section class="studio-rack-col">
         <!-- Search & Video Module -->
         <div class="studio-module">
-          <div class="module-header">
-            <h2>Source & Playback</h2>
-            <span class="module-chip">0ms Audio Routing</span>
-          </div>
-
-          <!-- Search & URL Input -->
-          <div class="search-box">
-            <div class="input-group">
-              <span class="input-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </span>
-              <input type="text" id="searchInput" placeholder="ค้นหาเพลง หรือวางลิงก์ YouTube ที่นี่..." autocomplete="off">
-              <button id="searchBtn" class="btn btn-gold">ค้นหา</button>
+          <div class="module-header-compact">
+            <div class="module-title-group">
+              <h2>Source & Playback</h2>
+              <span class="module-chip">0ms Routing</span>
             </div>
-            <div id="searchResults" class="search-results-dropdown hidden"></div>
+
+            <!-- Compact Integrated Search Bar -->
+            <div class="search-box-compact">
+              <div class="input-group-compact">
+                <span class="input-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </span>
+                <input type="text" id="searchInput" placeholder="ค้นหาเพลง หรือวางลิงก์ YouTube..." autocomplete="off">
+                <button id="searchBtn" class="btn-search-compact">ค้นหา</button>
+              </div>
+              <div id="searchResults" class="search-results-dropdown hidden"></div>
+            </div>
           </div>
 
           <!-- Video Screen Container -->
@@ -94,7 +97,7 @@
             <div id="videoPlaceholder" class="video-placeholder">
               <div class="placeholder-content">
                 <div class="placeholder-crest">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <polygon points="5 3 19 12 5 21 5 3"/>
                   </svg>
                 </div>
