@@ -1,40 +1,34 @@
-# 🎤 Nocturne Studio • Production Release & Test Report
+# 🎤 Nocturne Studio • Vocal Dynamics & Presets Upgrade
 
-ระบบ **Nocturne Studio (Haute Horlogerie Acoustic Engine)** ได้รับการทดสอบครบทุกระบบ (100% Pass) และเปิดให้บริการสู่ Production เรียบร้อยแล้ว!
+ระบบได้รับการอัปเกรดฟังก์ชันใหม่ตามความต้องการของผู้ใช้งานเรียบร้อยแล้ว:
+
+---
+
+## 🚀 ฟังก์ชันใหม่ที่เพิ่มเข้ามา
+
+### 1. 🎵 แถบปรับระดับเสียงเพลงดนตรี (Backing Track Volume Slider)
+* วางตำแหน่งตรงกรอบสีแดงในแถบ **Now Playing Bar** ระหว่างชื่อเพลงกับปุ่ม Play/Pause
+* ปรับระดับเสียงเพลงได้ตั้งแต่ `0% – 150%` โดยไม่กระทบกับระดับเสียงไมโครโฟน
+* เชื่อมโยงกับทั้งระบบ Web Audio DSP และ YouTube Player Direct Fallback
+
+### 2. 🔇 Vocal Dynamics & 0ms Noise Gate (ตัดเสียงรบกวน & คุมระดับเสียงร้อง)
+* **High-Precision Noise Gate Worklet (`noise-gate-processor.js`):**
+  * ตัดเสียงพัดลม, เสียงคีย์บอร์ด, และเสียงลมหายใจอัตโนมัติเมื่อหยุดร้อง
+  * **แยกท่อสัญญาณเด็ดขาด:** ไม่ตัดเสียงเพลงดนตรี 100%
+  * มีไฟสถานะ LED แบบเรียลไทม์ (`OPEN` สีเขียว = ร้องเพลง / `MUTED` สีส้ม = ดักตัดเสียง)
+* **Studio Vocal Compressor / Limiter:**
+  * ดันเสียงร้องท่อนเบาให้คมชัด และบีบอัดเสียงท่อนฮุคไม่ให้แตกหูเพื่อนใน Discord
+
+### 3. 🎛️ One-Click Pro Vocal Presets (พรีเซ็ตเสียงสำเร็จรูป 1 คลิก)
+* **🎙️ Studio Pop:** Auto-Tune ธรรมชาติ + Reverb 25% (1.8s) + Gate -45dB + Comp 4:1
+* **🤖 T-Pain Trap:** Hard Auto-Tune Retune Speed 0.0s + Reverb 35% + Comp 6:1
+* **🎸 Rock Arena:** Arena Reverb 40% (2.8s) + Comp 5:1 (ทรงพลัง ก้องกังวาน)
+* **📻 Lo-Fi Warm:** Reverb 20% (1.2s) + Comp 2.5:1 (โทนอุ่นนุ่มนวล)
+* **🗣️ Clean Talk:** ปิดเอฟเฟกต์ทั้งหมดเพื่อคุยปกติ
 
 ---
 
 ## 🌐 ลิงก์เข้าใช้งานระบบ Production
 
 * **Public HTTPS Live URL:** [https://prep-tied-cables-accordance.trycloudflare.com](https://prep-tied-cables-accordance.trycloudflare.com)
-* **Local Fast Engine:** [http://localhost:3300](http://localhost:3300)
-* **GitHub Repository:** [Sukky334576/nocturne-karaoke-backend](https://github.com/Sukky334576/nocturne-karaoke-backend.git)
-
----
-
-## 🧪 สรุปผลการทดสอบเชิงลึก (Comprehensive Test Suite)
-
-| ระบบที่ทดสอบ | ผลลัพธ์ | รายละเอียด |
-|---|:---:|---|
-| **Thai Search API** | ✅ **Passed** | ค้นหาเพลงภาษาไทยได้ 15 ผลลัพธ์อย่างแม่นยำ |
-| **English & Special Chars** | ✅ **Passed** | รองรับอักขระพิเศษและเพลงสากล |
-| **Static Assets Integrity** | ✅ **Passed** | ครบ 7 ไฟล์หลัก (`index.html`, `style.css`, `app.js`, `autotune-processor.js`, `pitch-shifter-processor.js`, `reverb-generator.js`, `Setup-Windows-Audio.bat`) |
-| **Audio Stream Pipeline** | ✅ **Passed** | สตรีมเสียง MP3 48kHz Direct Buffer ทำงานได้สมบูรณ์แบบ |
-| **Impeccable UI Detector** | ✅ **Passed** | ผ่าน 59 กฎ ไม่มี AI Anti-patterns / Slop |
-
----
-
-## 🚀 ฟีเจอร์หลักบน Production
-
-1. **Impeccable Luxury Studio UI:**
-   - โทน Deep Obsidian, Brushed Titanium, Champagne Gold
-   - SVG Vector Icons คมชัด
-   - Monospace Tabular Readouts สำหรับค่า Latency (`ms`), Volume (`%`), และ Key (`st`)
-2. **Real-Time Vocal Auto-Tune:**
-   - YIN Pitch Detection + Musical Scale Quantization
-   - ปรับ Retune Speed (Pop Studio $\leftrightarrow$ T-Pain Effect)
-3. **Dual Audio Routing & Zero-Latency Sync:**
-   - ฟังเสียงผ่านหูฟังพร้อมส่งสัญญาณเข้า VB-Cable สู่ Discord
-   - ล็อกค่าความหน่วงชดเชยเริ่มต้นที่ `120ms` ประจำตัว
-4. **Embedded Record & Playback Test:**
-   - อัดและฟังเสียงย้อนหลังได้ทันที
+* **Local Engine:** [http://localhost:3300](http://localhost:3300)
