@@ -8,7 +8,7 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3300;
 
-// Global Permissive CORS for Vercel and Browser cross-origin streaming
+// Global Permissive CORS for Cloud / Vercel / Render and Cross-Origin Streaming
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -29,18 +29,19 @@ const ytDlpPath = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
 const localFfmpeg = path.join(__dirname, 'bin', 'ffmpeg.exe');
 const ffmpegPath = fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
 
-// In-Memory Stream URL Cache (TTL: 1 hour)
+// In-Memory Search & Stream Cache (TTL: 2 hours)
+const searchCache = new Map();
 const streamCache = new Map();
 
 function extractStreamUrl(targetUrl) {
   return new Promise((resolve, reject) => {
     const cached = streamCache.get(targetUrl);
-    if (cached && (Date.now() - cached.time < 60 * 60 * 1000)) {
+    if (cached && (Date.now() - cached.time < 2 * 60 * 60 * 1000)) {
       return resolve(cached.url);
     }
 
     execFile(ytDlpPath, [
-      '--extractor-args', 'youtube:player_client=android,mweb',
+      '--extractor-args', 'youtube:player_client=ios,web,mweb,android,tv_embedded',
       '-f', 'ba/b',
       '-g',
       '--no-playlist',
@@ -58,22 +59,30 @@ function extractStreamUrl(targetUrl) {
   });
 }
 
-// API: Search YouTube
+// API: Search YouTube with Instant 1ms In-Memory Caching
 app.get('/api/search', async (req, res) => {
-  const query = req.query.q;
-  if (!query) return res.status(400).json({ error: 'Query parameter q is required' });
+  const rawQuery = req.query.q;
+  if (!rawQuery) return res.status(400).json({ error: 'Query parameter q is required' });
+  const query = rawQuery.trim().toLowerCase();
+
+  const cached = searchCache.get(query);
+  if (cached && (Date.now() - cached.time < 2 * 60 * 60 * 1000)) {
+    return res.json({ videos: cached.videos });
+  }
 
   try {
-    const results = await yts(query);
-    const videos = results.videos.slice(0, 15).map(v => ({
+    const results = await yts(rawQuery);
+    const videos = (results.videos || []).slice(0, 15).map(v => ({
       id: v.videoId,
       title: v.title,
       url: v.url,
-      duration: v.duration.timestamp,
-      seconds: v.duration.seconds,
-      author: v.author.name,
+      duration: v.duration ? v.duration.timestamp : '',
+      seconds: v.duration ? v.duration.seconds : 240,
+      author: v.author ? v.author.name : '',
       thumbnail: v.thumbnail
     }));
+
+    searchCache.set(query, { videos, time: Date.now() });
     res.json({ videos });
   } catch (err) {
     console.error('Search error:', err);
@@ -135,6 +144,11 @@ app.get('/api/audio', async (req, res) => {
     console.error('Audio stream error:', err);
     if (!res.headersSent) res.status(500).send('Error streaming audio: ' + err);
   }
+});
+
+// Health check endpoint (for Cloud keep-alive)
+app.get('/api/ping', (req, res) => {
+  res.json({ status: 'ok', time: Date.now() });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

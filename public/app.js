@@ -569,15 +569,23 @@ openRecordTestBtn.addEventListener('click', () => {
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
   const origin = window.location.origin;
+  const shouldMute = !isUsingDirectYtAudio;
+  const initialMuteVal = shouldMute ? 1 : 0;
+
   if (!window.YT || !window.YT.Player) {
-    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=1&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${initialMuteVal}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
     return;
   }
 
   if (ytPlayer && ytPlayer.loadVideoById) {
     try {
       ytPlayer.loadVideoById({ videoId, startSeconds: Math.floor(startSec) });
-      if (ytPlayer.mute) ytPlayer.mute();
+      if (shouldMute && ytPlayer.mute) ytPlayer.mute();
+      else if (!shouldMute && ytPlayer.unMute) {
+        ytPlayer.unMute();
+        const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+        ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+      }
       ytPlayer.playVideo();
     } catch (e) {
       console.warn('YT load error:', e);
@@ -591,7 +599,7 @@ function initYtPlayer(videoId, startSec = 0) {
       playerVars: {
         autoplay: 1,
         controls: 1,
-        mute: 1, // ALWAYS MUTED: only Web Audio DSP feeds sound
+        mute: initialMuteVal,
         enablejsapi: 1,
         origin: origin,
         start: Math.floor(startSec)
@@ -599,13 +607,18 @@ function initYtPlayer(videoId, startSec = 0) {
       events: {
         onReady: (e) => {
           isYtReady = true;
-          if (e.target && e.target.mute) e.target.mute();
+          if (shouldMute && e.target && e.target.mute) e.target.mute();
+          else if (!shouldMute && e.target && e.target.unMute) {
+            e.target.unMute();
+            const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+            e.target.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+          }
           e.target.playVideo();
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
             isPlaying = true;
-            if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
+            if (shouldMute && ytPlayer && ytPlayer.mute) ytPlayer.mute();
             playPauseBtn.innerHTML = SVG_PAUSE;
             startYtProgressTracker();
           } else if (e.data === YT.PlayerState.PAUSED) {
@@ -1125,6 +1138,12 @@ function updateMusicHpLevel(val, shouldSave = true) {
     const target = isHpMusicMuted ? 0.0 : v;
     musicHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
   }
+
+  // Also sync volume to YouTube player in fallback mode
+  if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function') {
+    ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.min(100, Math.round(v * 100)));
+  }
+
   if (shouldSave) saveUserProfile();
 }
 
@@ -1137,6 +1156,16 @@ function toggleHpMusicMute() {
     const target = isHpMusicMuted ? 0.0 : (currentUser.preset.hpMusicVol || 0.9);
     musicHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
   }
+
+  if (ytPlayer && isUsingDirectYtAudio) {
+    if (isHpMusicMuted && typeof ytPlayer.mute === 'function') {
+      ytPlayer.mute();
+    } else if (!isHpMusicMuted && typeof ytPlayer.unMute === 'function') {
+      ytPlayer.unMute();
+      ytPlayer.setVolume(Math.round((currentUser.preset.hpMusicVol || 0.9) * 100));
+    }
+  }
+
   saveUserProfile();
 }
 
@@ -1784,7 +1813,7 @@ async function getBestAudioStreamUrl(videoId, startSeconds = 0) {
   return `/api/audio?id=${videoId}&t=${startSeconds}`;
 }
 
-// Play Track (Ultra-Reliable Dual Routing to Discord & Headphones)
+// Play Track (Ultra-Reliable Dual Routing to Discord & Headphones with Zero-Fail Guarantee)
 async function playTrack(track, seekSeconds = 0) {
   await initAudioEngine();
   currentTrack = track;
@@ -1800,9 +1829,10 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // Load YouTube Visuals (Muted so Web Audio handles master sound into Discord & Headphones)
+  // Load YouTube Visuals
   initYtPlayer(track.id, seekSeconds);
 
+  // Try Web Audio DSP streaming; on Cloud or bot-check fallback, YouTube direct player takes over seamlessly
   const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
   audioSourceElement.src = streamUrl;
   try {
@@ -1810,8 +1840,23 @@ async function playTrack(track, seekSeconds = 0) {
     isPlaying = true;
     playPauseBtn.innerHTML = SVG_PAUSE;
   } catch (err) {
-    console.warn('AudioSource play note:', err);
+    console.warn('AudioSource stream note, activating YouTube direct player:', err);
+    activateYtAudioFailover();
   }
+}
+
+function activateYtAudioFailover() {
+  isUsingDirectYtAudio = true;
+  if (ytPlayer) {
+    if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+    const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+    if (typeof ytPlayer.setVolume === 'function') {
+      ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+    }
+    if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo();
+  }
+  isPlaying = true;
+  playPauseBtn.innerHTML = SVG_PAUSE;
 }
 
 async function playTrackFromUrl(url) {
@@ -1851,12 +1896,15 @@ function seekToSeconds(seconds) {
 
   if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
     ytPlayer.seekTo(clamped, true);
-    if (ytPlayer.mute) ytPlayer.mute();
+    if (!isUsingDirectYtAudio && ytPlayer.mute) ytPlayer.mute();
+    else if (isUsingDirectYtAudio && ytPlayer.unMute) ytPlayer.unMute();
     if (ytPlayer.playVideo) ytPlayer.playVideo();
   }
-  if (audioSourceElement) {
+  if (audioSourceElement && !isUsingDirectYtAudio) {
     audioSourceElement.src = `/api/audio?id=${currentTrack.id}&t=${clamped}`;
-    audioSourceElement.play().catch(() => {});
+    audioSourceElement.play().catch(() => {
+      activateYtAudioFailover();
+    });
   }
   isPlaying = true;
   playPauseBtn.innerHTML = SVG_PAUSE;
@@ -1871,9 +1919,14 @@ function togglePlayPause() {
     isPlaying = false;
     playPauseBtn.innerHTML = SVG_PLAY;
   } else {
-    if (audioSourceElement) audioSourceElement.play().catch(() => {});
+    if (audioSourceElement && !isUsingDirectYtAudio) {
+      audioSourceElement.play().catch(() => {
+        activateYtAudioFailover();
+      });
+    }
     if (ytPlayer && ytPlayer.playVideo) {
-      if (ytPlayer.mute) ytPlayer.mute();
+      if (!isUsingDirectYtAudio && ytPlayer.mute) ytPlayer.mute();
+      else if (isUsingDirectYtAudio && ytPlayer.unMute) ytPlayer.unMute();
       ytPlayer.playVideo();
     }
     isPlaying = true;
@@ -1884,8 +1937,9 @@ function togglePlayPause() {
 playPauseBtn.addEventListener('click', togglePlayPause);
 
 function setupAudioElementEvents() {
-  audioSourceElement.addEventListener('error', () => {
-    console.warn('AudioSource stream error event');
+  audioSourceElement.addEventListener('error', (e) => {
+    console.warn('AudioSource stream error event, activating YouTube direct player:', e);
+    activateYtAudioFailover();
   });
 
   progressBar.addEventListener('mousedown', () => { isUserSeeking = true; });
