@@ -58,7 +58,11 @@ let mediaElementSource = null;
 let ytPlayer = null;
 let isYtReady = false;
 let ytProgressInterval = null;
-let isUsingDirectYtAudio = false;
+// Auto-detect Cloud hosting environment (Render / Vercel / Remote HTTPS)
+const isCloudHost = window.location.hostname.includes('onrender.com') ||
+                    window.location.hostname.includes('vercel.app') ||
+                    (!['localhost', '127.0.0.1'].includes(window.location.hostname));
+let isUsingDirectYtAudio = isCloudHost;
 
 // User Profile & App State
 let currentUser = {
@@ -569,22 +573,22 @@ openRecordTestBtn.addEventListener('click', () => {
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
   const origin = window.location.origin;
-  const shouldMute = !isUsingDirectYtAudio;
-  const initialMuteVal = shouldMute ? 1 : 0;
 
   if (!window.YT || !window.YT.Player) {
-    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${initialMuteVal}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
+    const muteFlag = isUsingDirectYtAudio ? 0 : 1;
+    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
     return;
   }
 
   if (ytPlayer && ytPlayer.loadVideoById) {
     try {
       ytPlayer.loadVideoById({ videoId, startSeconds: Math.floor(startSec) });
-      if (shouldMute && ytPlayer.mute) ytPlayer.mute();
-      else if (!shouldMute && ytPlayer.unMute) {
-        ytPlayer.unMute();
+      if (isUsingDirectYtAudio) {
+        if (ytPlayer.unMute) ytPlayer.unMute();
         const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
-        ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+        if (ytPlayer.setVolume) ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+      } else {
+        if (ytPlayer.mute) ytPlayer.mute();
       }
       ytPlayer.playVideo();
     } catch (e) {
@@ -599,7 +603,7 @@ function initYtPlayer(videoId, startSec = 0) {
       playerVars: {
         autoplay: 1,
         controls: 1,
-        mute: initialMuteVal,
+        mute: isUsingDirectYtAudio ? 0 : 1,
         enablejsapi: 1,
         origin: origin,
         start: Math.floor(startSec)
@@ -607,18 +611,25 @@ function initYtPlayer(videoId, startSec = 0) {
       events: {
         onReady: (e) => {
           isYtReady = true;
-          if (shouldMute && e.target && e.target.mute) e.target.mute();
-          else if (!shouldMute && e.target && e.target.unMute) {
-            e.target.unMute();
+          if (isUsingDirectYtAudio) {
+            if (e.target && e.target.unMute) e.target.unMute();
             const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
-            e.target.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+            if (e.target && e.target.setVolume) e.target.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+          } else {
+            if (e.target && e.target.mute) e.target.mute();
           }
           e.target.playVideo();
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
             isPlaying = true;
-            if (shouldMute && ytPlayer && ytPlayer.mute) ytPlayer.mute();
+            if (isUsingDirectYtAudio) {
+              if (ytPlayer && ytPlayer.unMute) ytPlayer.unMute();
+              const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+              if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+            } else {
+              if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
+            }
             playPauseBtn.innerHTML = SVG_PAUSE;
             startYtProgressTracker();
           } else if (e.data === YT.PlayerState.PAUSED) {
@@ -1861,24 +1872,36 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // Load YouTube Visuals
+  // Load YouTube Visuals & Audio
   initYtPlayer(track.id, seekSeconds);
 
-  // Try Web Audio DSP streaming; on Cloud or bot-check fallback, YouTube direct player takes over seamlessly
-  const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
-  audioSourceElement.src = streamUrl;
-  try {
-    await audioSourceElement.play();
+  if (isUsingDirectYtAudio) {
+    // In Direct YouTube mode (Cloud / Failover): YouTube player provides high-definition audio directly
     isPlaying = true;
     playPauseBtn.innerHTML = SVG_PAUSE;
-  } catch (err) {
-    console.warn('AudioSource stream note, activating YouTube direct player:', err);
-    activateYtAudioFailover();
+  } else {
+    // On local machine: Try Web Audio DSP streaming through audioSourceElement
+    const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
+    audioSourceElement.src = streamUrl;
+    try {
+      await audioSourceElement.play();
+      isPlaying = true;
+      playPauseBtn.innerHTML = SVG_PAUSE;
+    } catch (err) {
+      console.warn('AudioSource stream note, activating YouTube direct player:', err);
+      activateYtAudioFailover();
+    }
   }
 }
 
 function activateYtAudioFailover() {
+  console.log('⚡ Switching to YouTube Direct Audio playback mode');
   isUsingDirectYtAudio = true;
+  if (audioSourceElement) {
+    audioSourceElement.pause();
+    audioSourceElement.removeAttribute('src');
+    audioSourceElement.load();
+  }
   if (ytPlayer) {
     if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
     const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
