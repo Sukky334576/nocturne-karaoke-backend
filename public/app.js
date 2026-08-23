@@ -1748,19 +1748,51 @@ async function performSearch() {
 
   searchBtn.innerText = 'ค้นหา...';
   try {
-    const searchUrl = await getBestSearchUrl(q);
-    let res = await fetch(searchUrl).catch(() => null);
-    if (!res || !res.ok) {
-      res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    let videos = [];
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data && data.videos && data.videos.length > 0) {
+          videos = data.videos;
+        }
+      }
+    } catch (e) {
+      console.warn('Backend search note:', e);
     }
-    const data = await res.json();
-    renderSearchResults(data.videos || []);
+
+    // Fallback: If backend is cold-starting or busy, query YouTube public mirror
+    if (!videos || videos.length === 0) {
+      try {
+        const fallbackRes = await fetch(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(q)}&filter=videos`);
+        if (fallbackRes && fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          videos = (fallbackData.items || []).slice(0, 15).map(item => ({
+            id: (item.url || '').replace('/watch?v=', ''),
+            title: item.title,
+            url: `https://youtube.com${item.url}`,
+            duration: formatTime(item.duration || 240),
+            seconds: item.duration || 240,
+            author: item.uploaderName || '',
+            thumbnail: item.thumbnail
+          }));
+        }
+      } catch (e) {}
+    }
+
+    renderSearchResults(videos);
   } catch (err) {
-    alert('ค้นหาไม่สำเร็จ: ' + err.message);
+    console.error('Search error:', err);
+    renderSearchResults([]);
   } finally {
     searchBtn.innerText = 'ค้นหา';
   }
 }
+
+// Background Keep-Alive Heartbeat (Pings server every 4 mins to prevent Render cold sleep)
+setInterval(() => {
+  fetch('/api/ping').catch(() => {});
+}, 4 * 60 * 1000);
 
 function renderSearchResults(videos) {
   searchResults.innerHTML = '';
