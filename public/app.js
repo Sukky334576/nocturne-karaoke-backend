@@ -742,6 +742,9 @@ async function initAudioEngine() {
     cableSyncDelayNode = audioCtx.createDelay(1.0);
     cableSyncDelayNode.delayTime.setValueAtTime(cableSyncOffsetMs / 1000, audioCtx.currentTime);
 
+    cableGain = audioCtx.createGain();
+    cableGain.gain.setValueAtTime(parseFloat(cableVol.value), audioCtx.currentTime);
+
     // Auto-Tune Dedicated Gains (Separated into Cable & Headphone busses)
     autotuneCableGain = audioCtx.createGain();
     autotuneCableGain.gain.setValueAtTime(isAutotuneEnabled ? 1.0 : 0.0, audioCtx.currentTime);
