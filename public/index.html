@@ -387,16 +387,16 @@
                 <input type="range" id="hpMusicVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเพลงในหู">
               </div>
 
-              <!-- Sub: Vocal in HP -->
+              <!-- Sub: Vocal in HP (Default 0% to prevent headphone echo with hardware mic) -->
               <div class="control-subgroup">
                 <div class="group-header">
                   <div class="title-with-badge">
-                    <button id="hpVocalMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดฟังเสียงร้องตัวเอง">🎤 เสียงร้อง</button>
+                    <button id="hpVocalMuteBtn" class="mute-mini-badge muted" title="เปิด/ปิดฟังเสียงร้องตัวเองในหู">🎤 เสียงร้อง</button>
                     <label for="hpVocalVol">เสียงร้องในหู</label>
                   </div>
-                  <span id="hpVocalVolText" class="val-text val-green mono-num">80%</span>
+                  <span id="hpVocalVolText" class="val-text val-green mono-num">0% (ปิด)</span>
                 </div>
-                <input type="range" id="hpVocalVol" min="0" max="1.5" step="0.05" value="0.8" aria-label="ระดับเสียงร้องในหู">
+                <input type="range" id="hpVocalVol" min="0" max="1.5" step="0.05" value="0.0" aria-label="ระดับเสียงร้องในหู">
               </div>
             </div>
 

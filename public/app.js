@@ -2,7 +2,8 @@
 let audioCtx = null;
 let pitchNode = null;
 let autotuneNode = null;
-let autotuneGain = null;
+let autotuneCableGain = null;
+let autotuneHpGain = null;
 let recordMicGain = null;
 let duckingGain = null;
 let masterGain = null;
@@ -22,7 +23,7 @@ let cableSyncDelayNode = null;
 // Channel Mute States
 let isHpMusicMuted = false;
 let isCableMusicMuted = false;
-let isHpVocalMuted = false;
+let isHpVocalMuted = true; // Default muted to prevent headphone hardware mic echo
 let isCableVocalMuted = false;
 
 // Vocal Dynamics Nodes
@@ -62,13 +63,13 @@ let currentUser = {
     syncOffsetMs: 120,
     hpMusicVol: 0.9,
     cableMusicVol: 0.20,
-    hpVocalVol: 0.8,
+    hpVocalVol: 0.0,
     cableVocalVol: 1.0,
     headphoneVol: 0.8,
     cableVol: 0.9,
     isHpMusicMuted: false,
     isCableMusicMuted: false,
-    isHpVocalMuted: false,
+    isHpVocalMuted: true,
     isCableVocalMuted: false,
     reverbMix: 0.25,
     reverbDecay: 1.8,
@@ -741,12 +742,12 @@ async function initAudioEngine() {
     cableSyncDelayNode = audioCtx.createDelay(1.0);
     cableSyncDelayNode.delayTime.setValueAtTime(cableSyncOffsetMs / 1000, audioCtx.currentTime);
 
-    cableGain = audioCtx.createGain();
-    cableGain.gain.setValueAtTime(parseFloat(cableVol.value), audioCtx.currentTime);
+    // Auto-Tune Dedicated Gains (Separated into Cable & Headphone busses)
+    autotuneCableGain = audioCtx.createGain();
+    autotuneCableGain.gain.setValueAtTime(isAutotuneEnabled ? 1.0 : 0.0, audioCtx.currentTime);
 
-    // Auto-Tune Dedicated Gain (Feeds tuned voice to Discord & Headphones)
-    autotuneGain = audioCtx.createGain();
-    autotuneGain.gain.setValueAtTime(isAutotuneEnabled ? 1.0 : 0.0, audioCtx.currentTime);
+    autotuneHpGain = audioCtx.createGain();
+    autotuneHpGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
 
     // Record Test Mic Gain
     recordMicGain = audioCtx.createGain();
@@ -827,15 +828,15 @@ async function initAudioEngine() {
     reverbGain.connect(headphoneReverbGain);
     headphoneReverbGain.connect(headphoneMixGain);
 
-    // 5. AUTO-TUNE VOCAL ROUTING:
-    autotuneGain.connect(cableMixGain);
-    autotuneGain.connect(headphoneMixGain);
+    // 5. AUTO-TUNE VOCAL ROUTING (Isolated to Cable by default):
+    autotuneCableGain.connect(cableMixGain);
+    autotuneHpGain.connect(headphoneMixGain);
 
     // 6. TEST RECORDER DESTINATION:
-    cableGain.connect(destRecordTest);      // Synced Backing Track
-    reverbGain.connect(destRecordTest);     // Reverb Tail
-    autotuneGain.connect(destRecordTest);   // Tuned Voice (when ON)
-    recordMicGain.connect(destRecordTest);  // Real Direct Voice (when AutoTune OFF)
+    cableGain.connect(destRecordTest);          // Synced Backing Track
+    reverbGain.connect(destRecordTest);         // Reverb Tail
+    autotuneCableGain.connect(destRecordTest);  // Tuned Voice (when ON)
+    recordMicGain.connect(destRecordTest);      // Real Direct Voice (when AutoTune OFF)
 
     // Load Auto-Tune Worklet
     try {
@@ -847,7 +848,8 @@ async function initAudioEngine() {
           atTargetNote.innerText = e.data.targetNote;
         }
       };
-      autotuneNode.connect(autotuneGain);
+      autotuneNode.connect(autotuneCableGain);
+      autotuneNode.connect(autotuneHpGain);
       updateAutotuneParams();
     } catch (e) {
       console.warn('AutoTune Worklet note:', e);
@@ -984,14 +986,18 @@ function updateDynamicsParams() {
 function updateVocalAudioRouting() {
   if (!audioCtx) return;
 
-  const userHpVocal = currentUser.preset.hpVocalVol !== undefined ? currentUser.preset.hpVocalVol : 0.8;
+  const userHpVocal = currentUser.preset.hpVocalVol !== undefined ? currentUser.preset.hpVocalVol : 0.0;
   const userCableVocal = currentUser.preset.cableVocalVol !== undefined ? currentUser.preset.cableVocalVol : 1.0;
 
   if (isAutotuneEnabled) {
     // When Auto-Tune is ON: Route ONLY Auto-Tuned vocal, mute dry bypass to prevent double voice / acoustic phasing!
-    if (autotuneGain) {
+    if (autotuneCableGain) {
       const targetGain = isCableVocalMuted ? 0.0 : userCableVocal;
-      autotuneGain.gain.setValueAtTime(targetGain, audioCtx.currentTime);
+      autotuneCableGain.gain.setValueAtTime(targetGain, audioCtx.currentTime);
+    }
+    if (autotuneHpGain) {
+      const targetGain = isHpVocalMuted ? 0.0 : userHpVocal;
+      autotuneHpGain.gain.setValueAtTime(targetGain, audioCtx.currentTime);
     }
     if (vocalCableGain) {
       vocalCableGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
@@ -1004,8 +1010,11 @@ function updateVocalAudioRouting() {
     }
   } else {
     // When Auto-Tune is OFF: Route clean Dry processed vocal (with Noise Gate & Compressor), mute autotune gain!
-    if (autotuneGain) {
-      autotuneGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    if (autotuneCableGain) {
+      autotuneCableGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
+    if (autotuneHpGain) {
+      autotuneHpGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
     }
     if (vocalCableGain) {
       const targetGain = isCableVocalMuted ? 0.0 : userCableVocal;
