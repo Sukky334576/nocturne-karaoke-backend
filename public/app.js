@@ -980,17 +980,52 @@ function updateDynamicsParams() {
   saveUserProfile();
 }
 
+// Update Vocal Audio Routing (Guarantees zero double voice / phasing)
+function updateVocalAudioRouting() {
+  if (!audioCtx) return;
+
+  const userHpVocal = currentUser.preset.hpVocalVol !== undefined ? currentUser.preset.hpVocalVol : 0.8;
+  const userCableVocal = currentUser.preset.cableVocalVol !== undefined ? currentUser.preset.cableVocalVol : 1.0;
+
+  if (isAutotuneEnabled) {
+    // When Auto-Tune is ON: Route ONLY Auto-Tuned vocal, mute dry bypass to prevent double voice / acoustic phasing!
+    if (autotuneGain) {
+      const targetGain = isCableVocalMuted ? 0.0 : userCableVocal;
+      autotuneGain.gain.setValueAtTime(targetGain, audioCtx.currentTime);
+    }
+    if (vocalCableGain) {
+      vocalCableGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
+    if (vocalHpGain) {
+      vocalHpGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
+    if (recordMicGain) {
+      recordMicGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
+  } else {
+    // When Auto-Tune is OFF: Route clean Dry processed vocal (with Noise Gate & Compressor), mute autotune gain!
+    if (autotuneGain) {
+      autotuneGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
+    if (vocalCableGain) {
+      const targetGain = isCableVocalMuted ? 0.0 : userCableVocal;
+      vocalCableGain.gain.setValueAtTime(targetGain, audioCtx.currentTime);
+    }
+    if (vocalHpGain) {
+      const targetGain = isHpVocalMuted ? 0.0 : userHpVocal;
+      vocalHpGain.gain.setValueAtTime(targetGain, audioCtx.currentTime);
+    }
+    if (recordMicGain) {
+      recordMicGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+    }
+  }
+}
+
 // Update Auto-Tune AudioWorklet Parameters
 function updateAutotuneParams() {
   if (!audioCtx) return;
 
-  if (autotuneGain) {
-    autotuneGain.gain.setValueAtTime(isAutotuneEnabled ? 1.0 : 0.0, audioCtx.currentTime);
-  }
-
-  if (recordMicGain) {
-    recordMicGain.gain.setValueAtTime(isAutotuneEnabled ? 0.0 : 1.0, audioCtx.currentTime);
-  }
+  updateVocalAudioRouting();
 
   if (autotuneNode) {
     const pEnabled = autotuneNode.parameters.get('enabled');
@@ -1061,10 +1096,7 @@ function updateVocalHpLevel(val, shouldSave = true) {
   if (hpVocalVol) hpVocalVol.value = v;
   if (hpVocalVolText) hpVocalVolText.innerText = Math.round(v * 100) + '%';
 
-  if (vocalHpGain && audioCtx) {
-    const target = isHpVocalMuted ? 0.0 : v;
-    vocalHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
-  }
+  updateVocalAudioRouting();
   if (shouldSave) saveUserProfile();
 }
 
@@ -1073,10 +1105,7 @@ function toggleHpVocalMute() {
   currentUser.preset.isHpVocalMuted = isHpVocalMuted;
   syncMuteUI(null, hpVocalMuteBtn, !isHpVocalMuted);
 
-  if (vocalHpGain && audioCtx) {
-    const target = isHpVocalMuted ? 0.0 : (currentUser.preset.hpVocalVol || 0.8);
-    vocalHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
-  }
+  updateVocalAudioRouting();
   saveUserProfile();
 }
 
@@ -1116,10 +1145,7 @@ function updateVocalCableLevel(val, shouldSave = true) {
   if (cableVocalVol) cableVocalVol.value = v;
   if (cableVocalVolText) cableVocalVolText.innerText = Math.round(v * 100) + '%';
 
-  if (vocalCableGain && audioCtx) {
-    const target = isCableVocalMuted ? 0.0 : v;
-    vocalCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
-  }
+  updateVocalAudioRouting();
   if (shouldSave) saveUserProfile();
 }
 
@@ -1128,10 +1154,7 @@ function toggleCableVocalMute() {
   currentUser.preset.isCableVocalMuted = isCableVocalMuted;
   syncMuteUI(null, cableVocalMuteBtn, !isCableVocalMuted);
 
-  if (vocalCableGain && audioCtx) {
-    const target = isCableVocalMuted ? 0.0 : (currentUser.preset.cableVocalVol || 1.0);
-    vocalCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
-  }
+  updateVocalAudioRouting();
   saveUserProfile();
 }
 

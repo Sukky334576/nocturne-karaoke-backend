@@ -1,13 +1,40 @@
-# 🎤 Nocturne Studio • Live Production URL
+# 🎛️ Nocturne Studio • Independent Dual-Channel Audio Dispatcher
+
+ระบบได้รับการอัปเกรดเป็นสถาปัตยกรรม **Studio Dual-Channel Mixer** ที่แยกท่อเสียงระหว่าง **"หูฟังของเรา"** และ **"ในเกม FiveM / Discord"** ออกจากกันแบบ 100% อิสระเรียบร้อยแล้ว:
 
 ---
 
-## 🌐 ลิงก์เข้าใช้งานระบบ (Active Now)
+## 🚀 สรุปฟังก์ชันใหม่ (Dual-Channel Architecture)
+
+```
+[ แหล่งกำเนิดเพลง YouTube ]
+       │
+       ├───▶ [ musicHpGain ] ────────▶ [ Headphone Mix ] ────────▶ 🎧 หูฟังของเรา (ดังชัด 80-100%)
+       │                                                                (พร้อมปุ่ม Mute 🎧)
+       │
+       └───▶ [ musicCableGain ] ─────▶ [ Cable Mix (120ms Sync) ] ──▶ 🎙️ ในเกม FiveM / Discord (ดังพอดี 15-20%)
+                                                                        (พร้อมปุ่ม Mute 🔊)
+```
+
+### 1. 🎧 ช่องสัญญาณที่ 1: หูฟังของเรา (Direct Monitor)
+* **เสียงเพลงในหูเรา (Music Monitor):** ปรับความดังได้ `0% - 150%` (ค่าเริ่มต้น `90%`) ฟังชัดสะใจในหูฟัง
+* **เสียงร้องสดในหูเรา (Vocal Monitor):** ปรับความดังเสียงไมค์ตัวเองในหูฟังได้ `0% - 150%`
+* **ปุ่ม Mute อิสระ:** กดเปิด/ปิดเสียงเพลง หรือเสียงร้องในหูตัวเองได้โดยไม่กระทบกับสิ่งที่คนในเกมได้ยิน
+
+### 2. 🎙️ ช่องสัญญาณที่ 2: ส่งเข้า FiveM & Discord (VoIP Broadcast)
+* **เสียงเพลงเข้าเกม FiveM (Music Broadcast):** ปรับจูนความละเอียดสูง `0% - 100%` (ค่าเริ่มต้นตั้งไว้ที่ **`20% พอดี`**) ทำให้เสียงเพลงเป็นดนตรีคลอเบาๆ ด้านหลังเสียงพูด ไม่กลบไมค์และไม่หนวกหูเพื่อนใน FiveM
+* **เสียงร้องเข้า FiveM (Vocal Broadcast):** ส่งเสียงร้องคมชัดพร้อม Auto-Tune & Reverb เข้าเกมเต็มพิกัด (`100%`)
+* **ปุ่ม Mute เพลงเข้าเกม (🔊 FiveM):** กดเปิด/ปิดส่งเพลงเข้าเกมได้ทันที 1 คลิก (เช่น เวลาร้องเพลงจบแล้วอยากคุยกับเพื่อนต่อ โดยที่เพลงยังเล่นในหูเราอยู่)
+
+### 3. ⚡ แถบควบคุมด่วนใต้จอคาราโอเกะ (Now Playing Bar)
+* มีแถบปรับเสียงแยก 2 เม็ด:
+  * `[ 🎧 หูเรา: 90% ]` + แถบสไลด์
+  * `[ 🎙️ FiveM: 20% ]` + แถบสไลด์
+* สามารถกดที่ปุ่ม `หูเรา:` หรือ `FiveM:` เพื่อ Mute/Unmute ได้ทันทีในคลิกเดียว
+
+---
+
+## 🌐 ลิงก์เข้าใช้งานระบบ Live
 
 * **Public HTTPS Live URL:** [https://conference-creates-dealers-regulations.trycloudflare.com](https://conference-creates-dealers-regulations.trycloudflare.com)
-* **Local Engine (สำหรับเครื่องคุณ):** [http://localhost:3300](http://localhost:3300)
-
----
-
-## 💡 วิธีเปิดใช้งานอัตโนมัติในเครื่อง
-สามารถดับเบิ้ลคลิกไฟล์ [`Start-Karaoke.bat`](file:///C:/Users/tong3/.gemini/antigravity/scratch/karaoke-sync-player/Start-Karaoke.bat) ในโฟลเดอร์โปรเจกต์ เพื่อเปิดทั้งระบบเสียงและอุโมงค์ Cloudflare อัตโนมัติใน 1 คลิกได้ทุกเมื่อครับ!
+* **Local Engine:** [http://localhost:3300](http://localhost:3300)
