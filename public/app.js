@@ -1805,6 +1805,17 @@ setInterval(() => {
   fetch('/api/ping').catch(() => {});
 }, 4 * 60 * 1000);
 
+// Security Helper: Sanitize text against XSS injection
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function renderSearchResults(videos) {
   searchResults.innerHTML = '';
   if (videos.length === 0) {
@@ -1817,10 +1828,10 @@ function renderSearchResults(videos) {
     const item = document.createElement('div');
     item.className = 'search-item';
     item.innerHTML = `
-      <img src="${v.thumbnail}" alt="" class="search-item-thumb">
+      <img src="${escapeHtml(v.thumbnail)}" alt="" class="search-item-thumb">
       <div class="search-item-info">
-        <div class="search-item-title">${v.title}</div>
-        <div class="search-item-meta">${v.author} • ${v.duration}</div>
+        <div class="search-item-title">${escapeHtml(v.title)}</div>
+        <div class="search-item-meta">${escapeHtml(v.author)} • ${escapeHtml(v.duration)}</div>
       </div>
       <button class="btn btn-gold add-q-btn" style="padding: 3px 8px; font-size: 0.72rem;">+ คิว</button>
     `;
@@ -2045,7 +2056,7 @@ function renderQueue() {
     const item = document.createElement('div');
     item.className = 'queue-item';
     item.innerHTML = `
-      <span class="queue-item-title">${idx + 1}. ${track.title}</span>
+      <span class="queue-item-title">${idx + 1}. ${escapeHtml(track.title)}</span>
       <button class="btn-link-danger" onclick="removeFromQueue(${idx})">✕</button>
     `;
     queueList.appendChild(item);
@@ -2121,29 +2132,29 @@ function renderPluginRackUI() {
       paramsHtml += `
         <div class="plugin-param-control">
           <div class="plugin-param-header">
-            <label for="param-${plugin.id}-${p.id}">${p.label}</label>
-            <span class="plugin-param-val" id="val-${plugin.id}-${p.id}">${displayVal}</span>
+            <label for="param-${escapeHtml(plugin.id)}-${escapeHtml(p.id)}">${escapeHtml(p.label)}</label>
+            <span class="plugin-param-val" id="val-${escapeHtml(plugin.id)}-${escapeHtml(p.id)}">${escapeHtml(displayVal)}</span>
           </div>
-          <input type="range" id="param-${plugin.id}-${p.id}"
+          <input type="range" id="param-${escapeHtml(plugin.id)}-${escapeHtml(p.id)}"
             min="${p.min}" max="${p.max}" step="${p.step}" value="${curVal}"
-            data-plugin="${plugin.id}" data-param="${p.id}" data-unit="${p.unit || ''}">
+            data-plugin="${escapeHtml(plugin.id)}" data-param="${escapeHtml(p.id)}" data-unit="${escapeHtml(p.unit || '')}">
         </div>
       `;
     });
 
     card.innerHTML = `
-      <div class="plugin-slot-header" data-toggle="${plugin.id}">
+      <div class="plugin-slot-header" data-toggle="${escapeHtml(plugin.id)}">
         <div class="plugin-info-left">
-          <span class="plugin-icon">${plugin.icon || '🔌'}</span>
-          <span class="plugin-name">${plugin.name}</span>
+          <span class="plugin-icon">${escapeHtml(plugin.icon || '🔌')}</span>
+          <span class="plugin-name">${escapeHtml(plugin.name)}</span>
         </div>
         <div class="plugin-header-actions">
-          <button class="btn-plugin-bypass ${plugin.enabled ? 'active' : ''}" data-bypass="${plugin.id}">
+          <button class="btn-plugin-bypass ${plugin.enabled ? 'active' : ''}" data-bypass="${escapeHtml(plugin.id)}">
             ${plugin.enabled ? 'ACTIVE' : 'BYPASS'}
           </button>
         </div>
       </div>
-      <div class="plugin-params-grid ${plugin.enabled ? '' : 'hidden'}" id="params-${plugin.id}">
+      <div class="plugin-params-grid ${plugin.enabled ? '' : 'hidden'}" id="params-${escapeHtml(plugin.id)}">
         ${paramsHtml}
       </div>
     `;
@@ -2207,15 +2218,15 @@ function renderPluginStoreUI() {
     card.className = 'plugin-store-card';
     card.innerHTML = `
       <div class="plugin-store-top">
-        <div class="plugin-store-icon">${plugin.icon || '🔌'}</div>
+        <div class="plugin-store-icon">${escapeHtml(plugin.icon || '🔌')}</div>
         <div class="plugin-store-title">
-          <h4>${plugin.name}</h4>
-          <div class="plugin-store-meta">v${plugin.version} • by ${plugin.author}</div>
-          <p class="plugin-store-desc">${plugin.description || ''}</p>
+          <h4>${escapeHtml(plugin.name)}</h4>
+          <div class="plugin-store-meta">v${escapeHtml(plugin.version)} • by ${escapeHtml(plugin.author)}</div>
+          <p class="plugin-store-desc">${escapeHtml(plugin.description || '')}</p>
         </div>
       </div>
       <div class="plugin-store-action" style="margin-top: 8px;">
-        <button class="btn ${plugin.enabled ? 'btn-garnet' : 'btn-primary'} btn-full" data-store-toggle="${plugin.id}">
+        <button class="btn ${plugin.enabled ? 'btn-garnet' : 'btn-primary'} btn-full" data-store-toggle="${escapeHtml(plugin.id)}">
           ${plugin.enabled ? '✕ ปิดใช้งาน (Disable)' : '✓ เปิดใช้งานใน Rack (Enable)'}
         </button>
       </div>

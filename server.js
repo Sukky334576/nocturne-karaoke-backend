@@ -30,9 +30,25 @@ const ytDlpPath = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
 const localFfmpeg = path.join(__dirname, 'bin', 'ffmpeg.exe');
 const ffmpegPath = fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
 
-// In-Memory Search & Stream Cache (TTL: 4 hours)
+// In-Memory Search & Stream Cache with LRU Size Bound (Max 300 entries, TTL: 4 hours)
 const searchCache = new Map();
 const streamCache = new Map();
+
+function setBoundedCache(map, key, value, maxEntries = 300) {
+  if (map.size >= maxEntries) {
+    const firstKey = map.keys().next().value;
+    map.delete(firstKey);
+  }
+  map.set(key, value);
+}
+
+// Input Validator for YouTube IDs and URLs (Defense-in-Depth against argument injection)
+function isValidYouTubeIdOrUrl(str) {
+  if (!str || typeof str !== 'string') return false;
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return true;
+  if (/^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)[a-zA-Z0-9_-]{11}/.test(str)) return true;
+  return false;
+}
 
 // Ultra-Fast YouTube Search via Direct InnerTube API (~150-300ms)
 function fastYoutubeSearch(query) {
@@ -111,6 +127,7 @@ function extractStreamUrl(targetUrl) {
       '-f', 'ba/b',
       '-g',
       '--no-playlist',
+      '--',
       targetUrl
     ], (error, stdout, stderr) => {
       if (error) {
@@ -119,7 +136,7 @@ function extractStreamUrl(targetUrl) {
       }
       const streamUrl = stdout.trim().split('\n').filter(l => l.startsWith('http'))[0];
       if (!streamUrl) return reject('No stream URL returned');
-      streamCache.set(targetUrl, { url: streamUrl, time: Date.now() });
+      setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
       resolve(streamUrl);
     });
   });
@@ -140,7 +157,7 @@ app.get('/api/search', async (req, res) => {
   try {
     const videos = await fastYoutubeSearch(rawQuery);
     if (videos && videos.length > 0) {
-      searchCache.set(query, { videos, time: Date.now() });
+      setBoundedCache(searchCache, query, { videos, time: Date.now() }, 300);
       return res.json({ videos });
     }
   } catch (err) {
@@ -160,7 +177,7 @@ app.get('/api/search', async (req, res) => {
       thumbnail: v.thumbnail
     }));
 
-    searchCache.set(query, { videos, time: Date.now() });
+    setBoundedCache(searchCache, query, { videos, time: Date.now() }, 300);
     res.json({ videos });
   } catch (err) {
     console.error('Search error:', err);
@@ -171,8 +188,12 @@ app.get('/api/search', async (req, res) => {
 // API: Audio Stream (Direct Pipe via FFmpeg)
 app.get('/api/audio', async (req, res) => {
   const idOrUrl = req.query.id || req.query.url;
-  const startTime = parseFloat(req.query.t || req.query.start || 0);
-  if (!idOrUrl) return res.status(400).send('id or url required');
+  const startTime = Math.max(0, parseFloat(req.query.t || req.query.start || 0));
+  
+  if (!idOrUrl || !isValidYouTubeIdOrUrl(idOrUrl)) {
+    return res.status(400).send('Valid YouTube video ID or URL required');
+  }
+
   const targetUrl = idOrUrl.startsWith('http') ? idOrUrl : `https://www.youtube.com/watch?v=${idOrUrl}`;
 
   try {
@@ -211,7 +232,9 @@ app.get('/api/audio', async (req, res) => {
     ffmpegProcess.stdout.pipe(res);
 
     req.on('close', () => {
-      ffmpegProcess.kill('SIGKILL');
+      if (ffmpegProcess && !ffmpegProcess.killed) {
+        ffmpegProcess.kill();
+      }
     });
 
     ffmpegProcess.on('error', (err) => {
@@ -234,7 +257,7 @@ const POPULAR_QUERIES = ['รัก', 'ใจสั่งมา', 'แพ้ท�
 setTimeout(() => {
   POPULAR_QUERIES.forEach(q => {
     fastYoutubeSearch(q).then(videos => {
-      if (videos && videos.length > 0) searchCache.set(q.toLowerCase(), { videos, time: Date.now() });
+      if (videos && videos.length > 0) setBoundedCache(searchCache, q.toLowerCase(), { videos, time: Date.now() }, 300);
     }).catch(() => {});
   });
 }, 2000);
