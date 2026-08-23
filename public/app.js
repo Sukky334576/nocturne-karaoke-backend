@@ -31,6 +31,11 @@ let noiseGateNode = null;
 let vocalCompressorNode = null;
 let isDynamicsEnabled = true;
 
+// Modular FX Plugin Rack Nodes & Safety Limiter
+let pluginRackInput = null;
+let pluginRackOutput = null;
+let safetyLimiterNode = null;
+
 let convolverNode = null;
 let reverbInputGain = null;
 let reverbGain = null;
@@ -334,7 +339,7 @@ function saveUserProfile() {
     syncOffsetMs: cableSyncOffsetMs,
     hpMusicVol: hpMusicVol ? parseFloat(hpMusicVol.value) : 0.9,
     cableMusicVol: cableMusicVol ? parseFloat(cableMusicVol.value) : 0.20,
-    hpVocalVol: hpVocalVol ? parseFloat(hpVocalVol.value) : 0.8,
+    hpVocalVol: hpVocalVol ? parseFloat(hpVocalVol.value) : 0.0,
     cableVocalVol: cableVocalVol ? parseFloat(cableVocalVol.value) : 1.0,
     headphoneVol: parseFloat(headphoneVol.value),
     cableVol: parseFloat(cableVol.value),
@@ -352,7 +357,8 @@ function saveUserProfile() {
     autotuneAmount: parseFloat(atAmount.value),
     noiseGateThreshold: noiseGateSlider ? parseFloat(noiseGateSlider.value) : -45,
     compressorRatio: compressorSlider ? parseFloat(compressorSlider.value) : 4,
-    dynamicsEnabled: isDynamicsEnabled
+    dynamicsEnabled: isDynamicsEnabled,
+    plugins: window.nocturnePlugins ? window.nocturnePlugins.getSerializedState() : []
   };
   localStorage.setItem('karaoke_current_user', JSON.stringify(currentUser));
 }
@@ -360,6 +366,11 @@ function saveUserProfile() {
 function applyUserPreset(preset) {
   if (!preset) return;
   setSyncOffset(preset.syncOffsetMs !== undefined ? preset.syncOffsetMs : 120);
+
+  if (preset.plugins && window.nocturnePlugins) {
+    window.nocturnePlugins.applySerializedState(preset.plugins);
+    renderPluginRackUI();
+  }
 
   // Channel A: Headphone Music Level
   if (preset.hpMusicVol !== undefined) {
@@ -756,6 +767,27 @@ async function initAudioEngine() {
     recordMicGain = audioCtx.createGain();
     recordMicGain.gain.setValueAtTime(isAutotuneEnabled ? 0.0 : 1.0, audioCtx.currentTime);
 
+    // Modular FX Plugin Rack & Safety Brickwall Limiter (-0.1dB)
+    pluginRackInput = audioCtx.createGain();
+    pluginRackOutput = audioCtx.createGain();
+
+    safetyLimiterNode = audioCtx.createDynamicsCompressor();
+    safetyLimiterNode.threshold.setValueAtTime(-0.1, audioCtx.currentTime);
+    safetyLimiterNode.knee.setValueAtTime(0, audioCtx.currentTime);
+    safetyLimiterNode.ratio.setValueAtTime(20, audioCtx.currentTime);
+    safetyLimiterNode.attack.setValueAtTime(0.001, audioCtx.currentTime);
+    safetyLimiterNode.release.setValueAtTime(0.05, audioCtx.currentTime);
+
+    pluginRackOutput.connect(safetyLimiterNode);
+
+    if (window.nocturnePlugins) {
+      window.nocturnePlugins.init(audioCtx, pluginRackInput, pluginRackOutput);
+      if (currentUser.preset && currentUser.preset.plugins) {
+        window.nocturnePlugins.applySerializedState(currentUser.preset.plugins);
+      }
+      renderPluginRackUI();
+    }
+
     // Reverb System
     convolverNode = audioCtx.createConvolver();
     reverbInputGain = audioCtx.createGain();
@@ -929,13 +961,19 @@ async function initMicrophoneStream(deviceId) {
     micSource = audioCtx.createMediaStreamSource(stream);
     micSource.connect(micAnalyser);
 
-    // Connect through Vocal Dynamics Chain (Noise Gate -> Compressor -> FX)
+    // Connect through Vocal Dynamics Chain (Noise Gate -> Compressor -> Plugin Rack -> Safety Limiter)
     let vocalChainSource = micSource;
 
     if (noiseGateNode && vocalCompressorNode) {
       micSource.connect(noiseGateNode);
       noiseGateNode.connect(vocalCompressorNode);
       vocalChainSource = vocalCompressorNode;
+    }
+
+    // Connect through Modular FX Plugin Rack & Safety Brickwall Limiter
+    if (pluginRackInput && safetyLimiterNode) {
+      vocalChainSource.connect(pluginRackInput);
+      vocalChainSource = safetyLimiterNode;
     }
 
     // Direct voice to Headphone Direct Monitor
@@ -1925,6 +1963,285 @@ function playNextInQueue() {
 
 nextBtn.addEventListener('click', playNextInQueue);
 audioInitBtn.addEventListener('click', initAudioEngine);
+
+// ==========================================================================
+// Modular FX Plugin UI & Manager Logic
+// ==========================================================================
+const pluginRackContainer = document.getElementById('pluginRackContainer');
+const pluginModal = document.getElementById('pluginModal');
+const headerPluginBtn = document.getElementById('headerPluginBtn');
+const openPluginStoreBtn = document.getElementById('openPluginStoreBtn');
+const closePluginModalBtn = document.getElementById('closePluginModalBtn');
+const finishPluginModalBtn = document.getElementById('finishPluginModalBtn');
+const tabOfficialStore = document.getElementById('tabOfficialStore');
+const tabCustomInstall = document.getElementById('tabCustomInstall');
+const officialStoreView = document.getElementById('officialStoreView');
+const customInstallView = document.getElementById('customInstallView');
+const pluginDropzone = document.getElementById('pluginDropzone');
+const pluginFileInput = document.getElementById('pluginFileInput');
+const browsePluginFileBtn = document.getElementById('browsePluginFileBtn');
+const pluginCodeInput = document.getElementById('pluginCodeInput');
+const loadPluginCodeBtn = document.getElementById('loadPluginCodeBtn');
+
+// Render the Plugin Rack Slots on the main UI
+function renderPluginRackUI() {
+  if (!pluginRackContainer || !window.nocturnePlugins) return;
+
+  const plugins = window.nocturnePlugins.activePlugins;
+  if (plugins.length === 0) {
+    pluginRackContainer.innerHTML = '<div class="empty-queue">ไม่มีปลั๊กอินใน Rack (กด + Plugin Store เพื่อเพิ่ม)</div>';
+    return;
+  }
+
+  pluginRackContainer.innerHTML = '';
+  plugins.forEach(plugin => {
+    const card = document.createElement('div');
+    card.className = `plugin-slot-card ${plugin.enabled ? 'active' : ''}`;
+    card.id = `slot-${plugin.id}`;
+
+    let paramsHtml = '';
+    plugin.params.forEach(p => {
+      const curVal = plugin.getParam(p.id);
+      let displayVal = curVal;
+      if (p.unit === '%') displayVal = Math.round(curVal * 100) + '%';
+      else if (p.unit === 's') displayVal = curVal.toFixed(2) + 's';
+      else if (p.unit === 'Hz') displayVal = curVal + 'Hz';
+      else if (p.unit === 'x') displayVal = curVal + 'x';
+      else if (p.unit === 'dB') displayVal = curVal + 'dB';
+
+      paramsHtml += `
+        <div class="plugin-param-control">
+          <div class="plugin-param-header">
+            <label for="param-${plugin.id}-${p.id}">${p.label}</label>
+            <span class="plugin-param-val" id="val-${plugin.id}-${p.id}">${displayVal}</span>
+          </div>
+          <input type="range" id="param-${plugin.id}-${p.id}"
+            min="${p.min}" max="${p.max}" step="${p.step}" value="${curVal}"
+            data-plugin="${plugin.id}" data-param="${p.id}" data-unit="${p.unit || ''}">
+        </div>
+      `;
+    });
+
+    card.innerHTML = `
+      <div class="plugin-slot-header" data-toggle="${plugin.id}">
+        <div class="plugin-info-left">
+          <span class="plugin-icon">${plugin.icon || '🔌'}</span>
+          <span class="plugin-name">${plugin.name}</span>
+        </div>
+        <div class="plugin-header-actions">
+          <button class="btn-plugin-bypass ${plugin.enabled ? 'active' : ''}" data-bypass="${plugin.id}">
+            ${plugin.enabled ? 'ACTIVE' : 'BYPASS'}
+          </button>
+        </div>
+      </div>
+      <div class="plugin-params-grid ${plugin.enabled ? '' : 'hidden'}" id="params-${plugin.id}">
+        ${paramsHtml}
+      </div>
+    `;
+
+    // Bypass button listener
+    const bypassBtn = card.querySelector(`[data-bypass="${plugin.id}"]`);
+    if (bypassBtn) {
+      bypassBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const newState = !plugin.enabled;
+        window.nocturnePlugins.togglePlugin(plugin.id, newState);
+        renderPluginRackUI();
+        renderPluginStoreUI();
+        saveUserProfile();
+      });
+    }
+
+    // Header toggle accordion listener
+    const header = card.querySelector(`[data-toggle="${plugin.id}"]`);
+    if (header) {
+      header.addEventListener('click', () => {
+        const grid = card.querySelector(`#params-${plugin.id}`);
+        if (grid) grid.classList.toggle('hidden');
+      });
+    }
+
+    // Parameter sliders listeners
+    card.querySelectorAll('input[type="range"]').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const pId = e.target.getAttribute('data-param');
+        const plId = e.target.getAttribute('data-plugin');
+        const unit = e.target.getAttribute('data-unit');
+        const val = parseFloat(e.target.value);
+
+        window.nocturnePlugins.setPluginParam(plId, pId, val);
+
+        const valTag = card.querySelector(`#val-${plId}-${pId}`);
+        if (valTag) {
+          if (unit === '%') valTag.innerText = Math.round(val * 100) + '%';
+          else if (unit === 's') valTag.innerText = val.toFixed(2) + 's';
+          else if (unit === 'Hz') valTag.innerText = val + 'Hz';
+          else if (unit === 'x') valTag.innerText = val + 'x';
+          else if (unit === 'dB') valTag.innerText = val + 'dB';
+          else valTag.innerText = val;
+        }
+        saveUserProfile();
+      });
+    });
+
+    pluginRackContainer.appendChild(card);
+  });
+}
+
+// Render Plugin Store Grid inside Modal
+function renderPluginStoreUI() {
+  if (!officialStoreView || !window.nocturnePlugins) return;
+
+  officialStoreView.innerHTML = '';
+  window.nocturnePlugins.activePlugins.forEach(plugin => {
+    const card = document.createElement('div');
+    card.className = 'plugin-store-card';
+    card.innerHTML = `
+      <div class="plugin-store-top">
+        <div class="plugin-store-icon">${plugin.icon || '🔌'}</div>
+        <div class="plugin-store-title">
+          <h4>${plugin.name}</h4>
+          <div class="plugin-store-meta">v${plugin.version} • by ${plugin.author}</div>
+          <p class="plugin-store-desc">${plugin.description || ''}</p>
+        </div>
+      </div>
+      <div class="plugin-store-action" style="margin-top: 8px;">
+        <button class="btn ${plugin.enabled ? 'btn-garnet' : 'btn-primary'} btn-full" data-store-toggle="${plugin.id}">
+          ${plugin.enabled ? '✕ ปิดใช้งาน (Disable)' : '✓ เปิดใช้งานใน Rack (Enable)'}
+        </button>
+      </div>
+    `;
+
+    const toggleBtn = card.querySelector(`[data-store-toggle="${plugin.id}"]`);
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        window.nocturnePlugins.togglePlugin(plugin.id, !plugin.enabled);
+        renderPluginRackUI();
+        renderPluginStoreUI();
+        saveUserProfile();
+      });
+    }
+
+    officialStoreView.appendChild(card);
+  });
+}
+
+// Plugin Modal Listeners
+if (headerPluginBtn) {
+  headerPluginBtn.addEventListener('click', () => {
+    renderPluginStoreUI();
+    pluginModal.classList.remove('hidden');
+  });
+}
+
+if (openPluginStoreBtn) {
+  openPluginStoreBtn.addEventListener('click', () => {
+    renderPluginStoreUI();
+    pluginModal.classList.remove('hidden');
+  });
+}
+
+if (closePluginModalBtn) {
+  closePluginModalBtn.addEventListener('click', () => {
+    pluginModal.classList.add('hidden');
+  });
+}
+
+if (finishPluginModalBtn) {
+  finishPluginModalBtn.addEventListener('click', () => {
+    pluginModal.classList.add('hidden');
+  });
+}
+
+// Tabs switching in Plugin Modal
+if (tabOfficialStore && tabCustomInstall) {
+  tabOfficialStore.addEventListener('click', () => {
+    tabOfficialStore.classList.add('active');
+    tabCustomInstall.classList.remove('active');
+    officialStoreView.classList.remove('hidden');
+    customInstallView.classList.add('hidden');
+  });
+
+  tabCustomInstall.addEventListener('click', () => {
+    tabCustomInstall.classList.add('active');
+    tabOfficialStore.classList.remove('active');
+    customInstallView.classList.remove('hidden');
+    officialStoreView.classList.add('hidden');
+  });
+}
+
+// Custom Plugin File Drag & Drop
+if (pluginDropzone) {
+  ['dragenter', 'dragover'].forEach(eventName => {
+    pluginDropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      pluginDropzone.classList.add('dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    pluginDropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      pluginDropzone.classList.remove('dragover');
+    });
+  });
+
+  pluginDropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handlePluginFile(files[0]);
+    }
+  });
+
+  if (browsePluginFileBtn && pluginFileInput) {
+    browsePluginFileBtn.addEventListener('click', () => pluginFileInput.click());
+    pluginFileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handlePluginFile(e.target.files[0]);
+      }
+    });
+  }
+}
+
+async function handlePluginFile(file) {
+  if (!file.name.endsWith('.js')) {
+    alert('กรุณาเลือกไฟล์ JavaScript (.js) สำหรับปลั๊กอิน');
+    return;
+  }
+  const code = await file.text();
+  installPluginCode(code);
+}
+
+// Custom Plugin Code Input Installation
+if (loadPluginCodeBtn && pluginCodeInput) {
+  loadPluginCodeBtn.addEventListener('click', () => {
+    const code = pluginCodeInput.value.trim();
+    if (!code) {
+      alert('กรุณากรอกโค้ด JavaScript ของปลั๊กอิน');
+      return;
+    }
+    installPluginCode(code);
+  });
+}
+
+async function installPluginCode(code) {
+  if (!window.nocturnePlugins) return;
+  const res = await window.nocturnePlugins.loadPluginFromCode(code);
+  if (res.success) {
+    alert(`🎉 ติดตั้งปลั๊กอิน "${res.name}" สำเร็จและเสียบเข้าสู่ Modular Rack เรียบร้อยแล้ว!`);
+    renderPluginRackUI();
+    renderPluginStoreUI();
+    if (tabOfficialStore) tabOfficialStore.click();
+    saveUserProfile();
+  } else {
+    alert(`❌ เกิดข้อผิดพลาดในการโหลดปลั๊กอิน: ${res.error}`);
+  }
+}
+
+// Initial Plugin Rack Render
+if (window.nocturnePlugins) {
+  renderPluginRackUI();
+}
 
 // Initialize User Profile on Page Load
 loadUserProfile();

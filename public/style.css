@@ -1278,6 +1278,268 @@ input:checked + .slider::before {
 }
 
 /* ==========================================================================
+   Modular FX Insert Rack & Plugin Styles
+   ========================================================================== */
+.fx-rack-module {
+  border-color: rgba(216, 177, 93, 0.22);
+}
+
+.safe-badge {
+  font-size: 0.68rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  padding: 2px 7px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+
+.plugin-rack-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plugin-slot-card {
+  background: rgba(12, 14, 20, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.plugin-slot-card.active {
+  border-color: rgba(216, 177, 93, 0.4);
+  background: rgba(216, 177, 93, 0.04);
+}
+
+.plugin-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.plugin-info-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plugin-icon {
+  font-size: 1.1rem;
+}
+
+.plugin-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.plugin-slot-card.active .plugin-name {
+  color: var(--gold-bright);
+}
+
+.plugin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-plugin-bypass {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-plugin-bypass.active {
+  background: var(--gold-primary);
+  border-color: var(--gold-primary);
+  color: #0c0e14;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(216, 177, 93, 0.25);
+}
+
+.plugin-params-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.plugin-params-grid.hidden {
+  display: none;
+}
+
+.plugin-param-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plugin-param-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.plugin-param-header label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.plugin-param-val {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--gold-bright);
+}
+
+/* Plugin Store & Custom Loader Modal */
+.modal-card.modal-lg {
+  max-width: 780px;
+}
+
+.plugin-modal-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--bg-input);
+  padding: 3px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 8px;
+}
+
+.plugin-store-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.plugin-store-card {
+  background: var(--bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  transition: var(--transition-fast);
+}
+
+.plugin-store-card:hover {
+  border-color: rgba(216, 177, 93, 0.3);
+}
+
+.plugin-store-top {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.plugin-store-icon {
+  font-size: 1.5rem;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.plugin-store-title h4 {
+  font-size: 0.88rem;
+  color: #fff;
+}
+
+.plugin-store-meta {
+  font-size: 0.72rem;
+  color: var(--gold-primary);
+  margin-top: 1px;
+}
+
+.plugin-store-desc {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.custom-install-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plugin-dropzone {
+  border: 2px dashed rgba(216, 177, 93, 0.35);
+  background: rgba(216, 177, 93, 0.03);
+  border-radius: var(--radius-sm);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.plugin-dropzone:hover, .plugin-dropzone.dragover {
+  border-color: var(--gold-bright);
+  background: rgba(216, 177, 93, 0.08);
+}
+
+.dropzone-icon {
+  font-size: 2rem;
+  margin-bottom: 6px;
+}
+
+.plugin-dropzone h4 {
+  font-size: 0.92rem;
+  color: var(--gold-bright);
+}
+
+.plugin-dropzone p {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.custom-code-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-code-box label {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.custom-code-box textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  padding: 10px;
+  outline: none;
+  resize: vertical;
+}
+
+.custom-code-box textarea:focus {
+  border-color: var(--gold-primary);
+}
+
+/* ==========================================================================
    Modals System
    ========================================================================== */
 .modal-overlay {

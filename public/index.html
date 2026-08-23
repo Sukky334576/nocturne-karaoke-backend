@@ -29,6 +29,12 @@
       </div>
       
       <div class="header-actions">
+        <!-- Plugin Manager Button -->
+        <button id="headerPluginBtn" class="btn btn-outline" title="จัดการปลั๊กอินและเอฟเฟกต์เสริม">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2v6m0 8v6M2 12h6m8 0h6M5 5l4 4m6 6 4 4M19 5l-4 4m-6 6-4 4"/></svg>
+          <span>ปลั๊กอิน (Plugins)</span>
+        </button>
+
         <!-- Setup Guide Button -->
         <button id="openSetupGuideBtn" class="btn btn-outline" title="เปิดคู่มือตั้งค่าระบบเสียง">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
@@ -224,7 +230,7 @@
         </div>
       </section>
 
-      <!-- Right Column: DSP Effects & Hardware Routing -->
+      <!-- Right Column: DSP Effects, Plugin Rack & Hardware Routing -->
       <section class="studio-rack-col">
         <!-- One-Click Vocal FX Presets Toolbar -->
         <div class="vocal-presets-card">
@@ -353,7 +359,26 @@
           </div>
         </div>
 
-        <!-- 3. Dual-Channel Signal Dispatcher (Independent Channels) -->
+        <!-- 3. NEW: Modular FX Insert Rack (Plugin Slots) -->
+        <div class="studio-module fx-rack-module">
+          <div class="module-header">
+            <div class="title-with-badge">
+              <h2>Modular FX Insert Rack</h2>
+              <span class="safe-badge" title="Safety Limiter active (-0.1dB Anti-Clipping)">🔒 Limiter -0.1dB</span>
+            </div>
+            <button id="openPluginStoreBtn" class="btn btn-outline btn-xs" title="จัดการปลั๊กอินและนำเข้าไฟล์">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+              <span>+ Plugin Store</span>
+            </button>
+          </div>
+
+          <!-- Dynamic Slots Container for Loaded Plugins -->
+          <div id="pluginRackContainer" class="plugin-rack-slots">
+            <!-- Rendered dynamically by Plugin Manager UI -->
+          </div>
+        </div>
+
+        <!-- 4. Dual-Channel Signal Dispatcher (Independent Channels) -->
         <div class="studio-module">
           <div class="module-header">
             <div>
@@ -414,7 +439,7 @@
           <div class="channel-rack channel-rack-cable">
             <div class="channel-rack-header">
               <div class="channel-title">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                 <span>2. ส่งเข้า FiveM & Discord (VB-Cable)</span>
               </div>
               <span id="cableVolText" class="val-text mono-num">90% Master</span>
@@ -467,7 +492,7 @@
           </div>
         </div>
 
-        <!-- 4. Vocal FX Rack (Studio Reverb) -->
+        <!-- 5. Vocal FX Rack (Studio Reverb) -->
         <div class="studio-module">
           <div class="module-header">
             <div>
@@ -515,7 +540,7 @@
           </div>
         </div>
 
-        <!-- 5. Song Queue -->
+        <!-- 6. Song Queue -->
         <div class="studio-module">
           <div class="module-header">
             <h2>Song Queue</h2>
@@ -527,6 +552,56 @@
         </div>
       </section>
     </main>
+
+    <!-- Plugin Store & Custom Loader Modal -->
+    <div id="pluginModal" class="modal-overlay hidden">
+      <div class="modal-card modal-lg">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h3>Nocturne Plugin Store & Custom SDK</h3>
+            <p>เลือกเปิด-ปิด ปลั๊กอินอย่างเป็นทางการ หรือลากไฟล์ <code>.js</code> มาวางเพื่อติดตั้งเอง</p>
+          </div>
+          <button id="closePluginModalBtn" class="btn-icon-close" aria-label="ปิด">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="plugin-modal-tabs">
+            <button class="auth-tab active" id="tabOfficialStore">Official FX Store</button>
+            <button class="auth-tab" id="tabCustomInstall">+ ติดตั้งไฟล์ .JS เอง</button>
+          </div>
+
+          <!-- Official Store View -->
+          <div id="officialStoreView" class="plugin-store-grid">
+            <!-- Populated dynamically with official plugin cards -->
+          </div>
+
+          <!-- Custom Plugin Loader View -->
+          <div id="customInstallView" class="custom-install-panel hidden">
+            <div id="pluginDropzone" class="plugin-dropzone">
+              <div class="dropzone-icon">📥</div>
+              <h4>ลากไฟล์ .JS ปลั๊กอินมาปล่อยที่นี่</h4>
+              <p>รองรับไฟล์ปลั๊กอินที่สืบทอดจาก <code>NocturneAudioPlugin</code></p>
+              <input type="file" id="pluginFileInput" accept=".js" class="hidden">
+              <button id="browsePluginFileBtn" class="btn btn-outline btn-xs" style="margin-top:8px;">เลือกไฟล์จากเครื่อง</button>
+            </div>
+
+            <div class="custom-code-box">
+              <label for="pluginCodeInput">หรือวางโค้ด JavaScript ของปลั๊กอิน:</label>
+              <textarea id="pluginCodeInput" placeholder="export default class MyCustomFX extends NocturneAudioPlugin { ... }" rows="6"></textarea>
+              <button id="loadPluginCodeBtn" class="btn btn-primary btn-full" style="margin-top: 8px;">
+                🚀 ตรวจสอบ & ติดตั้งเข้าสู่ Rack
+              </button>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="finishPluginModalBtn" class="btn btn-primary btn-full">
+              เสร็จสิ้น
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Setup Guide Modal -->
     <div id="setupGuideModal" class="modal-overlay hidden">
@@ -699,6 +774,7 @@
   <!-- Scripts -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="reverb-generator.js"></script>
+  <script src="plugin-sdk.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
