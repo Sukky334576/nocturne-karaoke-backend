@@ -30,11 +30,11 @@ const ytDlpPath = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
 const localFfmpeg = path.join(__dirname, 'bin', 'ffmpeg.exe');
 const ffmpegPath = fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
 
-// In-Memory Search & Stream Cache (TTL: 2 hours)
+// In-Memory Search & Stream Cache (TTL: 4 hours)
 const searchCache = new Map();
 const streamCache = new Map();
 
-// Ultra-Fast YouTube Search via Direct InnerTube API (~150ms)
+// Ultra-Fast YouTube Search via Direct InnerTube API (~150-300ms)
 function fastYoutubeSearch(query) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
@@ -58,7 +58,7 @@ function fastYoutubeSearch(query) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Content-Length': Buffer.byteLength(payload)
       },
-      timeout: 3500
+      timeout: 7500
     }, res => {
       let body = '';
       res.on('data', chunk => body += chunk);
@@ -102,7 +102,7 @@ function fastYoutubeSearch(query) {
 function extractStreamUrl(targetUrl) {
   return new Promise((resolve, reject) => {
     const cached = streamCache.get(targetUrl);
-    if (cached && (Date.now() - cached.time < 2 * 60 * 60 * 1000)) {
+    if (cached && (Date.now() - cached.time < 4 * 60 * 60 * 1000)) {
       return resolve(cached.url);
     }
 
@@ -132,11 +132,11 @@ app.get('/api/search', async (req, res) => {
   const query = rawQuery.trim().toLowerCase();
 
   const cached = searchCache.get(query);
-  if (cached && (Date.now() - cached.time < 2 * 60 * 60 * 1000)) {
+  if (cached && (Date.now() - cached.time < 4 * 60 * 60 * 1000)) {
     return res.json({ videos: cached.videos });
   }
 
-  // 1. Try Fast InnerTube API first (~150ms)
+  // 1. Try Fast InnerTube API first (~150-300ms)
   try {
     const videos = await fastYoutubeSearch(rawQuery);
     if (videos && videos.length > 0) {
@@ -144,7 +144,7 @@ app.get('/api/search', async (req, res) => {
       return res.json({ videos });
     }
   } catch (err) {
-    console.warn('InnerTube fast search fallback:', err.message);
+    console.warn('InnerTube fast search note:', err.message);
   }
 
   // 2. Fallback to yt-search if InnerTube fails
@@ -228,6 +228,16 @@ app.get('/api/audio', async (req, res) => {
 app.get('/api/ping', (req, res) => {
   res.json({ status: 'ok', time: Date.now() });
 });
+
+// Pre-warm Popular Songs Cache asynchronously on boot
+const POPULAR_QUERIES = ['รัก', 'ใจสั่งมา', 'แพ้ทาง', 'พบรัก', 'สภาวะทิ้งตัว', 'แคนวาส', 'Perfect', 'วาฬเกยตื้น', 'คาราโอเกะ'];
+setTimeout(() => {
+  POPULAR_QUERIES.forEach(q => {
+    fastYoutubeSearch(q).then(videos => {
+      if (videos && videos.length > 0) searchCache.set(q.toLowerCase(), { videos, time: Date.now() });
+    }).catch(() => {});
+  });
+}, 2000);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`⚡ NOCTURNE Studio Engine listening on port ${PORT}`);
