@@ -1,8 +1,27 @@
-# Karaoke Sync Player
+# Nocturne Studio (Karaoke Sync Player)
 
-A low-latency YouTube karaoke playback and audio routing system designed for live singing in Discord and FiveM.
+Precision real-time vocal audio studio and YouTube karaoke player with hardware dual-routing for Discord & FiveM.
 
-## Language
+---
+
+## 🚨 MANDATORY AUTOMATIC PRODUCTION DEPLOYMENT RULE (FOR ALL AGENTS)
+
+* **ห้ามบอกให้ผู้ใช้ไปรันไฟล์ `.bat` หรือ Push ขึ้น Production เอง**
+* เมื่อแก้ไขโค้ดเสร็จแล้ว ให้ Agent ทำการทดสอบ (`node test-full-loop.js`) และสั่ง **`git add -A && git commit -m "..." && git push origin main`** ทันทีด้วยตัวคุณเอง
+* GitHub Repo: `https://github.com/Sukky334576/nocturne-karaoke-backend.git`
+* Production 24/7 Server: `https://nocturne-karaoke-backend.onrender.com`
+
+---
+
+## 🎧 Hardware & Audio Constraints
+
+1. **User Soundcard:** Maono Fairy (has direct hardware monitor). Keep `hpVocalVol` = 0.0 (muted) to prevent acoustic double echo in user's headphones.
+2. **Channel 2 (FiveM & Discord):** Routes to `CABLE Input (VB-Audio Virtual Cable)` with calibrated 120ms sync offset.
+3. **Cloud Audio Engine:** On Cloud (`isCloudHost`), YouTube player audio plays directly in high-definition (unmuted) to avoid datacenter IP bot detection.
+
+---
+
+## Language & Terminology
 
 ### Audio Routing & Hardware
 
@@ -29,12 +48,11 @@ _Avoid_: Audio splitting, stereo mix
 ### Vocal Effects & Playback
 
 **Vocal FX Engine**:
-The real-time Web Audio DSP pipeline generating studio vocal effects (such as Reverb and Delay).
+The real-time Web Audio DSP pipeline generating studio vocal effects (Reverb, Tape Delay, Stereo Chorus, Radio Filter, Tube Saturator).
 _Avoid_: Voice changer, soundboard
 
-**Wet/Dry Signal**:
-The ratio of effect-processed audio (wet) versus raw unprocessed audio (dry) sent to outputs.
-_Avoid_: Effect volume, balance
+**Modular Plugin Rack**:
+The expandable audio insert slot system allowing users and developers to create custom audio plugins via `NocturneAudioPlugin` SDK.
 
 **Ducking**:
 Keyboard hotkey or voice-triggered attenuation of the backing track volume during conversation.
