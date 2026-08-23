@@ -1,5 +1,6 @@
 const express = require('express');
 const yts = require('yt-search');
+const https = require('https');
 const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -33,6 +34,71 @@ const ffmpegPath = fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
 const searchCache = new Map();
 const streamCache = new Map();
 
+// Ultra-Fast YouTube Search via Direct InnerTube API (~150ms)
+function fastYoutubeSearch(query) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      context: {
+        client: {
+          clientName: 'WEB',
+          clientVersion: '2.20240101.01.00',
+          hl: 'th',
+          gl: 'TH'
+        }
+      },
+      query: query
+    });
+
+    const req = https.request({
+      hostname: 'www.youtube.com',
+      path: '/youtubei/v1/search',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 3500
+    }, res => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          const secList = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+          const videos = [];
+          secList.forEach(s => {
+            const items = s.itemSectionRenderer?.contents || [];
+            items.forEach(it => {
+              const v = it.videoRenderer;
+              if (v && v.videoId) {
+                const title = v.title?.runs?.map(r => r.text).join('') || v.title?.simpleText || '';
+                const author = v.ownerText?.runs?.map(r => r.text).join('') || '';
+                const duration = v.lengthText?.simpleText || '4:00';
+                const parts = duration.split(':').map(Number);
+                let seconds = 240;
+                if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
+                else if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                const thumb = v.thumbnail?.thumbnails?.pop()?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
+                videos.push({ id: v.videoId, title, url: `https://youtube.com/watch?v=${v.videoId}`, duration, seconds, author, thumbnail: thumb });
+              }
+            });
+          });
+          if (videos.length > 0) return resolve(videos.slice(0, 15));
+          reject(new Error('No videos found in InnerTube response'));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    req.on('timeout', () => { req.destroy(); reject(new Error('InnerTube search timeout')); });
+    req.on('error', err => reject(err));
+    req.write(payload);
+    req.end();
+  });
+}
+
 function extractStreamUrl(targetUrl) {
   return new Promise((resolve, reject) => {
     const cached = streamCache.get(targetUrl);
@@ -59,7 +125,7 @@ function extractStreamUrl(targetUrl) {
   });
 }
 
-// API: Search YouTube with Instant 1ms In-Memory Caching
+// API: Search YouTube with Instant Sub-Second InnerTube API & 1ms In-Memory Caching
 app.get('/api/search', async (req, res) => {
   const rawQuery = req.query.q;
   if (!rawQuery) return res.status(400).json({ error: 'Query parameter q is required' });
@@ -70,6 +136,18 @@ app.get('/api/search', async (req, res) => {
     return res.json({ videos: cached.videos });
   }
 
+  // 1. Try Fast InnerTube API first (~150ms)
+  try {
+    const videos = await fastYoutubeSearch(rawQuery);
+    if (videos && videos.length > 0) {
+      searchCache.set(query, { videos, time: Date.now() });
+      return res.json({ videos });
+    }
+  } catch (err) {
+    console.warn('InnerTube fast search fallback:', err.message);
+  }
+
+  // 2. Fallback to yt-search if InnerTube fails
   try {
     const results = await yts(rawQuery);
     const videos = (results.videos || []).slice(0, 15).map(v => ({
