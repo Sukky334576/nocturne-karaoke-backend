@@ -1,23 +1,89 @@
-# 🎤 Nocturne Studio • Voice Duplication & Phasing Fix
+# 🔌 Nocturne Studio • Modular Plugin Architecture
 
 ---
 
-## 🛠️ รายการแก้ไขปัญหาเสียงพูดซ้อนกัน (Voice Echo / Duplication Fix)
+## 🚀 สรุปการติดตั้งระบบ Modular Plugin System
 
-### 1. 🔇 ปัญหาที่ 1: ระบบส่งเสียงสด (Dry) และเสียง Auto-Tune เข้าไปพร้อมกัน
-* **สาเหตุ:** ในโปรแกรม เดิมทีทั้งท่อเสียงพูดสด (Dry Voice) และท่อเสียง Auto-Tune เปิดส่งเข้า `CABLE Input` พร้อมกันทั้งคู่ เมื่อเปิด Auto-Tune จึงเกิดเสียงร้อง 2 เสียงที่หน่วงกันเล็กน้อยซ้อนกันจนเกิดเสียงก้อง/เสียงซ้อน
-* **การแก้ไข:** 
-  * เมื่อเปิด **Auto-Tune (ON)**: ระบบจะ MUTE เสียงพูดสด (Dry Voice) ให้อัตโนมัติ เหลือเฉพาะเสียงร้องที่ดึงคีย์แล้วส่งเข้า Discord/FiveM ท่อเดียว 100%
-  * เมื่อปิด **Auto-Tune (OFF)**: ระบบจะสลับมาส่งเสียงพูดสดผ่าน Noise Gate + Compressor ให้อย่างคมชัด
+ระบบ **Modular FX Insert Rack** พร้อมใช้งานบนหน้าเว็บแล้ว โดยอนุญาตให้ผู้ใช้และนักพัฒนาภายนอกสามารถสร้างและเสียบ Audio FX Plugins เข้ากับสายสัญญาณไมโครโฟนของ Nocturne Studio ได้อย่างอิสระและปลอดภัย 100%:
 
-### 2. ⚙️ ปัญหาที่ 2: การตั้งค่า Windows Sound ซ้ำซ้อนกับตัวโปรแกรม (สำคัญมาก!)
-* **สาเหตุ:** หากใน Windows Sound มีการไปติ๊ก **"Listen to this device"** ที่ไมค์จริงให้ส่งไป CABLE Input จะทำให้ Windows ส่งเสียงไมค์ 1 รอบ และ Nocturne Studio ส่งเสียงไมค์อีก 1 รอบ เพื่อนในเกมจึงได้ยินเสียงเบิ้ล 2 เท่า
-* **วิธีแก้:**
-  1. กดปุ่ม `Windows + R` พิมพ์ `mmsys.cpl` แล้วกด Enter
-  2. ไปที่แท็บ **Recording (การบันทึก)**
-  3. ดับเบิ้ลคลิกที่ **ไมโครโฟนจริงของคุณ** ➔ ไปที่แท็บ **Listen (การฟัง)**
-  4. **<u>เอาติ๊กถูกออกจาก "Listen to this device" (ปิดไว้)</u>**
-  5. ใน Discord / FiveM ให้เลือก **Input Device: `CABLE Output (VB-Audio Virtual Cable)`**
+```
+[ ไมโครโฟน ]
+     │
+[ 🔇 0ms Noise Gate ➔ 🎚️ Vocal Compressor ]
+     │
+     ▼
+┌─────────────────────────────────────────────────────────┐
+│  🔌 NOCTURNE FX INSERT RACK (Slot 1, 2, 3...)           │
+│                                                         │
+│  [ Slot 1: 📼 Vintage Tape Delay ]  (Bypass Switch)     │
+│  [ Slot 2: 🌊 80s Stereo Chorus ]   (Bypass Switch)     │
+│  [ Slot 3: 📻 Radio / Phone EQ ]    (Bypass Switch)     │
+│  [ Slot 4: ⚡ Warm Tube Saturator ] (Bypass Switch)     │
+│                                                         │
+│  🔒 Safety Brickwall Limiter (-0.1 dB Anti-Clipping)    │
+└─────────────────────────────────────────────────────────┘
+     │
+     ├─────────────────────────────┐
+     ▼                             ▼
+[ 🤖 Auto-Tune Snapper ]    [ 🏛️ Reverb Impulse Engine ]
+     │                             │
+     ▼                             ▼
+[ 🎧 Headphone Dispatcher ]  [ 🎙️ FiveM / Discord Dispatcher (120ms) ]
+```
+
+---
+
+## 📦 4 ปลั๊กอินอย่างเป็นทางการ (Official Pre-Installed FX)
+
+1. 📼 **Vintage Tape Delay:** เสียงสะท้อนเอคโค่สไตล์เทปอนาล็อก พร้อมฟิลเตอร์ตัดย่านแหลมไม่ให้เสียงแทงหู และระบบ Safe Feedback Limiter
+2. 🌊 **80s Stereo Chorus & Vocal Doubler:** ขยายมิติเสียงร้องให้หนานุ่ม กว้าง มีประกาย มิติสเตอริโอสไตล์ 80s
+3. 📻 **Telephone / Radio Megaphone EQ:** กรองความถี่ Bandpass และเติม Distortion อุ่นๆ สไตล์วิทยุสื่อสารหรือโทรศัพท์โบราณ
+4. ⚡ **Warm Tube Saturator:** ขับเคลื่อน Harmonic Overdrive ด้วยกราฟ `tanh` ทำให้เสียงร้องมีน้ำหนัก พุ่ง และแน่นขึ้น
+
+---
+
+## 🛠️ คู่มือนักพัฒนา (Developer Guide: เขียน Plugin เอง)
+
+นักพัฒนาภายนอกสามารถสร้างไฟล์ JavaScript `.js` ไฟล์เดียวแล้วลากมาวางในหน้าเว็บได้ทันที โดยสืบทอดจากคลาส `NocturneAudioPlugin`:
+
+```javascript
+// my-custom-flanger.js
+export default class CustomFlangerPlugin extends NocturneAudioPlugin {
+  constructor() {
+    super({
+      id: 'custom-flanger',
+      name: 'Cosmic Flanger',
+      version: '1.0.0',
+      author: 'YourName',
+      description: 'เสียงร้องหมุนวนสไตล์อวกาศ',
+      icon: '🛸',
+      enabled: false,
+      params: [
+        { id: 'rate', label: 'LFO Speed', type: 'slider', min: 0.1, max: 5.0, step: 0.1, default: 0.8, unit: 'Hz' },
+        { id: 'mix', label: 'Flanger Mix', type: 'slider', min: 0.0, max: 1.0, step: 0.05, default: 0.5, unit: '%' }
+      ]
+    });
+  }
+
+  setupAudioGraph(audioCtx) {
+    this.delayNode = audioCtx.createDelay(0.05);
+    this.lfo = audioCtx.createOscillator();
+    this.lfoGain = audioCtx.createGain();
+    this.lfoGain.gain.value = 0.002;
+    this.lfo.connect(this.lfoGain);
+    this.lfoGain.connect(this.delayNode.delayTime);
+    this.lfo.start();
+
+    this.inputNode.connect(this.delayNode);
+    this.delayNode.connect(this.wetGainNode);
+    this.wetGainNode.connect(this.outputNode);
+  }
+
+  onParamChange(paramId, value) {
+    if (paramId === 'rate' && this.lfo) this.lfo.frequency.value = value;
+  }
+}
+```
 
 ---
 
