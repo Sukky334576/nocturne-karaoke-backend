@@ -1,4 +1,4 @@
-// NOCTURNE STUDIO • Ultra-Resilient Haute Horlogerie Acoustics Engine
+// NOCTURNE STUDIO • Haute Horlogerie Real-Time DSP Audio Engine
 let audioCtx = null;
 let pitchNode = null;
 let autotuneNode = null;
@@ -6,9 +6,24 @@ let autotuneGain = null;
 let recordMicGain = null;
 let duckingGain = null;
 let masterGain = null;
+
+// Dual-Channel Split Gain Nodes
+let musicHpGain = null;
+let musicCableGain = null;
+let vocalHpGain = null;
+let vocalCableGain = null;
+let headphoneMixGain = null;
+let cableMixGain = null;
+
 let headphoneGain = null;
 let cableGain = null;
 let cableSyncDelayNode = null;
+
+// Channel Mute States
+let isHpMusicMuted = false;
+let isCableMusicMuted = false;
+let isHpVocalMuted = false;
+let isCableVocalMuted = false;
 
 // Vocal Dynamics Nodes
 let noiseGateNode = null;
@@ -45,9 +60,16 @@ let currentUser = {
   isGuest: false,
   preset: {
     syncOffsetMs: 120,
-    musicVol: 1.0,
+    hpMusicVol: 0.9,
+    cableMusicVol: 0.20,
+    hpVocalVol: 0.8,
+    cableVocalVol: 1.0,
     headphoneVol: 0.8,
     cableVol: 0.9,
+    isHpMusicMuted: false,
+    isCableMusicMuted: false,
+    isHpVocalMuted: false,
+    isCableVocalMuted: false,
     reverbMix: 0.25,
     reverbDecay: 1.8,
     roomSize: 2,
@@ -108,8 +130,16 @@ const ytPlayerDiv = document.getElementById('ytPlayerDiv');
 
 const currentTrackTitle = document.getElementById('currentTrackTitle');
 const currentTrackArtist = document.getElementById('currentTrackArtist');
-const musicVolSlider = document.getElementById('musicVolSlider');
-const musicVolText = document.getElementById('musicVolText');
+
+// Quick Dual Music Volume Controls (Now Playing Bar)
+const quickHpMusicSlider = document.getElementById('quickHpMusicSlider');
+const quickHpMusicText = document.getElementById('quickHpMusicText');
+const toggleHpMusicBtn = document.getElementById('toggleHpMusicBtn');
+
+const quickCableMusicSlider = document.getElementById('quickCableMusicSlider');
+const quickCableMusicText = document.getElementById('quickCableMusicText');
+const toggleCableMusicBtn = document.getElementById('toggleCableMusicBtn');
+
 const playPauseBtn = document.getElementById('playPauseBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
@@ -141,13 +171,29 @@ const atSpeedText = document.getElementById('atSpeedText');
 const atAmount = document.getElementById('atAmount');
 const atAmountText = document.getElementById('atAmountText');
 
-// Audio Routing & Vol
+// Channel Dispatcher Controls (Signal Routing Module)
 const headphoneSelect = document.getElementById('headphoneSelect');
+const hpMusicVol = document.getElementById('hpMusicVol');
+const hpMusicVolText = document.getElementById('hpMusicVolText');
+const hpMusicMuteBtn = document.getElementById('hpMusicMuteBtn');
+
+const hpVocalVol = document.getElementById('hpVocalVol');
+const hpVocalVolText = document.getElementById('hpVocalVolText');
+const hpVocalMuteBtn = document.getElementById('hpVocalMuteBtn');
+
 const headphoneVol = document.getElementById('headphoneVol');
 const headphoneVolText = document.getElementById('headphoneVolText');
 const headphoneVuBar = document.getElementById('headphoneVuBar');
 
 const virtualCableSelect = document.getElementById('virtualCableSelect');
+const cableMusicVol = document.getElementById('cableMusicVol');
+const cableMusicVolText = document.getElementById('cableMusicVolText');
+const cableMusicMuteBtn = document.getElementById('cableMusicMuteBtn');
+
+const cableVocalVol = document.getElementById('cableVocalVol');
+const cableVocalVolText = document.getElementById('cableVocalVolText');
+const cableVocalMuteBtn = document.getElementById('cableVocalMuteBtn');
+
 const cableVol = document.getElementById('cableVol');
 const cableVolText = document.getElementById('cableVolText');
 const cableVuBar = document.getElementById('cableVuBar');
@@ -168,28 +214,23 @@ const roomSizeText = document.getElementById('roomSizeText');
 const queueList = document.getElementById('queueList');
 const clearQueueBtn = document.getElementById('clearQueueBtn');
 
-// Setup Guide DOM
+// Modals
+const setupGuideModal = document.getElementById('setupGuideModal');
 const openSetupGuideBtn = document.getElementById('openSetupGuideBtn');
 const closeSetupGuideBtn = document.getElementById('closeSetupGuideBtn');
-const setupGuideModal = document.getElementById('setupGuideModal');
 const finishSetupGuideBtn = document.getElementById('finishSetupGuideBtn');
 
-// User Auth DOM
+const authModal = document.getElementById('authModal');
 const userProfileBtn = document.getElementById('userProfileBtn');
 const userProfileLabel = document.getElementById('userProfileLabel');
-const authModal = document.getElementById('authModal');
 const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
-const tabLoginBtn = document.getElementById('tabLoginBtn');
-const tabRegisterBtn = document.getElementById('tabRegisterBtn');
-const authUsernameInput = document.getElementById('authUsernameInput');
-const authPasswordInput = document.getElementById('authPasswordInput');
 const submitAuthBtn = document.getElementById('submitAuthBtn');
 const guestAuthBtn = document.getElementById('guestAuthBtn');
+const authUsernameInput = document.getElementById('authUsernameInput');
 
-// Metronome Modal Elements
+const syncModal = document.getElementById('syncModal');
 const openSyncModalBtn = document.getElementById('openSyncModalBtn');
 const closeSyncModalBtn = document.getElementById('closeSyncModalBtn');
-const syncModal = document.getElementById('syncModal');
 const toggleMetronomeBtn = document.getElementById('toggleMetronomeBtn');
 const metroIndicator = document.getElementById('metroIndicator');
 const metroBeatNum = document.getElementById('metroBeatNum');
@@ -201,26 +242,26 @@ const samplesListContainer = document.getElementById('samplesListContainer');
 const resetSamplesBtn = document.getElementById('resetSamplesBtn');
 const applyMeasuredOffsetBtn = document.getElementById('applyMeasuredOffsetBtn');
 
-// Record Test Elements (Embedded)
-const openRecordTestBtn = document.getElementById('openRecordTestBtn');
+// Embedded Record Test Section
 const embeddedRecordSection = document.getElementById('embeddedRecordSection');
+const openRecordTestBtn = document.getElementById('openRecordTestBtn');
 const toggleRecordBtn = document.getElementById('toggleRecordBtn');
-const recIndicator = document.getElementById('recIndicator');
+const recBadge = document.getElementById('recBadge');
 const recTimerText = document.getElementById('recTimerText');
-const recStatusMsg = document.getElementById('recStatusMsg');
 const playbackWidget = document.getElementById('playbackWidget');
 const recordedAudioPlayer = document.getElementById('recordedAudioPlayer');
 const modalSyncOffset = document.getElementById('modalSyncOffset');
 const modalSyncOffsetText = document.getElementById('modalSyncOffsetText');
+const recStatusMsg = document.getElementById('recStatusMsg');
 
-// --- Vocal Presets Configuration ---
+// --- One-Click Vocal FX Presets Definitions ---
 const VOCAL_PRESETS = {
   pop: {
     autotuneEnabled: true,
     autotuneKey: 0,
     autotuneScale: 0,
-    autotuneSpeed: 0.10,
-    autotuneAmount: 1.0,
+    autotuneSpeed: 0.15,
+    autotuneAmount: 0.85,
     reverbEnabled: true,
     reverbMix: 0.25,
     reverbDecay: 1.8,
@@ -232,8 +273,8 @@ const VOCAL_PRESETS = {
   tpain: {
     autotuneEnabled: true,
     autotuneKey: 0,
-    autotuneScale: 1, // Minor
-    autotuneSpeed: 0.0,
+    autotuneScale: 0,
+    autotuneSpeed: 0.02,
     autotuneAmount: 1.0,
     reverbEnabled: true,
     reverbMix: 0.35,
@@ -249,7 +290,7 @@ const VOCAL_PRESETS = {
     reverbMix: 0.40,
     reverbDecay: 2.8,
     roomSize: 4,
-    noiseGateThreshold: -48,
+    noiseGateThreshold: -45,
     compressorRatio: 5,
     dynamicsEnabled: true
   },
@@ -290,9 +331,16 @@ function loadUserProfile() {
 function saveUserProfile() {
   currentUser.preset = {
     syncOffsetMs: cableSyncOffsetMs,
-    musicVol: musicVolSlider ? parseFloat(musicVolSlider.value) : 1.0,
+    hpMusicVol: hpMusicVol ? parseFloat(hpMusicVol.value) : 0.9,
+    cableMusicVol: cableMusicVol ? parseFloat(cableMusicVol.value) : 0.20,
+    hpVocalVol: hpVocalVol ? parseFloat(hpVocalVol.value) : 0.8,
+    cableVocalVol: cableVocalVol ? parseFloat(cableVocalVol.value) : 1.0,
     headphoneVol: parseFloat(headphoneVol.value),
     cableVol: parseFloat(cableVol.value),
+    isHpMusicMuted: isHpMusicMuted,
+    isCableMusicMuted: isCableMusicMuted,
+    isHpVocalMuted: isHpVocalMuted,
+    isCableVocalMuted: isCableVocalMuted,
     reverbMix: parseFloat(reverbMix.value),
     reverbDecay: parseFloat(reverbDecay.value),
     roomSize: parseInt(roomSize.value),
@@ -312,10 +360,49 @@ function applyUserPreset(preset) {
   if (!preset) return;
   setSyncOffset(preset.syncOffsetMs !== undefined ? preset.syncOffsetMs : 120);
 
-  if (preset.musicVol !== undefined && musicVolSlider) {
-    musicVolSlider.value = preset.musicVol;
-    musicVolText.innerText = Math.round(preset.musicVol * 100) + '%';
-    if (masterGain && audioCtx) masterGain.gain.setValueAtTime(preset.musicVol, audioCtx.currentTime);
+  // Channel A: Headphone Music Level
+  if (preset.hpMusicVol !== undefined) {
+    updateMusicHpLevel(preset.hpMusicVol, false);
+  }
+  if (preset.isHpMusicMuted !== undefined) {
+    isHpMusicMuted = preset.isHpMusicMuted;
+    syncMuteUI(toggleHpMusicBtn, hpMusicMuteBtn, !isHpMusicMuted);
+  }
+
+  // Channel B: Cable / FiveM Music Level
+  if (preset.cableMusicVol !== undefined) {
+    updateMusicCableLevel(preset.cableMusicVol, false);
+  }
+  if (preset.isCableMusicMuted !== undefined) {
+    isCableMusicMuted = preset.isCableMusicMuted;
+    syncMuteUI(toggleCableMusicBtn, cableMusicMuteBtn, !isCableMusicMuted);
+  }
+
+  // Direct Vocal Levels
+  if (preset.hpVocalVol !== undefined) {
+    updateVocalHpLevel(preset.hpVocalVol, false);
+  }
+  if (preset.isHpVocalMuted !== undefined) {
+    isHpVocalMuted = preset.isHpVocalMuted;
+    syncMuteUI(null, hpVocalMuteBtn, !isHpVocalMuted);
+  }
+
+  if (preset.cableVocalVol !== undefined) {
+    updateVocalCableLevel(preset.cableVocalVol, false);
+  }
+  if (preset.isCableVocalMuted !== undefined) {
+    isCableVocalMuted = preset.isCableVocalMuted;
+    syncMuteUI(null, cableVocalMuteBtn, !isCableVocalMuted);
+  }
+
+  // Master Outputs
+  if (preset.headphoneVol !== undefined) {
+    headphoneVol.value = preset.headphoneVol;
+    headphoneVolText.innerText = Math.round(preset.headphoneVol * 100) + '% Master';
+  }
+  if (preset.cableVol !== undefined) {
+    cableVol.value = preset.cableVol;
+    cableVolText.innerText = Math.round(preset.cableVol * 100) + '% Master';
   }
 
   if (preset.autotuneKey !== undefined) autotuneKeySelect.value = preset.autotuneKey;
@@ -345,16 +432,22 @@ function applyUserPreset(preset) {
   }
 }
 
+function syncMuteUI(btn1, btn2, isActive) {
+  [btn1, btn2].forEach(b => {
+    if (!b) return;
+    b.classList.toggle('active', isActive);
+    b.classList.toggle('muted', !isActive);
+  });
+}
+
 function applyVocalPreset(presetKey) {
   const cfg = VOCAL_PRESETS[presetKey];
   if (!cfg) return;
 
-  // Highlight Active Pill
   presetPills.forEach(pill => {
     pill.classList.toggle('active', pill.getAttribute('data-preset') === presetKey);
   });
 
-  // Apply Auto-Tune
   isAutotuneEnabled = cfg.autotuneEnabled;
   autotuneToggle.checked = cfg.autotuneEnabled;
   if (cfg.autotuneKey !== undefined) autotuneKeySelect.value = cfg.autotuneKey;
@@ -368,7 +461,6 @@ function applyVocalPreset(presetKey) {
     atAmountText.innerText = Math.round(cfg.autotuneAmount * 100) + '%';
   }
 
-  // Apply Reverb
   isReverbEnabled = cfg.reverbEnabled;
   reverbToggle.checked = cfg.reverbEnabled;
   if (cfg.reverbMix !== undefined) {
@@ -384,7 +476,6 @@ function applyVocalPreset(presetKey) {
     updateRoomSizeText(cfg.roomSize);
   }
 
-  // Apply Dynamics
   if (cfg.noiseGateThreshold !== undefined && noiseGateSlider) {
     noiseGateSlider.value = cfg.noiseGateThreshold;
     noiseGateText.innerText = cfg.noiseGateThreshold + ' dB';
@@ -398,7 +489,6 @@ function applyVocalPreset(presetKey) {
     isDynamicsEnabled = cfg.dynamicsEnabled;
   }
 
-  // Sync to Audio Nodes
   updateAutotuneParams();
   updateReverbImpulse();
   updateDynamicsParams();
@@ -408,10 +498,7 @@ function applyVocalPreset(presetKey) {
 function updateAuthUI() {
   if (currentUser.username) {
     userProfileLabel.innerHTML = `<b>${currentUser.username}</b> (${cableSyncOffsetMs}ms)`;
-    userProfileBtn.style.borderColor = 'rgba(216, 177, 93, 0.4)';
-    userProfileBtn.style.color = '#f4e6c3';
-  } else {
-    userProfileLabel.innerText = 'สมาชิก / Preset';
+    authUsernameInput.value = currentUser.username;
   }
 }
 
@@ -527,7 +614,6 @@ function startYtProgressTracker() {
   ytProgressInterval = setInterval(() => {
     if (!isPlaying || isUserSeeking) return;
 
-    // 1. Resolve true duration
     let dur = trackDurationSeconds;
     if (ytPlayer && typeof ytPlayer.getDuration === 'function') {
       const ytDur = ytPlayer.getDuration();
@@ -537,7 +623,6 @@ function startYtProgressTracker() {
       }
     }
 
-    // 2. Resolve true current position
     let curr = 0;
     if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
       const ytCurr = ytPlayer.getCurrentTime();
@@ -615,14 +700,41 @@ async function initAudioEngine() {
     vocalCompressorNode.attack.setValueAtTime(0.003, audioCtx.currentTime);
     vocalCompressorNode.release.setValueAtTime(0.25, audioCtx.currentTime);
 
-    // Gain Nodes
+    // Ducking Master Gain
     duckingGain = audioCtx.createGain();
     duckingGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
+    // Master Backing Track Gain
     masterGain = audioCtx.createGain();
-    const initialMusicVol = musicVolSlider ? parseFloat(musicVolSlider.value) : 1.0;
-    masterGain.gain.setValueAtTime(initialMusicVol, audioCtx.currentTime);
+    masterGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
+    // Channel A: Headphone Music Gain
+    musicHpGain = audioCtx.createGain();
+    const initHpM = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+    musicHpGain.gain.setValueAtTime(isHpMusicMuted ? 0.0 : initHpM, audioCtx.currentTime);
+
+    // Channel B: Cable / FiveM Music Gain (Calibrated default 20%)
+    musicCableGain = audioCtx.createGain();
+    const initCbM = currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20;
+    musicCableGain.gain.setValueAtTime(isCableMusicMuted ? 0.0 : initCbM, audioCtx.currentTime);
+
+    // Direct Vocal Sub-Gains
+    vocalHpGain = audioCtx.createGain();
+    const initHpV = currentUser.preset.hpVocalVol !== undefined ? currentUser.preset.hpVocalVol : 0.8;
+    vocalHpGain.gain.setValueAtTime(isHpVocalMuted ? 0.0 : initHpV, audioCtx.currentTime);
+
+    vocalCableGain = audioCtx.createGain();
+    const initCbV = currentUser.preset.cableVocalVol !== undefined ? currentUser.preset.cableVocalVol : 1.0;
+    vocalCableGain.gain.setValueAtTime(isCableVocalMuted ? 0.0 : initCbV, audioCtx.currentTime);
+
+    // Submix Busses
+    headphoneMixGain = audioCtx.createGain();
+    headphoneMixGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+    cableMixGain = audioCtx.createGain();
+    cableMixGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+    // Master Output Gains
     headphoneGain = audioCtx.createGain();
     headphoneGain.gain.setValueAtTime(parseFloat(headphoneVol.value), audioCtx.currentTime);
 
@@ -632,15 +744,15 @@ async function initAudioEngine() {
     cableGain = audioCtx.createGain();
     cableGain.gain.setValueAtTime(parseFloat(cableVol.value), audioCtx.currentTime);
 
-    // Auto-Tune Dedicated Gain (Feeds tuned voice to Discord)
+    // Auto-Tune Dedicated Gain (Feeds tuned voice to Discord & Headphones)
     autotuneGain = audioCtx.createGain();
     autotuneGain.gain.setValueAtTime(isAutotuneEnabled ? 1.0 : 0.0, audioCtx.currentTime);
 
-    // Record Test Mic Gain (Feeds dry/untuned voice into Test Recorder when Auto-Tune is off)
+    // Record Test Mic Gain
     recordMicGain = audioCtx.createGain();
     recordMicGain.gain.setValueAtTime(isAutotuneEnabled ? 0.0 : 1.0, audioCtx.currentTime);
 
-    // Reverb System: Isolated from music, feeds ONLY to Vocal Reverb
+    // Reverb System
     convolverNode = audioCtx.createConvolver();
     reverbInputGain = audioCtx.createGain();
     reverbInputGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
@@ -648,9 +760,8 @@ async function initAudioEngine() {
     reverbGain = audioCtx.createGain();
     reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
 
-    // Headphone Reverb Gain
     headphoneReverbGain = audioCtx.createGain();
-    headphoneReverbGain.gain.setValueAtTime(1.3, audioCtx.currentTime);
+    headphoneReverbGain.gain.setValueAtTime(1.2, audioCtx.currentTime);
 
     updateReverbImpulse();
 
@@ -668,7 +779,6 @@ async function initAudioEngine() {
     destCable = audioCtx.createMediaStreamDestination();
     destRecordTest = audioCtx.createMediaStreamDestination();
 
-    // Safely get or create audioElCable
     audioElCable = document.getElementById('sinkCable');
     if (!audioElCable) {
       audioElCable = new Audio();
@@ -686,32 +796,42 @@ async function initAudioEngine() {
       duckingGain.connect(masterGain);
     }
 
-    // 1. BACKING TRACK ROUTING:
-    masterGain.connect(headphoneGain);
+    // 1. BACKING TRACK DUAL ROUTING:
+    // Split to Channel A (Headphones)
+    masterGain.connect(musicHpGain);
+    musicHpGain.connect(headphoneMixGain);
+
+    // Split to Channel B (FiveM / Discord with 120ms Sync Delay)
+    masterGain.connect(musicCableGain);
+    musicCableGain.connect(cableSyncDelayNode);
+    cableSyncDelayNode.connect(cableMixGain);
+
+    // 2. MASTER HEADPHONE OUTPUT:
+    headphoneMixGain.connect(headphoneGain);
     headphoneGain.connect(headphoneAnalyser);
     headphoneGain.connect(audioCtx.destination);
 
-    // Backing track to Discord with 120ms Sync Delay
-    masterGain.connect(cableSyncDelayNode);
-    cableSyncDelayNode.connect(cableGain);
+    // 3. MASTER CABLE OUTPUT (to FiveM / Discord):
+    cableMixGain.connect(cableGain);
     cableGain.connect(cableAnalyser);
     cableAnalyser.connect(destCable);
 
-    // 2. REVERB VOCAL ROUTING:
+    // 4. REVERB ROUTING:
     reverbInputGain.connect(convolverNode);
     convolverNode.connect(reverbGain);
 
-    // Reverb Tail to Discord
-    reverbGain.connect(destCable);
+    // Reverb Tail to FiveM / Discord
+    reverbGain.connect(cableMixGain);
 
-    // Reverb Tail to Singer's Headphones
+    // Reverb Tail to Headphone Monitor
     reverbGain.connect(headphoneReverbGain);
-    headphoneReverbGain.connect(audioCtx.destination);
+    headphoneReverbGain.connect(headphoneMixGain);
 
-    // 3. AUTO-TUNE VOCAL ROUTING:
-    autotuneGain.connect(destCable);
+    // 5. AUTO-TUNE VOCAL ROUTING:
+    autotuneGain.connect(cableMixGain);
+    autotuneGain.connect(headphoneMixGain);
 
-    // 4. TEST RECORDER DESTINATION:
+    // 6. TEST RECORDER DESTINATION:
     cableGain.connect(destRecordTest);      // Synced Backing Track
     reverbGain.connect(destRecordTest);     // Reverb Tail
     autotuneGain.connect(destRecordTest);   // Tuned Voice (when ON)
@@ -813,6 +933,18 @@ async function initMicrophoneStream(deviceId) {
       vocalChainSource = vocalCompressorNode;
     }
 
+    // Direct voice to Headphone Direct Monitor
+    if (vocalHpGain) {
+      vocalChainSource.connect(vocalHpGain);
+      vocalHpGain.connect(headphoneMixGain);
+    }
+
+    // Direct voice to Cable Output
+    if (vocalCableGain) {
+      vocalChainSource.connect(vocalCableGain);
+      vocalCableGain.connect(cableMixGain);
+    }
+
     if (reverbInputGain) {
       vocalChainSource.connect(reverbInputGain);
     }
@@ -829,7 +961,7 @@ async function initMicrophoneStream(deviceId) {
   }
 }
 
-// Update Vocal Dynamics (Gate & Compressor)
+// Update Vocal Dynamics Parameters
 function updateDynamicsParams() {
   if (!audioCtx) return;
 
@@ -894,21 +1026,131 @@ function updateRoomSizeText(val) {
   roomSizeText.innerText = names[s - 1] || 'Studio';
 }
 
-// Music Volume Slider Listener (Controls Web Audio DSP masterGain ONLY, never unmutes YouTube)
-if (musicVolSlider) {
-  musicVolSlider.addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
-    musicVolText.innerText = Math.round(val * 100) + '%';
-    if (masterGain && audioCtx) {
-      masterGain.gain.setValueAtTime(val, audioCtx.currentTime);
-    }
-    // Strict isolation: ensure YouTube video remains permanently muted
-    if (ytPlayer && typeof ytPlayer.mute === 'function') {
-      ytPlayer.mute();
-    }
-    saveUserProfile();
-  });
+// --- Channel A: Headphone Music & Vocal Controls ---
+function updateMusicHpLevel(val, shouldSave = true) {
+  const v = parseFloat(val);
+  currentUser.preset.hpMusicVol = v;
+  if (quickHpMusicSlider) quickHpMusicSlider.value = v;
+  if (hpMusicVol) hpMusicVol.value = v;
+  const txt = Math.round(v * 100) + '%';
+  if (quickHpMusicText) quickHpMusicText.innerText = txt;
+  if (hpMusicVolText) hpMusicVolText.innerText = txt;
+
+  if (musicHpGain && audioCtx) {
+    const target = isHpMusicMuted ? 0.0 : v;
+    musicHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  if (shouldSave) saveUserProfile();
 }
+
+function toggleHpMusicMute() {
+  isHpMusicMuted = !isHpMusicMuted;
+  currentUser.preset.isHpMusicMuted = isHpMusicMuted;
+  syncMuteUI(toggleHpMusicBtn, hpMusicMuteBtn, !isHpMusicMuted);
+
+  if (musicHpGain && audioCtx) {
+    const target = isHpMusicMuted ? 0.0 : (currentUser.preset.hpMusicVol || 0.9);
+    musicHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  saveUserProfile();
+}
+
+function updateVocalHpLevel(val, shouldSave = true) {
+  const v = parseFloat(val);
+  currentUser.preset.hpVocalVol = v;
+  if (hpVocalVol) hpVocalVol.value = v;
+  if (hpVocalVolText) hpVocalVolText.innerText = Math.round(v * 100) + '%';
+
+  if (vocalHpGain && audioCtx) {
+    const target = isHpVocalMuted ? 0.0 : v;
+    vocalHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  if (shouldSave) saveUserProfile();
+}
+
+function toggleHpVocalMute() {
+  isHpVocalMuted = !isHpVocalMuted;
+  currentUser.preset.isHpVocalMuted = isHpVocalMuted;
+  syncMuteUI(null, hpVocalMuteBtn, !isHpVocalMuted);
+
+  if (vocalHpGain && audioCtx) {
+    const target = isHpVocalMuted ? 0.0 : (currentUser.preset.hpVocalVol || 0.8);
+    vocalHpGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  saveUserProfile();
+}
+
+// --- Channel B: Cable / FiveM Music & Vocal Controls ---
+function updateMusicCableLevel(val, shouldSave = true) {
+  const v = parseFloat(val);
+  currentUser.preset.cableMusicVol = v;
+  if (quickCableMusicSlider) quickCableMusicSlider.value = v;
+  if (cableMusicVol) cableMusicVol.value = v;
+  const pct = Math.round(v * 100);
+  const desc = pct <= 30 ? `${pct}% (พอดี)` : `${pct}% (ดัง)`;
+  if (quickCableMusicText) quickCableMusicText.innerText = pct + '%';
+  if (cableMusicVolText) cableMusicVolText.innerText = desc;
+
+  if (musicCableGain && audioCtx) {
+    const target = isCableMusicMuted ? 0.0 : v;
+    musicCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  if (shouldSave) saveUserProfile();
+}
+
+function toggleCableMusicMute() {
+  isCableMusicMuted = !isCableMusicMuted;
+  currentUser.preset.isCableMusicMuted = isCableMusicMuted;
+  syncMuteUI(toggleCableMusicBtn, cableMusicMuteBtn, !isCableMusicMuted);
+
+  if (musicCableGain && audioCtx) {
+    const target = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol || 0.20);
+    musicCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  saveUserProfile();
+}
+
+function updateVocalCableLevel(val, shouldSave = true) {
+  const v = parseFloat(val);
+  currentUser.preset.cableVocalVol = v;
+  if (cableVocalVol) cableVocalVol.value = v;
+  if (cableVocalVolText) cableVocalVolText.innerText = Math.round(v * 100) + '%';
+
+  if (vocalCableGain && audioCtx) {
+    const target = isCableVocalMuted ? 0.0 : v;
+    vocalCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  if (shouldSave) saveUserProfile();
+}
+
+function toggleCableVocalMute() {
+  isCableVocalMuted = !isCableVocalMuted;
+  currentUser.preset.isCableVocalMuted = isCableVocalMuted;
+  syncMuteUI(null, cableVocalMuteBtn, !isCableVocalMuted);
+
+  if (vocalCableGain && audioCtx) {
+    const target = isCableVocalMuted ? 0.0 : (currentUser.preset.cableVocalVol || 1.0);
+    vocalCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  saveUserProfile();
+}
+
+// Event Listeners for Dual Channel Sliders & Mute Toggles
+if (quickHpMusicSlider) quickHpMusicSlider.addEventListener('input', (e) => updateMusicHpLevel(e.target.value));
+if (hpMusicVol) hpMusicVol.addEventListener('input', (e) => updateMusicHpLevel(e.target.value));
+if (toggleHpMusicBtn) toggleHpMusicBtn.addEventListener('click', toggleHpMusicMute);
+if (hpMusicMuteBtn) hpMusicMuteBtn.addEventListener('click', toggleHpMusicMute);
+
+if (quickCableMusicSlider) quickCableMusicSlider.addEventListener('input', (e) => updateMusicCableLevel(e.target.value));
+if (cableMusicVol) cableMusicVol.addEventListener('input', (e) => updateMusicCableLevel(e.target.value));
+if (toggleCableMusicBtn) toggleCableMusicBtn.addEventListener('click', toggleCableMusicMute);
+if (cableMusicMuteBtn) cableMusicMuteBtn.addEventListener('click', toggleCableMusicMute);
+
+if (hpVocalVol) hpVocalVol.addEventListener('input', (e) => updateVocalHpLevel(e.target.value));
+if (hpVocalMuteBtn) hpVocalMuteBtn.addEventListener('click', toggleHpVocalMute);
+
+if (cableVocalVol) cableVocalVol.addEventListener('input', (e) => updateVocalCableLevel(e.target.value));
+if (cableVocalMuteBtn) cableVocalMuteBtn.addEventListener('click', toggleCableVocalMute);
 
 // Dynamics Sliders Listeners
 if (dynamicsToggle) {
@@ -954,7 +1196,7 @@ atAmount.addEventListener('input', (e) => {
   updateAutotuneParams();
 });
 
-// VU Meters & Multi-Sample Peak Detection
+// VU Meters
 function startVuMeters() {
   const micData = new Uint8Array(micAnalyser.frequencyBinCount);
   const hpData = new Uint8Array(headphoneAnalyser.frequencyBinCount);
@@ -1048,8 +1290,7 @@ function startRecordingTest() {
   try {
     mediaRecorder = new MediaRecorder(destRecordTest.stream);
   } catch (e) {
-    alert('บราวเซอร์ไม่รองรับ MediaRecorder: ' + e.message);
-    return;
+    mediaRecorder = new MediaRecorder(destRecordTest.stream, { mimeType: 'audio/webm' });
   }
 
   mediaRecorder.ondataavailable = (e) => {
@@ -1063,35 +1304,48 @@ function startRecordingTest() {
     const audioUrl = URL.createObjectURL(blob);
     recordedAudioPlayer.src = audioUrl;
     playbackWidget.classList.remove('hidden');
-    recordedAudioPlayer.play().catch(() => {});
-    recStatusMsg.innerText = '✅ อัดเสียงเสร็จสิ้น! กำลังเล่นเสียงย้อนหลังให้ฟัง';
+    recStatusMsg.innerText = `อัดเสียงเรียบร้อย (${recordSeconds} วินาที) - กด Play เพื่อเช็กเสียงจริงที่เข้า Discord`;
+    recStatusMsg.style.color = '#8ce8de';
   };
 
   mediaRecorder.start();
   isRecordingTest = true;
   recordSeconds = 0;
   recTimerText.innerText = '00:00';
-  toggleRecordBtn.innerHTML = '<svg class="btn-icon-svg" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg> <span>หยุดอัดเสียง (Stop Recording)</span>';
-  toggleRecordBtn.classList.add('recording');
-  recIndicator.style.background = '#ff4757';
+  recBadge.classList.add('recording');
+  toggleRecordBtn.classList.add('btn-garnet-pulse');
+  toggleRecordBtn.innerHTML = `
+    <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+    <span>หยุดอัดเสียง & ฟังย้อนหลัง (Stop & Listen)</span>
+  `;
 
   recordTimerInterval = setInterval(() => {
     recordSeconds++;
     const m = Math.floor(recordSeconds / 60);
     const s = recordSeconds % 60;
     recTimerText.innerText = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+
+    if (recordSeconds >= 30) {
+      stopRecordingTest();
+    }
   }, 1000);
 }
 
 function stopRecordingTest() {
-  if (mediaRecorder && isRecordingTest) {
+  if (!isRecordingTest) return;
+  isRecordingTest = false;
+  clearInterval(recordTimerInterval);
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
-    isRecordingTest = false;
-    if (recordTimerInterval) clearInterval(recordTimerInterval);
-    toggleRecordBtn.innerHTML = '<svg class="btn-icon-svg" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> <span>เริ่มอัดเสียงทดสอบ (Start Recording)</span>';
-    toggleRecordBtn.classList.remove('recording');
-    recIndicator.style.background = '#666';
   }
+
+  recBadge.classList.remove('recording');
+  toggleRecordBtn.classList.remove('btn-garnet-pulse');
+  toggleRecordBtn.innerHTML = `
+    <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+    <span>เริ่มอัดเสียงทดสอบใหม่ (Record Again)</span>
+  `;
 }
 
 toggleRecordBtn.addEventListener('click', () => {
@@ -1102,144 +1356,152 @@ toggleRecordBtn.addEventListener('click', () => {
   }
 });
 
-// Modal Sync Offset Slider Listener
-modalSyncOffset.addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  setSyncOffset(val);
-});
-
-function setSyncOffset(val) {
-  cableSyncOffsetMs = val;
-  cableSyncOffsetSlider.value = val;
-  modalSyncOffset.value = val;
-  cableSyncOffsetText.innerText = val + ' ms';
-  modalSyncOffsetText.innerText = val + ' ms';
-
-  if (cableSyncDelayNode && audioCtx) {
-    cableSyncDelayNode.delayTime.setValueAtTime(val / 1000, audioCtx.currentTime);
-  }
-  saveUserProfile();
-}
-
-cableSyncOffsetSlider.addEventListener('input', (e) => {
-  setSyncOffset(parseInt(e.target.value));
-});
-
-// Metronome Beep Generator (1000Hz, 40ms Click)
-function playMetronomeBeep() {
+// Metronome Beep Generator
+function playMetronomeBeep(beat) {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
 
+  const isAccent = beat === 1;
+  osc.frequency.setValueAtTime(isAccent ? 1200 : 800, audioCtx.currentTime);
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
 
-  gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+  const beepVol = 0.5;
+  gain.gain.setValueAtTime(beepVol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
 
   osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  gain.connect(destCable);
-
-  osc.start(audioCtx.currentTime);
-  osc.stop(audioCtx.currentTime + 0.05);
+  gain.connect(headphoneMixGain || audioCtx.destination);
 
   lastBeepAudioTime = audioCtx.currentTime;
-  outputBeepStatus.innerText = `ส่งเสียงแล้ว (รอบที่ ${currentBeat})`;
+  outputBeepStatus.innerText = `เคาะจังหวะที่ ${beat} (${Math.round(lastBeepAudioTime * 1000) % 10000}ms)`;
 
-  metroIndicator.classList.add('flash-beep');
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 0.08);
+
+  metroIndicator.classList.add('pulse');
+  metroBeatNum.innerText = beat;
   setTimeout(() => {
-    metroIndicator.classList.remove('flash-beep');
-  }, 80);
+    metroIndicator.classList.remove('pulse');
+  }, 120);
 }
 
 function startMetronome() {
   if (!audioCtx) {
-    initAudioEngine();
+    alert('กรุณากด START ENGINE ก่อนเริ่มทดสอบความหน่วง');
+    return;
   }
   isMetronomeRunning = true;
   currentBeat = 0;
   toggleMetronomeBtn.innerText = 'หยุดเคาะจังหวะ (Stop Metronome)';
-  toggleMetronomeBtn.classList.remove('btn-primary');
   toggleMetronomeBtn.classList.add('btn-garnet');
-  metroStatus.innerText = 'กำลังส่งเสียงเคาะจังหวะ... ให้ปรบมือตามทันทีที่ได้ยิน';
+  metroStatus.innerText = 'กำลังส่งเสียงเคาะจังหวะ... ให้ปรบมือตามจังหวะได้เลยครับ';
 
   metronomeTimer = setInterval(() => {
     currentBeat = (currentBeat % 4) + 1;
-    metroBeatNum.innerText = currentBeat;
-    playMetronomeBeep();
+    playMetronomeBeep(currentBeat);
   }, 1000);
 }
 
 function stopMetronome() {
   isMetronomeRunning = false;
-  if (metronomeTimer) clearInterval(metronomeTimer);
+  clearInterval(metronomeTimer);
   toggleMetronomeBtn.innerText = 'เริ่มเคาะจังหวะ (Start Metronome)';
-  toggleMetronomeBtn.classList.add('btn-primary');
   toggleMetronomeBtn.classList.remove('btn-garnet');
-  metroStatus.innerText = 'หยุดการทดสอบแล้ว';
+  metroStatus.innerText = 'หยุดเคาะจังหวะแล้ว';
 }
 
 toggleMetronomeBtn.addEventListener('click', () => {
-  if (isMetronomeRunning) {
-    stopMetronome();
-  } else {
+  if (!isMetronomeRunning) {
     startMetronome();
-  }
-});
-
-applyMeasuredOffsetBtn.addEventListener('click', () => {
-  if (calculatedAverageMs > 0) {
-    setSyncOffset(calculatedAverageMs);
-    alert(`นำค่าความหน่วงเฉลี่ย ${calculatedAverageMs} ms ไปบันทึกลงในระบบเรียบร้อยแล้ว!`);
-    syncModal.classList.add('hidden');
-    stopMetronome();
   } else {
-    alert('ยังไม่มีข้อมูลการวัดค่า กรุณาปรบมือตามจังหวะเคาะ 3-5 ครั้งก่อนครับ');
+    stopMetronome();
   }
 });
 
+// Metronome Modal Open/Close
 openSyncModalBtn.addEventListener('click', () => {
   initAudioEngine();
   syncModal.classList.remove('hidden');
 });
 
 closeSyncModalBtn.addEventListener('click', () => {
+  if (isMetronomeRunning) stopMetronome();
   syncModal.classList.add('hidden');
-  stopMetronome();
 });
 
-// Enumerate Audio Devices & Set Sinks
+// Sync Offset Setters
+function setSyncOffset(val) {
+  const v = parseInt(val);
+  cableSyncOffsetMs = v;
+  if (cableSyncOffsetSlider) cableSyncOffsetSlider.value = v;
+  if (cableSyncOffsetText) cableSyncOffsetText.innerText = v + ' ms';
+  if (modalSyncOffset) modalSyncOffset.value = v;
+  if (modalSyncOffsetText) modalSyncOffsetText.innerText = v + ' ms';
+
+  if (cableSyncDelayNode && audioCtx) {
+    cableSyncDelayNode.delayTime.setValueAtTime(v / 1000, audioCtx.currentTime);
+  }
+
+  saveUserProfile();
+  updateAuthUI();
+}
+
+cableSyncOffsetSlider.addEventListener('input', (e) => setSyncOffset(e.target.value));
+if (modalSyncOffset) modalSyncOffset.addEventListener('input', (e) => setSyncOffset(e.target.value));
+
+applyMeasuredOffsetBtn.addEventListener('click', () => {
+  if (calculatedAverageMs > 0) {
+    setSyncOffset(calculatedAverageMs);
+    alert(`นำค่าความหน่วง ${calculatedAverageMs} ms ไปตั้งค่าหน่วงเพลงเข้า Discord ให้ตรงกับไมค์เรียบร้อยครับ!`);
+    if (isMetronomeRunning) stopMetronome();
+    syncModal.classList.add('hidden');
+  } else {
+    alert('ยังไม่มีค่าเฉลี่ยความหน่วง กรุณาปรบมือตามจังหวะเคาะ 3-5 ครั้งก่อนครับ');
+  }
+});
+
+// Enumerate Audio Devices
 async function enumerateAudioDevices() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
+
     headphoneSelect.innerHTML = '';
     virtualCableSelect.innerHTML = '';
     micSelect.innerHTML = '';
 
-    devices.forEach(device => {
-      const opt = document.createElement('option');
-      opt.value = device.deviceId;
-      opt.text = device.label || `${device.kind} (${device.deviceId.slice(0, 5)})`;
+    const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+    const audioInputs = devices.filter(d => d.kind === 'audioinput');
 
-      if (device.kind === 'audiooutput') {
-        headphoneSelect.appendChild(opt.cloneNode(true));
-        virtualCableSelect.appendChild(opt.cloneNode(true));
-      } else if (device.kind === 'audioinput') {
-        micSelect.appendChild(opt.cloneNode(true));
-      }
+    audioOutputs.forEach((d, i) => {
+      const opt1 = document.createElement('option');
+      opt1.value = d.deviceId;
+      opt1.text = d.label || `Output Device ${i + 1}`;
+      headphoneSelect.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = d.deviceId;
+      opt2.text = d.label || `Output Device ${i + 1}`;
+      virtualCableSelect.appendChild(opt2);
+    });
+
+    audioInputs.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.text = d.label || `Microphone ${i + 1}`;
+      micSelect.appendChild(opt);
     });
 
     for (let i = 0; i < virtualCableSelect.options.length; i++) {
-      const opt = virtualCableSelect.options[i];
-      if (opt.text.toLowerCase().includes('cable input') || opt.text.toLowerCase().includes('vb-audio')) {
+      const text = virtualCableSelect.options[i].text.toLowerCase();
+      if (text.includes('cable') || text.includes('virtual') || text.includes('vb-audio')) {
         virtualCableSelect.selectedIndex = i;
-        setSinkCable(opt.value);
+        setSinkCable(virtualCableSelect.value);
         break;
       }
     }
   } catch (err) {
-    console.warn('Enumerate audio devices note:', err);
+    console.warn('Enumerate devices note:', err.message);
   }
 }
 
@@ -1264,9 +1526,9 @@ micSelect.addEventListener('change', (e) => {
   }
 });
 
-// Volume Sliders
+// Volume Sliders (Master Outputs)
 headphoneVol.addEventListener('input', (e) => {
-  headphoneVolText.innerText = Math.round(e.target.value * 100) + '%';
+  headphoneVolText.innerText = Math.round(e.target.value * 100) + '% Master';
   if (headphoneGain && audioCtx) {
     headphoneGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
   }
@@ -1274,7 +1536,7 @@ headphoneVol.addEventListener('input', (e) => {
 });
 
 cableVol.addEventListener('input', (e) => {
-  cableVolText.innerText = Math.round(e.target.value * 100) + '%';
+  cableVolText.innerText = Math.round(e.target.value * 100) + '% Master';
   if (cableGain && audioCtx) {
     cableGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
   }
@@ -1440,13 +1702,13 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Audio Stream URL Resolver
-async function getBestAudioStreamUrl(trackId, seekSeconds = 0) {
-  return `/api/audio?id=${encodeURIComponent(trackId)}&t=${seekSeconds}`;
-}
-
+// Fallback & Dynamic API Endpoints
 async function getBestSearchUrl(query) {
   return `/api/search?q=${encodeURIComponent(query)}`;
+}
+
+async function getBestAudioStreamUrl(videoId, startSeconds = 0) {
+  return `/api/audio?id=${videoId}&t=${startSeconds}`;
 }
 
 // Play Track (Ultra-Reliable Dual Routing to Discord & Headphones)

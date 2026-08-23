@@ -669,35 +669,144 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Dedicated Music Volume Slider */
-.music-vol-control {
+/* Quick Dual Music Volume Controls in Now Playing Bar */
+.music-dual-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.music-channel-pill {
   display: flex;
   flex-direction: column;
   gap: 3px;
   background: var(--bg-module);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  min-width: 140px;
-  max-width: 180px;
-  flex-shrink: 0;
+  padding: 5px 8px;
+  min-width: 120px;
+  max-width: 155px;
+  transition: var(--transition-fast);
+}
+.music-channel-pill:hover {
+  border-color: var(--border-bright);
 }
 
-.music-vol-header {
+.btn-channel-mute {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-family: 'Outfit', 'Kanit', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  transition: var(--transition-fast);
+}
+.btn-channel-mute:hover {
+  color: #fff;
+}
+.btn-channel-mute.muted {
+  color: #ff7b7b;
+  opacity: 0.8;
+  text-decoration: line-through;
+}
+
+.music-channel-pill input[type="range"] {
+  height: 4px;
+}
+
+/* Channel Dispatcher Rack in Signal Routing Module */
+.channel-rack {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: var(--transition-fast);
+}
+.channel-rack:hover {
+  border-color: rgba(216, 177, 93, 0.25);
+}
+.channel-rack-cable {
+  border-color: rgba(27, 153, 139, 0.25);
+  background: rgba(12, 17, 23, 0.75);
+}
+
+.channel-rack-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.channel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.channel-controls-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: var(--bg-module);
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.control-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mute-mini-badge {
+  font-family: 'Outfit', 'Kanit', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.mute-mini-badge:hover {
+  border-color: var(--border-bright);
+  color: #fff;
+}
+.mute-mini-badge.active {
+  background: rgba(216, 177, 93, 0.16);
+  border-color: var(--gold-primary);
+  color: var(--gold-bright);
+}
+.mute-mini-badge.muted {
+  background: rgba(169, 50, 38, 0.22);
+  border-color: var(--garnet-accent);
+  color: #ff8e8e;
+  text-decoration: line-through;
+}
+
+.master-sub-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.master-sub-slider label {
   font-size: 0.72rem;
   color: var(--text-secondary);
-}
-
-.music-vol-header .vol-icon {
-  color: var(--gold-primary);
-  flex-shrink: 0;
-}
-
-.music-vol-control input[type="range"] {
-  height: 4px;
 }
 
 .playback-controls {

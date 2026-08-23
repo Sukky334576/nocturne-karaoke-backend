@@ -108,7 +108,7 @@
             <div id="ytPlayerDiv" class="video-iframe hidden"></div>
           </div>
 
-          <!-- Track Info, Music Volume & Controls -->
+          <!-- Track Info, Quick Dual Music Volume & Controls -->
           <div class="now-playing-bar">
             <div class="track-details">
               <span class="track-status-label">CURRENT TRACK</span>
@@ -116,14 +116,27 @@
               <p id="currentTrackArtist">เลือกเพลงจากช่องค้นหาหรือคิวเพลง</p>
             </div>
 
-            <!-- Dedicated Backing Track Music Volume Slider -->
-            <div class="music-vol-control" title="ปรับระดับเสียงดนตรีคาราโอเกะ (Backing Track Volume)">
-              <div class="music-vol-header">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="vol-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-                <span>เสียงเพลง:</span>
-                <span id="musicVolText" class="val-gold mono-num">100%</span>
+            <!-- Quick Dual-Channel Music Volume Controls -->
+            <div class="music-dual-control">
+              <!-- Channel 1: Headphones -->
+              <div class="music-channel-pill" id="hpMusicPill">
+                <button id="toggleHpMusicBtn" class="btn-channel-mute active" title="กดเพื่อ Mute / Unmute เพลงในหูฟังเรา">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                  <span>หูเรา:</span>
+                  <span id="quickHpMusicText" class="val-gold mono-num">90%</span>
+                </button>
+                <input type="range" id="quickHpMusicSlider" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเพลงในหูเรา">
               </div>
-              <input type="range" id="musicVolSlider" min="0" max="1.5" step="0.05" value="1.0" aria-label="ระดับเสียงดนตรี">
+
+              <!-- Channel 2: FiveM / Discord -->
+              <div class="music-channel-pill" id="cableMusicPill">
+                <button id="toggleCableMusicBtn" class="btn-channel-mute active" title="กดเพื่อ Mute / Unmute เพลงที่ส่งเข้าเกม FiveM & Discord">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                  <span>FiveM:</span>
+                  <span id="quickCableMusicText" class="val-green mono-num">20%</span>
+                </button>
+                <input type="range" id="quickCableMusicSlider" min="0" max="1.0" step="0.02" value="0.20" aria-label="ระดับเสียงเพลงเข้า FiveM">
+              </div>
             </div>
 
             <div class="playback-controls">
@@ -340,45 +353,117 @@
           </div>
         </div>
 
-        <!-- 3. Dual Audio Routing (Headphones + Discord Cable) -->
+        <!-- 3. Dual-Channel Signal Dispatcher (Independent Channels) -->
         <div class="studio-module">
           <div class="module-header">
             <div>
-              <h2>Signal Routing</h2>
-              <p class="module-desc">Direct Monitoring + Virtual Cable VoIP Dispatch</p>
+              <h2>Signal Dispatcher (แยกชาแนลเสียง)</h2>
+              <p class="module-desc">ปรับระดับเสียง & เปิด/ปิดเสียงหูฟัง และเสียงเข้าเกม FiveM/Discord แยกอิสระ</p>
             </div>
           </div>
 
-          <div class="control-group">
-            <div class="group-header">
-              <label for="headphoneSelect">1. หูฟังของเรา (Direct Monitor)</label>
-              <span id="headphoneVolText" class="val-text mono-num">80%</span>
+          <!-- CHANNEL A: หูฟังของเรา (Monitor) -->
+          <div class="channel-rack">
+            <div class="channel-rack-header">
+              <div class="channel-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                <span>1. หูฟังของเรา (Direct Monitor)</span>
+              </div>
+              <span id="headphoneVolText" class="val-text mono-num">80% Master</span>
             </div>
+            
             <select id="headphoneSelect" class="select-box"></select>
-            <input type="range" id="headphoneVol" min="0" max="1.5" step="0.05" value="0.8" aria-label="ระดับเสียงหูฟัง">
+
+            <div class="channel-controls-subgrid">
+              <!-- Sub: Music in HP -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="hpMusicMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดเสียงเพลงในหูเรา">🎧 เพลง</button>
+                    <label for="hpMusicVol">เพลงในหู</label>
+                  </div>
+                  <span id="hpMusicVolText" class="val-text val-gold mono-num">90%</span>
+                </div>
+                <input type="range" id="hpMusicVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเพลงในหู">
+              </div>
+
+              <!-- Sub: Vocal in HP -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="hpVocalMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดฟังเสียงร้องตัวเอง">🎤 เสียงร้อง</button>
+                    <label for="hpVocalVol">เสียงร้องในหู</label>
+                  </div>
+                  <span id="hpVocalVolText" class="val-text val-green mono-num">80%</span>
+                </div>
+                <input type="range" id="hpVocalVol" min="0" max="1.5" step="0.05" value="0.8" aria-label="ระดับเสียงร้องในหู">
+              </div>
+            </div>
+
+            <!-- Master HP Output Slider -->
+            <div class="master-sub-slider">
+              <label for="headphoneVol">ระดับหูฟังรวม (Master Output):</label>
+              <input type="range" id="headphoneVol" min="0" max="1.5" step="0.05" value="0.8" aria-label="ระดับเสียงหูฟังรวม">
+            </div>
             <div class="vu-meter-container">
               <div class="vu-bar" id="headphoneVuBar"></div>
             </div>
           </div>
 
-          <div class="control-group">
-            <div class="group-header">
-              <label for="virtualCableSelect">2. ส่งเข้า Discord (VB-Cable Input)</label>
-              <span id="cableVolText" class="val-text mono-num">90%</span>
+          <!-- CHANNEL B: ส่งเข้า FiveM & Discord (Broadcast) -->
+          <div class="channel-rack channel-rack-cable">
+            <div class="channel-rack-header">
+              <div class="channel-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                <span>2. ส่งเข้า FiveM & Discord (VB-Cable)</span>
+              </div>
+              <span id="cableVolText" class="val-text mono-num">90% Master</span>
             </div>
+
             <select id="virtualCableSelect" class="select-box"></select>
-            <input type="range" id="cableVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงสายเคเบิล">
+
+            <div class="channel-controls-subgrid">
+              <!-- Sub: Music in Cable (Calibrated default 20%) -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="cableMusicMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดส่งเสียงเพลงเข้า FiveM/Discord">🔊 เพลงเข้าเกม</button>
+                    <label for="cableMusicVol">เพลงเข้า FiveM</label>
+                  </div>
+                  <span id="cableMusicVolText" class="val-text val-gold-highlight mono-num">20% (พอดี)</span>
+                </div>
+                <input type="range" id="cableMusicVol" min="0" max="1.0" step="0.02" value="0.20" aria-label="ระดับเสียงเพลงเข้า FiveM">
+              </div>
+
+              <!-- Sub: Vocal in Cable -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="cableVocalMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดส่งเสียงร้องเข้า FiveM/Discord">🎙️ ไมค์เข้าเกม</button>
+                    <label for="cableVocalVol">เสียงร้องเข้า FiveM</label>
+                  </div>
+                  <span id="cableVocalVolText" class="val-text val-green mono-num">100%</span>
+                </div>
+                <input type="range" id="cableVocalVol" min="0" max="1.5" step="0.05" value="1.0" aria-label="ระดับเสียงร้องเข้า FiveM">
+              </div>
+            </div>
+
+            <!-- Master Cable Output Slider -->
+            <div class="master-sub-slider">
+              <label for="cableVol">ระดับสัญญาณรวมเข้าเกม (Master Broadcast):</label>
+              <input type="range" id="cableVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเคเบิลรวม">
+            </div>
             <div class="vu-meter-container">
               <div class="vu-bar" id="cableVuBar"></div>
             </div>
-          </div>
 
-          <div class="control-group sync-offset-box">
-            <div class="group-header">
-              <label for="cableSyncOffset">Discord Sync Offset</label>
-              <span id="cableSyncOffsetText" class="val-text val-gold-highlight mono-num">120 ms</span>
+            <div class="control-group sync-offset-box">
+              <div class="group-header">
+                <label for="cableSyncOffset">FiveM / Discord Sync Offset</label>
+                <span id="cableSyncOffsetText" class="val-text val-gold-highlight mono-num">120 ms</span>
+              </div>
+              <input type="range" id="cableSyncOffset" min="0" max="300" step="10" value="120" aria-label="ปรับชดเชยดีเลย์">
             </div>
-            <input type="range" id="cableSyncOffset" min="0" max="300" step="10" value="120" aria-label="ปรับชดเชยดีเลย์">
           </div>
         </div>
 
