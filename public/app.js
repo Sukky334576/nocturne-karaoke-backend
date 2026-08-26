@@ -58,11 +58,7 @@ let mediaElementSource = null;
 let ytPlayer = null;
 let isYtReady = false;
 let ytProgressInterval = null;
-// Auto-detect Cloud hosting environment (Render / Vercel / Remote HTTPS)
-const isCloudHost = window.location.hostname.includes('onrender.com') ||
-                    window.location.hostname.includes('vercel.app') ||
-                    (!['localhost', '127.0.0.1'].includes(window.location.hostname));
-let isUsingDirectYtAudio = isCloudHost;
+let isUsingDirectYtAudio = false;
 
 // User Profile & App State
 let currentUser = {
@@ -575,21 +571,14 @@ function initYtPlayer(videoId, startSec = 0) {
   const origin = window.location.origin;
 
   if (!window.YT || !window.YT.Player) {
-    const muteFlag = isUsingDirectYtAudio ? 0 : 1;
-    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=1&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
     return;
   }
 
   if (ytPlayer && ytPlayer.loadVideoById) {
     try {
       ytPlayer.loadVideoById({ videoId, startSeconds: Math.floor(startSec) });
-      if (isUsingDirectYtAudio) {
-        if (ytPlayer.unMute) ytPlayer.unMute();
-        const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
-        if (ytPlayer.setVolume) ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
-      } else {
-        if (ytPlayer.mute) ytPlayer.mute();
-      }
+      if (ytPlayer.mute) ytPlayer.mute();
       ytPlayer.playVideo();
     } catch (e) {
       console.warn('YT load error:', e);
@@ -603,7 +592,7 @@ function initYtPlayer(videoId, startSec = 0) {
       playerVars: {
         autoplay: 1,
         controls: 1,
-        mute: isUsingDirectYtAudio ? 0 : 1,
+        mute: 1, // ALWAYS MUTED: only Web Audio DSP feeds sound into Headphones & Discord/VB-CABLE!
         enablejsapi: 1,
         origin: origin,
         start: Math.floor(startSec)
@@ -611,25 +600,13 @@ function initYtPlayer(videoId, startSec = 0) {
       events: {
         onReady: (e) => {
           isYtReady = true;
-          if (isUsingDirectYtAudio) {
-            if (e.target && e.target.unMute) e.target.unMute();
-            const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
-            if (e.target && e.target.setVolume) e.target.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
-          } else {
-            if (e.target && e.target.mute) e.target.mute();
-          }
+          if (e.target && e.target.mute) e.target.mute();
           e.target.playVideo();
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
             isPlaying = true;
-            if (isUsingDirectYtAudio) {
-              if (ytPlayer && ytPlayer.unMute) ytPlayer.unMute();
-              const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
-              if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
-            } else {
-              if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
-            }
+            if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
             playPauseBtn.innerHTML = SVG_PAUSE;
             startYtProgressTracker();
           } else if (e.data === YT.PlayerState.PAUSED) {
@@ -1883,25 +1860,18 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // Load YouTube Visuals & Audio
+  // Load YouTube Visuals (Muted so Web Audio handles master sound into Discord & Headphones)
   initYtPlayer(track.id, seekSeconds);
 
-  if (isUsingDirectYtAudio) {
-    // In Direct YouTube mode (Cloud / Failover): YouTube player provides high-definition audio directly
+  // Connect & Stream audio through Web Audio Graph into Headphones and VB-CABLE
+  const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
+  audioSourceElement.src = streamUrl;
+  try {
+    await audioSourceElement.play();
     isPlaying = true;
     playPauseBtn.innerHTML = SVG_PAUSE;
-  } else {
-    // On local machine: Try Web Audio DSP streaming through audioSourceElement
-    const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
-    audioSourceElement.src = streamUrl;
-    try {
-      await audioSourceElement.play();
-      isPlaying = true;
-      playPauseBtn.innerHTML = SVG_PAUSE;
-    } catch (err) {
-      console.warn('AudioSource stream note, activating YouTube direct player:', err);
-      activateYtAudioFailover();
-    }
+  } catch (err) {
+    console.warn('AudioSource play note:', err);
   }
 }
 
@@ -1962,15 +1932,12 @@ function seekToSeconds(seconds) {
 
   if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
     ytPlayer.seekTo(clamped, true);
-    if (!isUsingDirectYtAudio && ytPlayer.mute) ytPlayer.mute();
-    else if (isUsingDirectYtAudio && ytPlayer.unMute) ytPlayer.unMute();
+    if (ytPlayer.mute) ytPlayer.mute();
     if (ytPlayer.playVideo) ytPlayer.playVideo();
   }
-  if (audioSourceElement && !isUsingDirectYtAudio) {
+  if (audioSourceElement) {
     audioSourceElement.src = `/api/audio?id=${currentTrack.id}&t=${clamped}`;
-    audioSourceElement.play().catch(() => {
-      activateYtAudioFailover();
-    });
+    audioSourceElement.play().catch(() => {});
   }
   isPlaying = true;
   playPauseBtn.innerHTML = SVG_PAUSE;
@@ -1985,14 +1952,11 @@ function togglePlayPause() {
     isPlaying = false;
     playPauseBtn.innerHTML = SVG_PLAY;
   } else {
-    if (audioSourceElement && !isUsingDirectYtAudio) {
-      audioSourceElement.play().catch(() => {
-        activateYtAudioFailover();
-      });
+    if (audioSourceElement) {
+      audioSourceElement.play().catch(() => {});
     }
     if (ytPlayer && ytPlayer.playVideo) {
-      if (!isUsingDirectYtAudio && ytPlayer.mute) ytPlayer.mute();
-      else if (isUsingDirectYtAudio && ytPlayer.unMute) ytPlayer.unMute();
+      if (ytPlayer.mute) ytPlayer.mute();
       ytPlayer.playVideo();
     }
     isPlaying = true;

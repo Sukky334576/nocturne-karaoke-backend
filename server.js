@@ -123,7 +123,6 @@ function extractStreamUrl(targetUrl) {
     }
 
     execFile(ytDlpPath, [
-      '--extractor-args', 'youtube:player_client=ios,web,mweb,android,tv_embedded',
       '-f', 'ba/b',
       '-g',
       '--no-playlist',
