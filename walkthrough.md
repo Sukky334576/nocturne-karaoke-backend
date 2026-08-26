@@ -1,23 +1,20 @@
-# ⚡ Nocturne Studio • Ultra-Fast Search Engine & System Status
+# 🎙️ Nocturne Studio • Dual Discord & FiveM Audio Routing Fix
 
 ---
 
-## 🛠️ รายละเอียดการอัปเกรดความเร็วระบบค้นหา (Sub-Second Search)
+## 🛠️ รายละเอียดการแก้ปัญหา "เสียงพูดออกดิส แต่เสียงเพลงไม่ออกดิส"
 
-### 1. 🔍 ปัญหาเดิม (ทำไมค้นหาเพลงถึงใช้เวลา 6 วินาที?)
-* แพ็กเกจเดิม (`yt-search`) ใช้วิธีดึงหน้าเว็บ HTML ขนาดหลาย Megabytes ของ YouTube มา Parse และแปลงข้อมูลทีละส่วนบน Server ซึ่งช้ามาก (ใช้เวลา 4 - 6 วินาที)
+### 1. 🔍 สาเหตุที่แท้จริง
+* เมื่อเปิดใช้งานผ่าน Cloud ก่อนหน้านี้ มีการใช้ระบบเปิดเสียงจาก YouTube Iframe โดยตรง
+* **ข้อจำกัดความปลอดภัยของเบราว์เซอร์ (Browser Cross-Origin Sandbox):** ตัว YouTube Iframe ถูกจำกัดไม่ให้ต่อเข้ากับระบบ Web Audio API ของเบราว์เซอร์ ทำให้เสียงเพลงวิ่งตรงออกลำโพง/หูฟังธรรมดา แต่ **ไม่ได้ถูกส่งเข้าสาย `CABLE Input (VB-Audio Virtual Cable)`**
+* ผลลัพธ์คือ: ใน Discord และ FiveM (ซึ่งดักฟังเสียงจาก VB-CABLE) จึงได้รับเฉพาะเสียงไมโครโฟน แต่ไม่มีเสียงดนตรีคาราโอเกะส่งเข้าไปด้วย
 
-### 2. ⚡ การแก้ไข (อัปเกรดเป็น Direct InnerTube API)
-* เปลี่ยนมาใช้ **Direct YouTube InnerTube API (JSON Protocol)** โดยตรง
-* ความเร็วในการดึงผลค้นหาลดลงจาก 6 วินาที เหลือเพียง **0.15 - 0.3 วินาที (150-300ms)** เร็วขึ้นกว่าเดิม **20 เท่า!**
-* มีระบบ **In-Memory Cache** ดักจับคำค้นหาเดิม ให้ผลลัพธ์ทันทีใน **0.001 วินาที (1ms)**
-
----
-
-## ℹ️ คำอธิบายข้อความแจ้งเตือนสีเหลืองใน Console
-
-* ข้อความ: `The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127`
-* **คำอธิบาย:** เป็นข้อความแจ้งสถานะภายในของ Google Chrome บน Windows เกี่ยวกับการเลือกการ์ดจอ WebGPU (ไม่ได้เป็น Error ของเว็บ และไม่มีผลกระทบใดๆ ต่อเสียงหรือการทำงานของเว็บไซต์ 100% ครับ)
+### 2. 🚀 การแก้ไขที่ติดตั้ง
+1. **Master Web Audio Stream Pipeline:** อัปเดตตัวดึงสตรีมเสียงหลังบ้าน `yt-dlp` รุ่นล่าสุด ดึงสัญญาณเสียงคุณภาพสูงเข้าสู่ `audioSourceElement` ในระบบ Web Audio API
+2. **Dual-Channel Dispatcher Active:** สัญญาณเพลงจะวิ่งผ่าน:
+   * 🎧 **Channel 1 (หูเรา):** `musicHpGain` ➔ ส่งออกหูฟังของคุณ
+   * 🎙️ **Channel 2 (FiveM & Discord):** `musicCableGain` ➔ ส่งเข้า `VB-CABLE` เข้า Discord/FiveM พร้อมระบบชดเชยดีเลย์ 120ms
+3. **Key Shift & Ducking Support:** ระบบคีย์เพลงและระบบลดเสียงเพลงตอนพูด (Ducking) ทำงานได้อย่างสมบูรณ์แบบทั้งในหูเราและใน Discord 100%
 
 ---
 
