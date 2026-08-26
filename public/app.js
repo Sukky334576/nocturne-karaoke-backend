@@ -1836,11 +1836,31 @@ document.addEventListener('click', (e) => {
 });
 
 // Fallback & Dynamic API Endpoints
+let localAudioBridgeAvailable = null;
+
+async function checkLocalBridge() {
+  if (localAudioBridgeAvailable !== null) return localAudioBridgeAvailable;
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 600);
+    const res = await fetch('http://127.0.0.1:3300/api/ping', { signal: ctrl.signal });
+    clearTimeout(tid);
+    localAudioBridgeAvailable = (res && res.ok);
+  } catch (e) {
+    localAudioBridgeAvailable = false;
+  }
+  return localAudioBridgeAvailable;
+}
+
 async function getBestSearchUrl(query) {
   return `/api/search?q=${encodeURIComponent(query)}`;
 }
 
 async function getBestAudioStreamUrl(videoId, startSeconds = 0) {
+  const isLocalActive = await checkLocalBridge();
+  if (isLocalActive && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return `http://127.0.0.1:3300/api/audio?id=${videoId}&t=${startSeconds}`;
+  }
   return `/api/audio?id=${videoId}&t=${startSeconds}`;
 }
 
