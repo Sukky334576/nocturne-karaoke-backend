@@ -1896,23 +1896,21 @@ async function playTrack(track, seekSeconds = 0) {
 }
 
 function activateYtAudioFailover() {
-  console.log('⚡ Switching to YouTube Direct Audio playback mode');
+  console.log('⚡ Switching to YouTube Direct Audio playback mode (Cloud Failover)');
   isUsingDirectYtAudio = true;
   if (audioSourceElement) {
     audioSourceElement.pause();
     audioSourceElement.removeAttribute('src');
     audioSourceElement.load();
   }
-  if (ytPlayer) {
-    if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
-    const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
-    if (typeof ytPlayer.setVolume === 'function') {
-      ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
-    }
-    if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo();
+  if (currentTrack) {
+    const origin = window.location.origin;
+    const seekSec = Math.floor(streamOffsetSeconds || 0);
+    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${currentTrack.id}?autoplay=1&controls=1&mute=0&start=${seekSec}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
   }
   isPlaying = true;
   playPauseBtn.innerHTML = SVG_PAUSE;
+  startYtProgressTracker();
 }
 
 async function playTrackFromUrl(url) {
