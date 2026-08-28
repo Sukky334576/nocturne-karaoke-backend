@@ -58,7 +58,10 @@ let mediaElementSource = null;
 let ytPlayer = null;
 let isYtReady = false;
 let ytProgressInterval = null;
-let isUsingDirectYtAudio = false;
+const isCloudHost = window.location.hostname.includes('onrender.com') ||
+                    window.location.hostname.includes('vercel.app') ||
+                    (!['localhost', '127.0.0.1'].includes(window.location.hostname));
+let isUsingDirectYtAudio = isCloudHost;
 
 // User Profile & App State
 let currentUser = {
@@ -569,16 +572,24 @@ openRecordTestBtn.addEventListener('click', () => {
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
   const origin = window.location.origin;
+  const muteFlag = isUsingDirectYtAudio ? 0 : 1;
+  const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+  const volInt = isHpMusicMuted ? 0 : Math.round(hpVol * 100);
 
   if (!window.YT || !window.YT.Player) {
-    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=1&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
     return;
   }
 
   if (ytPlayer && ytPlayer.loadVideoById) {
     try {
       ytPlayer.loadVideoById({ videoId, startSeconds: Math.floor(startSec) });
-      if (ytPlayer.mute) ytPlayer.mute();
+      if (isUsingDirectYtAudio) {
+        if (ytPlayer.unMute) ytPlayer.unMute();
+        if (ytPlayer.setVolume) ytPlayer.setVolume(volInt);
+      } else {
+        if (ytPlayer.mute) ytPlayer.mute();
+      }
       ytPlayer.playVideo();
     } catch (e) {
       console.warn('YT load error:', e);
@@ -592,7 +603,7 @@ function initYtPlayer(videoId, startSec = 0) {
       playerVars: {
         autoplay: 1,
         controls: 1,
-        mute: 1, // ALWAYS MUTED: only Web Audio DSP feeds sound into Headphones & Discord/VB-CABLE!
+        mute: muteFlag,
         enablejsapi: 1,
         origin: origin,
         start: Math.floor(startSec)
@@ -600,13 +611,23 @@ function initYtPlayer(videoId, startSec = 0) {
       events: {
         onReady: (e) => {
           isYtReady = true;
-          if (e.target && e.target.mute) e.target.mute();
+          if (isUsingDirectYtAudio) {
+            if (e.target && e.target.unMute) e.target.unMute();
+            if (e.target && e.target.setVolume) e.target.setVolume(volInt);
+          } else {
+            if (e.target && e.target.mute) e.target.mute();
+          }
           e.target.playVideo();
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
             isPlaying = true;
-            if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
+            if (isUsingDirectYtAudio) {
+              if (ytPlayer && ytPlayer.unMute) ytPlayer.unMute();
+              if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(volInt);
+            } else {
+              if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
+            }
             playPauseBtn.innerHTML = SVG_PAUSE;
             startYtProgressTracker();
           } else if (e.data === YT.PlayerState.PAUSED) {
@@ -1880,18 +1901,25 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // Load YouTube Visuals (Muted so Web Audio handles master sound into Discord & Headphones)
+  // Load YouTube Visuals and Audio
   initYtPlayer(track.id, seekSeconds);
 
-  // Connect & Stream audio through Web Audio Graph into Headphones and VB-CABLE
-  const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
-  audioSourceElement.src = streamUrl;
-  try {
-    await audioSourceElement.play();
+  if (isUsingDirectYtAudio) {
+    // In Direct YouTube mode (Cloud): YouTube player provides high-definition audio directly
     isPlaying = true;
     playPauseBtn.innerHTML = SVG_PAUSE;
-  } catch (err) {
-    console.warn('AudioSource play note:', err);
+  } else {
+    // On Local Engine: Stream through Web Audio DSP into VB-CABLE and Headphones
+    const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
+    audioSourceElement.src = streamUrl;
+    try {
+      await audioSourceElement.play();
+      isPlaying = true;
+      playPauseBtn.innerHTML = SVG_PAUSE;
+    } catch (err) {
+      console.warn('AudioSource play note, activating failover:', err);
+      activateYtAudioFailover();
+    }
   }
 }
 
