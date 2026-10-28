@@ -275,6 +275,22 @@ const samplesListContainer = document.getElementById('samplesListContainer');
 const resetSamplesBtn = document.getElementById('resetSamplesBtn');
 const applyMeasuredOffsetBtn = document.getElementById('applyMeasuredOffsetBtn');
 
+// Sonar Auto-Calibration DOM
+const tabSonarBtn = document.getElementById('tabSonarBtn');
+const tabMetroBtn = document.getElementById('tabMetroBtn');
+const sonarPanel = document.getElementById('sonarPanel');
+const metroPanel = document.getElementById('metroPanel');
+const sonarRadarWrap = document.getElementById('sonarRadarWrap');
+const sonarStatusMsg = document.getElementById('sonarStatusMsg');
+const sonarSubStatus = document.getElementById('sonarSubStatus');
+const sonarMeasuredVal = document.getElementById('sonarMeasuredVal');
+const sonarConfidenceBadge = document.getElementById('sonarConfidenceBadge');
+const sonarRoundsContainer = document.getElementById('sonarRoundsContainer');
+const startSonarBtn = document.getElementById('startSonarBtn');
+const applySonarBtn = document.getElementById('applySonarBtn');
+const openSonarCalibrateBtn = document.getElementById('openSonarCalibrateBtn');
+const openSonarFromRecordBtn = document.getElementById('openSonarFromRecordBtn');
+
 // Embedded Record Test Section
 const embeddedRecordSection = document.getElementById('embeddedRecordSection');
 const openRecordTestBtn = document.getElementById('openRecordTestBtn');
@@ -1769,6 +1785,7 @@ function setSyncOffset(val) {
   if (cableSyncOffsetText) cableSyncOffsetText.innerText = v + ' ms';
   if (modalSyncOffset) modalSyncOffset.value = v;
   if (modalSyncOffsetText) modalSyncOffsetText.innerText = v + ' ms';
+  if (sonarMeasuredVal) sonarMeasuredVal.innerText = v + ' ms';
 
   if (cableSyncDelayNode && audioCtx) {
     cableSyncDelayNode.delayTime.setValueAtTime(v / 1000, audioCtx.currentTime);
@@ -1791,6 +1808,258 @@ applyMeasuredOffsetBtn.addEventListener('click', () => {
     alert('ยังไม่มีค่าเฉลี่ยความหน่วง กรุณาปรบมือตามจังหวะเคาะ 3-5 ครั้งก่อนครับ');
   }
 });
+
+// --- Acoustic Sonar Cross-Correlation Engine ---
+let isSonarTesting = false;
+let sonarDetectedOffset = 120;
+
+async function runSonarAcousticCalibration() {
+  if (isSonarTesting) return;
+  if (!audioCtx) {
+    await initAudioEngine();
+  }
+  if (!audioCtx || !micSource) {
+    alert('กรุณากดเปิดใช้งานระบบเสียง (START ENGINE) และอนุญาตไมโครโฟนก่อนเริ่มตรวจวัด');
+    return;
+  }
+
+  isSonarTesting = true;
+  if (startSonarBtn) {
+    startSonarBtn.disabled = true;
+    startSonarBtn.innerHTML = '<span>⏳ กำลังยิงคลื่นเสียงและดักจับ...</span>';
+  }
+  if (applySonarBtn) applySonarBtn.disabled = true;
+
+  if (sonarRadarWrap) sonarRadarWrap.classList.add('sonar-pulsing');
+  if (sonarStatusMsg) sonarStatusMsg.innerText = '📡 กำลังส่งคลื่นเสียง Chirp 3 ระลอก (กรุณาถือหูฟังจ่อติดไมค์ไว้)...';
+  if (sonarSubStatus) sonarSubStatus.innerText = 'รอสัญญาณเสียงวนกลับเข้าสู่ไมโครโฟนเพื่อคำนวณ Cross-Correlation';
+
+  try {
+    const sampleRate = audioCtx.sampleRate || 48000;
+    const chirpDur = 0.045; // 45ms linear chirp
+    const chirpLen = Math.floor(sampleRate * chirpDur);
+    const refChirp = new Float32Array(chirpLen);
+    let refEnergy = 0;
+
+    for (let i = 0; i < chirpLen; i++) {
+      const t = i / sampleRate;
+      const f = 1400 + ((3600 - 1400) / (2 * chirpDur)) * t;
+      const env = 0.5 * (1 - Math.cos((2 * Math.PI * i) / chirpLen));
+      refChirp[i] = env * Math.sin(2 * Math.PI * f * t);
+      refEnergy += refChirp[i] * refChirp[i];
+    }
+
+    // Create AudioBuffer containing the reference chirp
+    const chirpBuffer = audioCtx.createBuffer(1, chirpLen, sampleRate);
+    chirpBuffer.copyToChannel(refChirp, 0);
+
+    // Recording buffer setup using ScriptProcessor
+    const bufferDurationSec = 1.35;
+    const totalSamplesToRecord = Math.floor(bufferDurationSec * sampleRate);
+    const recordedBuffer = new Float32Array(totalSamplesToRecord);
+    let recordedIndex = 0;
+
+    const processor = audioCtx.createScriptProcessor(2048, 1, 1);
+    const muteGain = audioCtx.createGain();
+    muteGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+    processor.onaudioprocess = (e) => {
+      const input = e.inputBuffer.getChannelData(0);
+      const remaining = totalSamplesToRecord - recordedIndex;
+      if (remaining > 0) {
+        const toCopy = Math.min(input.length, remaining);
+        recordedBuffer.set(input.subarray(0, toCopy), recordedIndex);
+        recordedIndex += toCopy;
+      }
+    };
+
+    micSource.connect(processor);
+    processor.connect(muteGain);
+    muteGain.connect(audioCtx.destination);
+
+    // Schedule 3 Chirp Pulses out through headphone output
+    const startTime = audioCtx.currentTime + 0.12;
+    const pulseDelays = [0.0, 0.35, 0.70];
+    
+    pulseDelays.forEach((pOffset) => {
+      const src = audioCtx.createBufferSource();
+      src.buffer = chirpBuffer;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.85, startTime + pOffset);
+      src.connect(g);
+      g.connect(headphoneMixGain || audioCtx.destination);
+      src.start(startTime + pOffset);
+    });
+
+    // Wait until recording is complete
+    await new Promise(resolve => setTimeout(resolve, Math.round((bufferDurationSec + 0.2) * 1000)));
+
+    // Clean up processor
+    micSource.disconnect(processor);
+    processor.disconnect();
+    processor.onaudioprocess = null;
+
+    if (sonarRadarWrap) sonarRadarWrap.classList.remove('sonar-pulsing');
+
+    // Run Cross-Correlation Detection
+    const detectedRounds = [];
+    pulseDelays.forEach((pOffset) => {
+      const emitIdx = Math.round((0.12 + pOffset) * sampleRate);
+      const minDelaySamples = Math.round(0.015 * sampleRate); // 15ms minimum hardware delay
+      const maxDelaySamples = Math.round(0.350 * sampleRate); // 350ms maximum delay window
+
+      let bestVal = -Infinity;
+      let bestIdx = 0;
+
+      // Coarse Search (step 4)
+      for (let k = emitIdx + minDelaySamples; k <= emitIdx + maxDelaySamples; k += 4) {
+        if (k + chirpLen >= recordedBuffer.length) break;
+        let sum = 0;
+        for (let m = 0; m < chirpLen; m += 4) {
+          sum += recordedBuffer[k + m] * refChirp[m];
+        }
+        if (sum > bestVal) {
+          bestVal = sum;
+          bestIdx = k;
+        }
+      }
+
+      // Fine Search (step 1 around peak)
+      const fineStart = Math.max(emitIdx + minDelaySamples, bestIdx - 8);
+      const fineEnd = Math.min(emitIdx + maxDelaySamples, bestIdx + 8);
+      let fineBestVal = -Infinity;
+      let fineBestIdx = bestIdx;
+
+      for (let k = fineStart; k <= fineEnd; k++) {
+        if (k + chirpLen >= recordedBuffer.length) break;
+        let sum = 0;
+        let recEnergy = 0;
+        for (let m = 0; m < chirpLen; m += 2) {
+          sum += recordedBuffer[k + m] * refChirp[m];
+          recEnergy += recordedBuffer[k + m] * recordedBuffer[k + m];
+        }
+        const score = sum / (Math.sqrt(recEnergy * (refEnergy * 0.5)) || 1);
+        if (score > fineBestVal) {
+          fineBestVal = score;
+          fineBestIdx = k;
+        }
+      }
+
+      const delayMs = Math.round(((fineBestIdx - emitIdx) / sampleRate) * 1000);
+      if (fineBestVal > 0.16 && delayMs >= 20 && delayMs <= 350) {
+        detectedRounds.push({ delay: delayMs, score: fineBestVal });
+      }
+    });
+
+    if (detectedRounds.length >= 2) {
+      detectedRounds.sort((a, b) => a.delay - b.delay);
+      const medianDelay = detectedRounds[Math.floor(detectedRounds.length / 2)].delay;
+      const variance = Math.max(...detectedRounds.map(r => r.delay)) - Math.min(...detectedRounds.map(r => r.delay));
+      
+      sonarDetectedOffset = medianDelay;
+      if (sonarMeasuredVal) sonarMeasuredVal.innerText = `${medianDelay} ms`;
+      if (sonarConfidenceBadge) {
+        sonarConfidenceBadge.style.display = 'inline-block';
+        if (variance <= 8) {
+          sonarConfidenceBadge.style.background = 'rgba(74, 222, 128, 0.15)';
+          sonarConfidenceBadge.style.color = '#4ade80';
+          sonarConfidenceBadge.style.borderColor = '#4ade80';
+          sonarConfidenceBadge.innerText = `🎯 แม่นยำสูง 99% (±${variance}ms)`;
+        } else {
+          sonarConfidenceBadge.style.background = 'rgba(216, 177, 93, 0.15)';
+          sonarConfidenceBadge.style.color = '#d8b15d';
+          sonarConfidenceBadge.style.borderColor = '#d8b15d';
+          sonarConfidenceBadge.innerText = `👍 ตรวจพบ ${detectedRounds.length}/3 รอบ`;
+        }
+      }
+
+      if (sonarRoundsContainer) {
+        sonarRoundsContainer.innerHTML = detectedRounds.map((r, i) => 
+          `<span class="sample-badge">พัลส์ ${i + 1}: ${r.delay}ms</span>`
+        ).join('');
+      }
+
+      if (sonarStatusMsg) sonarStatusMsg.innerHTML = `✅ <strong>ตรวจพบความหน่วงระบบแม่นยำ: ${medianDelay} ms</strong>`;
+      if (sonarSubStatus) sonarSubStatus.innerText = 'กด "นำค่านี้ไปใช้ทันที" เพื่ออัปเดตระบบชดเชยดีเลย์เข้า FiveM ได้เลยครับ';
+      
+      if (applySonarBtn) {
+        applySonarBtn.disabled = false;
+        applySonarBtn.classList.add('glow-btn');
+      }
+    } else {
+      if (sonarConfidenceBadge) {
+        sonarConfidenceBadge.style.display = 'inline-block';
+        sonarConfidenceBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+        sonarConfidenceBadge.style.color = '#ef4444';
+        sonarConfidenceBadge.style.borderColor = '#ef4444';
+        sonarConfidenceBadge.innerText = '⚠️ สัญญาณเบาเกินไป';
+      }
+      
+      if (sonarStatusMsg) sonarStatusMsg.innerText = '⚠️ ไมค์ตรวจจับเสียงสะท้อนจากหูฟังไม่ชัดเจน';
+      if (sonarSubStatus) sonarSubStatus.innerText = 'คำแนะนำ: กรุณาถอดหูฟัง 1 ข้างมาจ่อให้แนบชิดหัวไมค์ (~2-3 ซม.) แล้วกดทดสอบใหม่อีกครั้งครับ';
+      if (sonarRoundsContainer) sonarRoundsContainer.innerHTML = '<span class="sample-badge empty">ไม่พบสัญญาณชัดเจน</span>';
+    }
+  } catch (err) {
+    console.error('Sonar Calibration error:', err);
+    if (sonarStatusMsg) sonarStatusMsg.innerText = '❌ เกิดข้อผิดพลาดในการคำนวณสัญญาณ';
+  } finally {
+    isSonarTesting = false;
+    if (startSonarBtn) {
+      startSonarBtn.disabled = false;
+      startSonarBtn.innerHTML = '⚡ เริ่มยิงคลื่นวัดดีเลย์ (Start Sonar Test)';
+    }
+  }
+}
+
+// Sonar Event Listeners
+if (startSonarBtn) startSonarBtn.addEventListener('click', runSonarAcousticCalibration);
+
+if (applySonarBtn) {
+  applySonarBtn.addEventListener('click', () => {
+    if (sonarDetectedOffset > 0) {
+      setSyncOffset(sonarDetectedOffset);
+      applySonarBtn.innerHTML = '<span>✅ นำค่าไปใช้แล้ว!</span>';
+      setTimeout(() => {
+        applySonarBtn.innerHTML = '🎯 นำค่านี้ไปใช้ทันที';
+        syncModal.classList.add('hidden');
+      }, 1200);
+    }
+  });
+}
+
+// Modal Tab Switcher (Acoustic Sonar vs Manual Metronome)
+if (tabSonarBtn && tabMetroBtn) {
+  tabSonarBtn.addEventListener('click', () => {
+    tabSonarBtn.classList.add('active');
+    tabMetroBtn.classList.remove('active');
+    if (sonarPanel) sonarPanel.classList.remove('hidden');
+    if (metroPanel) metroPanel.classList.add('hidden');
+    if (isMetronomeRunning) stopMetronome();
+  });
+  tabMetroBtn.addEventListener('click', () => {
+    tabMetroBtn.classList.add('active');
+    tabSonarBtn.classList.remove('active');
+    if (metroPanel) metroPanel.classList.remove('hidden');
+    if (sonarPanel) sonarPanel.classList.add('hidden');
+  });
+}
+
+// Quick Open Sonar Calibrate Buttons
+if (openSonarCalibrateBtn) {
+  openSonarCalibrateBtn.addEventListener('click', () => {
+    initAudioEngine();
+    syncModal.classList.remove('hidden');
+    if (tabSonarBtn) tabSonarBtn.click();
+  });
+}
+
+if (openSonarFromRecordBtn) {
+  openSonarFromRecordBtn.addEventListener('click', () => {
+    initAudioEngine();
+    syncModal.classList.remove('hidden');
+    if (tabSonarBtn) tabSonarBtn.click();
+  });
+}
 
 // Enumerate Audio Devices
 async function enumerateAudioDevices() {

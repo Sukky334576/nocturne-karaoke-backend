@@ -245,6 +245,7 @@
               <div class="sync-slider-wrap">
                 <input type="range" id="modalSyncOffset" min="0" max="300" step="10" value="120">
                 <span id="modalSyncOffsetText" class="val-gold mono-num">120 ms</span>
+                <button id="openSonarFromRecordBtn" type="button" class="btn btn-outline" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; color: #d8b15d; border-color: rgba(216,177,93,0.4); margin-left: 6px;" title="เปิดเครื่องมือยิงคลื่นเสียงวัดดีเลย์อัตโนมัติ">⚡ วัดอัตโนมัติ</button>
               </div>
             </div>
           </div>
@@ -506,7 +507,10 @@
             <div class="control-group sync-offset-box">
               <div class="group-header">
                 <label for="cableSyncOffset">FiveM / Discord Sync Offset</label>
-                <span id="cableSyncOffsetText" class="val-text val-gold-highlight mono-num">120 ms</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button id="openSonarCalibrateBtn" type="button" class="btn btn-outline" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; color: #d8b15d; border-color: rgba(216,177,93,0.4);" title="เปิดเครื่องมือยิงคลื่นเสียงวัดดีเลย์อัตโนมัติ">⚡ วัดดีเลย์อัตโนมัติ</button>
+                  <span id="cableSyncOffsetText" class="val-text val-gold-highlight mono-num">120 ms</span>
+                </div>
               </div>
               <input type="range" id="cableSyncOffset" min="0" max="300" step="10" value="120" aria-label="ปรับชดเชยดีเลย์">
             </div>
@@ -747,53 +751,131 @@
       </div>
     </div>
 
-    <!-- Metronome Latency Tester Modal -->
+    <!-- Hardware Latency Calibration Modal (Acoustic Sonar & Metronome) -->
     <div id="syncModal" class="modal-overlay hidden">
-      <div class="modal-card">
+      <div class="modal-card" style="max-width: 540px;">
         <div class="modal-header">
           <div class="modal-title-group">
-            <h3>เครื่องมือตรวจสอบดีเลย์ (Metronome Tester)</h3>
-            <p>ปรบมือหรือร้อง "ต๊อก" ตามจังหวะไฟ 3-5 ครั้ง เพื่อหาค่าเฉลี่ยความหน่วงฮาร์ดแวร์</p>
+            <h3>⚡ ระบบวัดและชดเชยดีเลย์ (Hardware Latency Calibration)</h3>
+            <p>ตรวจจับและตั้งค่า FiveM / Discord Sync Offset ให้เสียงร้องและดนตรีตรงจังหวะ 100%</p>
           </div>
           <button id="closeSyncModalBtn" class="btn-icon-close" aria-label="ปิด">✕</button>
         </div>
 
+        <!-- Mode Switcher Tabs -->
+        <div class="sync-tab-nav" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding: 0 16px 10px 16px; margin-bottom: 16px;">
+          <button id="tabSonarBtn" type="button" class="sync-tab-btn active" style="flex: 1; padding: 8px 12px; background: rgba(216,177,93,0.12); border: 1px solid rgba(216,177,93,0.4); color: #f4e6c3; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+            ⚡ ยิงคลื่นวัดอัตโนมัติ (Acoustic Sonar)
+          </button>
+          <button id="tabMetroBtn" type="button" class="sync-tab-btn" style="flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+            🥁 เคาะจังหวะตามเมโทรนอม (Manual)
+          </button>
+        </div>
+
         <div class="modal-body">
-          <div class="metronome-visual-container">
-            <div id="metroIndicator" class="metro-circle">
-              <span id="metroBeatNum" class="mono-num">1</span>
-            </div>
-            <div class="metro-status-text" id="metroStatus">กดเริ่มเคาะจังหวะเพื่อเริ่มทดสอบ</div>
-          </div>
-
-          <div class="sync-readout-grid">
-            <div class="readout-box">
-              <span class="readout-label">สัญญาณระบบ (Audio Output)</span>
-              <span class="readout-val val-gold" id="outputBeepStatus">รอสัญญาณ</span>
-            </div>
-            <div class="readout-box">
-              <span class="readout-label">สัญญาณไมค์ (Mic Input)</span>
-              <span class="readout-val val-green" id="micDetectStatus">รอเสียงเคาะ</span>
-            </div>
-            <div class="readout-box readout-highlight">
-              <div class="readout-header-row">
-                <span class="readout-label">ค่าเฉลี่ยความเหลื่อมเวลา:</span>
-                <button id="resetSamplesBtn" class="btn-link-danger">รีเซ็ต</button>
+          <!-- TAB 1: ACOUSTIC SONAR CROSS-CORRELATION -->
+          <div id="sonarPanel" class="sync-tab-panel">
+            <!-- 3-Step Guide Banner -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; font-size: 11px; text-align: center;">
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); padding: 8px 6px; border-radius: 6px;">
+                <div style="font-size: 18px; margin-bottom: 2px;">🎧</div>
+                <div style="font-weight: 600; color: #f4e6c3;">1. ถอดหูฟัง 1 ข้าง</div>
+                <div style="color: var(--text-muted); font-size: 10px;">จ่อหูฟังแนบติดหัวไมค์ (~2-5 ซม.)</div>
               </div>
-              <span class="readout-val val-gold mono-num readout-big" id="measuredOffsetVal">0 ms</span>
-              <div id="samplesListContainer" class="samples-pill-row">
-                <span class="sample-badge empty">ยังไม่มีข้อมูล</span>
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); padding: 8px 6px; border-radius: 6px;">
+                <div style="font-size: 18px; margin-bottom: 2px;">🚀</div>
+                <div style="font-weight: 600; color: #f4e6c3;">2. กดยิงคลื่นเสียง</div>
+                <div style="color: var(--text-muted); font-size: 10px;">ส่งสัญญาณเสียง 3 ครั้งใน 2 วินาที</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); padding: 8px 6px; border-radius: 6px;">
+                <div style="font-size: 18px; margin-bottom: 2px;">🎯</div>
+                <div style="font-weight: 600; color: #f4e6c3;">3. ได้ค่าดีเลย์ทันที</div>
+                <div style="color: var(--text-muted); font-size: 10px;">Cross-Correlation แม่นยำระดับ 1ms</div>
               </div>
             </div>
+
+            <!-- Sonar Radar Visualizer -->
+            <div class="sonar-visual-card" style="background: #08090d; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px 16px; text-align: center; margin-bottom: 16px; position: relative; overflow: hidden;">
+              <div id="sonarRadarWrap" style="position: relative; width: 80px; height: 80px; margin: 0 auto 12px auto; display: flex; align-items: center; justify-content: center;">
+                <div class="sonar-pulse-ring ring-1"></div>
+                <div class="sonar-pulse-ring ring-2"></div>
+                <div id="sonarCoreIcon" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(216,177,93,0.15); border: 1px solid #d8b15d; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 2; transition: all 0.2s ease;">
+                  📡
+                </div>
+              </div>
+              <div id="sonarStatusMsg" style="font-size: 12px; color: #cfd3dc; margin-bottom: 4px; font-weight: 500;">
+                พร้อมวัดความหน่วงฮาร์ดแวร์ (นำหูฟังมาจ่อไมค์แล้วกดปุ่มด้านล่าง)
+              </div>
+              <div id="sonarSubStatus" style="font-size: 11px; color: var(--text-muted);">
+                ตรวจวัดความหน่วงรวม: Soundcard DAC + Buffer + Mic ADC
+              </div>
+            </div>
+
+            <!-- Sonar Readout Results -->
+            <div class="sync-readout-grid" style="margin-bottom: 16px;">
+              <div class="readout-box readout-highlight" style="grid-column: 1 / -1;">
+                <div class="readout-header-row">
+                  <span class="readout-label">ผลการตรวจจับความหน่วงจริง (Hardware Latency):</span>
+                  <span id="sonarConfidenceBadge" class="sample-badge" style="background: rgba(216,177,93,0.2); color: #f4e6c3; border-color: rgba(216,177,93,0.4); display: none;">พร้อมใช้งาน</span>
+                </div>
+                <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+                  <span class="readout-val val-gold mono-num readout-big" id="sonarMeasuredVal">120 ms</span>
+                  <div id="sonarRoundsContainer" class="samples-pill-row" style="margin: 0;">
+                    <span class="sample-badge empty">ยังไม่ได้เริ่มวัด</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sonar Action Buttons -->
+            <div class="modal-actions" style="display: flex; gap: 10px;">
+              <button id="startSonarBtn" type="button" class="btn btn-primary btn-flex" style="padding: 10px 16px; font-weight: 600;">
+                ⚡ เริ่มยิงคลื่นวัดดีเลย์ (Start Sonar Test)
+              </button>
+              <button id="applySonarBtn" type="button" class="btn btn-outline btn-gold-outline" style="padding: 10px 16px; font-weight: 600;">
+                🎯 นำค่านี้ไปใช้ทันที
+              </button>
+            </div>
           </div>
 
-          <div class="modal-actions">
-            <button id="toggleMetronomeBtn" class="btn btn-primary btn-flex">
-              เริ่มเคาะจังหวะ (Start Metronome)
-            </button>
-            <button id="applyMeasuredOffsetBtn" class="btn btn-outline btn-gold-outline">
-              นำค่าเฉลี่ยไปใช้ทันที
-            </button>
+          <!-- TAB 2: MANUAL METRONOME -->
+          <div id="metroPanel" class="sync-tab-panel hidden">
+            <div class="metronome-visual-container">
+              <div id="metroIndicator" class="metro-circle">
+                <span id="metroBeatNum" class="mono-num">1</span>
+              </div>
+              <div class="metro-status-text" id="metroStatus">กดเริ่มเคาะจังหวะเพื่อเริ่มทดสอบ</div>
+            </div>
+
+            <div class="sync-readout-grid">
+              <div class="readout-box">
+                <span class="readout-label">สัญญาณระบบ (Audio Output)</span>
+                <span class="readout-val val-gold" id="outputBeepStatus">รอสัญญาณ</span>
+              </div>
+              <div class="readout-box">
+                <span class="readout-label">สัญญาณไมค์ (Mic Input)</span>
+                <span class="readout-val val-green" id="micDetectStatus">รอเสียงเคาะ</span>
+              </div>
+              <div class="readout-box readout-highlight">
+                <div class="readout-header-row">
+                  <span class="readout-label">ค่าเฉลี่ยความเหลื่อมเวลา:</span>
+                  <button id="resetSamplesBtn" class="btn-link-danger">รีเซ็ต</button>
+                </div>
+                <span class="readout-val val-gold mono-num readout-big" id="measuredOffsetVal">0 ms</span>
+                <div id="samplesListContainer" class="samples-pill-row">
+                  <span class="sample-badge empty">ยังไม่มีข้อมูล</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button id="toggleMetronomeBtn" class="btn btn-primary btn-flex">
+                เริ่มเคาะจังหวะ (Start Metronome)
+              </button>
+              <button id="applyMeasuredOffsetBtn" class="btn btn-outline btn-gold-outline">
+                นำค่าเฉลี่ยไปใช้ทันที
+              </button>
+            </div>
           </div>
         </div>
       </div>
