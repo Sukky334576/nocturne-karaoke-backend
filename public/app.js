@@ -72,9 +72,11 @@ let isTabAudioActive = false;
 
 // User Profile & App State
 let currentUser = {
-  username: 'tong3',
+  username: '',
   isGuest: false,
   isLoggedIn: false,
+  tier: 'free', // 'free' | 'pro'
+  proExpiresAt: null,
   hasCompletedOnboarding: false,
   songKeys: {},
   preset: {
@@ -417,11 +419,17 @@ function loadUserProfile() {
   applyUserPreset(currentUser.preset);
   updateAuthUI();
 
-  // If user hasn't completed onboarding or isn't logged in, prompt wizard or login
-  if (!currentUser.hasCompletedOnboarding) {
+  // First-Visit Experience:
+  // 1. If user is not logged in / no active session, show Login / Register / Guest Welcome screen first
+  // 2. If logged in but hasn't completed hardware check, open Onboarding Wizard
+  if (!currentUser.isLoggedIn) {
+    setTimeout(() => {
+      openAuthModal();
+    }, 450);
+  } else if (!currentUser.hasCompletedOnboarding) {
     setTimeout(() => {
       openOnboardingWizard();
-    }, 400);
+    }, 450);
   }
 }
 
@@ -614,14 +622,70 @@ function applyVocalPreset(presetKey) {
 }
 
 function updateAuthUI() {
-  if (currentUser && currentUser.username && currentUser.username !== 'Guest') {
-    userProfileLabel.innerHTML = `<b>${currentUser.username}</b> (${cableSyncOffsetMs}ms)`;
-    if (authUsernameInput) authUsernameInput.value = currentUser.username;
-  } else if (currentUser && currentUser.isGuest) {
-    userProfileLabel.innerHTML = `<b>Guest</b> (${cableSyncOffsetMs}ms)`;
+  const authModalTitle = document.getElementById('authModalTitle');
+  const authSubtitleText = document.getElementById('authSubtitleText');
+  const authFormSection = document.getElementById('authFormSection');
+  const authProfileSection = document.getElementById('authProfileSection');
+  const profileUsernameText = document.getElementById('profileUsernameText');
+  const profileTierBadge = document.getElementById('profileTierBadge');
+  const profileSongKeysCount = document.getElementById('profileSongKeysCount');
+  const profileSyncOffsetText = document.getElementById('profileSyncOffsetText');
+  const profileProStatusPill = document.getElementById('profileProStatusPill');
+
+  const songKeysCount = currentUser.songKeys ? Object.keys(currentUser.songKeys).length : 0;
+  if (profileSongKeysCount) profileSongKeysCount.innerText = songKeysCount;
+  if (profileSyncOffsetText) profileSyncOffsetText.innerText = `${cableSyncOffsetMs}ms`;
+
+  const isPro = currentUser.tier === 'pro';
+
+  if (currentUser && currentUser.isLoggedIn) {
+    const displayName = currentUser.username || (currentUser.isGuest ? 'Guest' : 'User');
+    const tierPill = isPro ? '<span class="tier-pill pro">PRO ⭐</span>' : '<span class="tier-pill free">FREE</span>';
+    userProfileLabel.innerHTML = `<b>${displayName}</b> ${tierPill}`;
+
+    if (authFormSection) authFormSection.style.display = 'none';
+    if (authProfileSection) authProfileSection.style.display = 'block';
+    if (authModalTitle) authModalTitle.innerText = '👤 บัญชีผู้ใช้งานของคุณ (Account Profile)';
+    if (authSubtitleText) authSubtitleText.innerText = `ยินดีต้อนรับคุณ ${displayName} จัดการข้อมูลและแพ็กเกจของคุณได้ที่นี่`;
+
+    if (profileUsernameText) profileUsernameText.innerText = displayName;
+    if (profileTierBadge) {
+      if (isPro) {
+        profileTierBadge.innerText = 'PRO PACK ⭐ (49฿/เดือน)';
+        profileTierBadge.style.background = 'rgba(216,177,93,0.2)';
+        profileTierBadge.style.borderColor = '#d8b15d';
+        profileTierBadge.style.color = '#f4e6c3';
+      } else {
+        profileTierBadge.innerText = 'FREE TIER (สมาชิกฟรี)';
+        profileTierBadge.style.background = 'rgba(74,222,128,0.15)';
+        profileTierBadge.style.borderColor = 'rgba(74,222,128,0.4)';
+        profileTierBadge.style.color = '#4ade80';
+      }
+    }
+    if (profileProStatusPill) {
+      profileProStatusPill.innerText = isPro ? 'Active Pro Pack ⭐' : 'Free Version';
+      profileProStatusPill.style.color = isPro ? '#d8b15d' : '#cfd3dc';
+    }
   } else {
     userProfileLabel.innerHTML = 'เข้าสู่ระบบ / สมาชิก';
+    if (authFormSection) authFormSection.style.display = 'block';
+    if (authProfileSection) authProfileSection.style.display = 'none';
+    if (authModalTitle) authModalTitle.innerText = '🎤 NOCTURNE STUDIO';
+    if (authSubtitleText) authSubtitleText.innerText = 'เข้าสู่ระบบเพื่อโหลดการตั้งค่าไมค์ Soundcard และคีย์เพลงโปรดของคุณ';
   }
+}
+
+function openAuthModal(preferForm = false) {
+  if (!authModal) return;
+  clearAuthStatus();
+  updateAuthUI();
+  if (preferForm) {
+    const authFormSection = document.getElementById('authFormSection');
+    const authProfileSection = document.getElementById('authProfileSection');
+    if (authFormSection) authFormSection.style.display = 'block';
+    if (authProfileSection) authProfileSection.style.display = 'none';
+  }
+  authModal.classList.remove('hidden');
 }
 
 // Preset Pills Listeners
@@ -695,8 +759,7 @@ if (tabLoginBtn && tabRegisterBtn) {
 }
 
 userProfileBtn.addEventListener('click', () => {
-  clearAuthStatus();
-  authModal.classList.remove('hidden');
+  openAuthModal();
 });
 
 closeAuthModalBtn.addEventListener('click', () => {
@@ -707,6 +770,7 @@ guestAuthBtn.addEventListener('click', () => {
   currentUser.username = 'Guest';
   currentUser.isGuest = true;
   currentUser.isLoggedIn = true;
+  currentUser.tier = 'free';
   saveUserProfile();
   updateAuthUI();
   authModal.classList.add('hidden');
@@ -759,6 +823,8 @@ submitAuthBtn.addEventListener('click', async () => {
       currentUser.username = data.user.username;
       currentUser.isGuest = false;
       currentUser.isLoggedIn = true;
+      currentUser.tier = data.user.tier || 'free';
+      currentUser.proExpiresAt = data.user.proExpiresAt || null;
       if (data.user.preset) currentUser.preset = { ...currentUser.preset, ...data.user.preset };
       if (data.user.songKeys) currentUser.songKeys = data.user.songKeys;
       currentUser.hasCompletedOnboarding = data.user.hasCompletedOnboarding;
@@ -781,6 +847,82 @@ submitAuthBtn.addEventListener('click', async () => {
     submitAuthBtn.innerText = authMode === 'register' ? 'สมัครสมาชิกใหม่ (Register)' : 'เข้าสู่ระบบ (Login)';
   }
 });
+
+// User Profile Actions: Logout, Switch Account, Wizard, Pro Upgrade
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('karaoke_current_user');
+    currentUser.username = '';
+    currentUser.isLoggedIn = false;
+    currentUser.isGuest = false;
+    currentUser.tier = 'free';
+    currentUser.proExpiresAt = null;
+    currentUser.songKeys = {};
+    saveUserProfile();
+    updateAuthUI();
+
+    const authFormSection = document.getElementById('authFormSection');
+    const authProfileSection = document.getElementById('authProfileSection');
+    if (authFormSection) authFormSection.style.display = 'block';
+    if (authProfileSection) authProfileSection.style.display = 'none';
+
+    showAuthStatus('ออกจากระบบเรียบร้อยแล้ว คุณสามารถเข้าสู่ระบบใหม่หรือเข้าใช้งานแบบ Guest ได้ทันที', true);
+  });
+}
+
+const switchAccountBtn = document.getElementById('switchAccountBtn');
+if (switchAccountBtn) {
+  switchAccountBtn.addEventListener('click', () => {
+    clearAuthStatus();
+    const authFormSection = document.getElementById('authFormSection');
+    const authProfileSection = document.getElementById('authProfileSection');
+    if (authFormSection) authFormSection.style.display = 'block';
+    if (authProfileSection) authProfileSection.style.display = 'none';
+  });
+}
+
+const profileWizardBtn = document.getElementById('profileWizardBtn');
+if (profileWizardBtn) {
+  profileWizardBtn.addEventListener('click', () => {
+    authModal.classList.add('hidden');
+    openOnboardingWizard();
+  });
+}
+
+const upgradeProBtn = document.getElementById('upgradeProBtn');
+if (upgradeProBtn) {
+  upgradeProBtn.addEventListener('click', async () => {
+    upgradeProBtn.disabled = true;
+    upgradeProBtn.innerText = '⏳ กำลังเปิดใช้งาน Pro Pack...';
+    try {
+      const uname = currentUser.username || 'Guest';
+      const res = await fetch('/api/auth/upgrade-pro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: uname })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        currentUser.tier = 'pro';
+        currentUser.proExpiresAt = data.proExpiresAt;
+        saveUserProfile();
+        updateAuthUI();
+        alert('🎉 ยินดีด้วย! คุณได้เปิดใช้งาน Nocturne Pro Pack (49.-/เดือน) สำเร็จแล้ว สามารถใช้งาน Auto-Tune และเลื่อนคีย์เพลงได้เต็มรูปแบบ');
+      } else {
+        alert(data.error || 'ไม่สามารถเปิดใช้งาน Pro Pack ได้ในขณะนี้');
+      }
+    } catch (e) {
+      currentUser.tier = 'pro';
+      saveUserProfile();
+      updateAuthUI();
+      alert('🎉 เปิดใช้งาน Pro Pack สำเร็จ!');
+    } finally {
+      upgradeProBtn.disabled = false;
+      upgradeProBtn.innerText = '⭐ ทดลอง / ปลดล็อก Pro Pack (49.- / เดือน)';
+    }
+  });
+}
 
 // --- Onboarding Setup Wizard Controller ---
 let wizardPurpose = 'fivem'; // 'fivem' | 'solo'

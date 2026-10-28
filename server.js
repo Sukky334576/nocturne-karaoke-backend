@@ -554,6 +554,8 @@ app.post('/api/auth/register', (req, res) => {
   const user = {
     username,
     password, // In-memory/simple file persistence
+    tier: 'free', // 'free' | 'pro'
+    proExpiresAt: null,
     preset: initialPreset || {},
     songKeys: {},
     hasCompletedOnboarding: false,
@@ -568,6 +570,8 @@ app.post('/api/auth/register', (req, res) => {
     success: true,
     user: {
       username: user.username,
+      tier: user.tier || 'free',
+      proExpiresAt: user.proExpiresAt || null,
       preset: user.preset,
       songKeys: user.songKeys,
       hasCompletedOnboarding: user.hasCompletedOnboarding
@@ -597,6 +601,8 @@ app.post('/api/auth/login', (req, res) => {
     success: true,
     user: {
       username: user.username,
+      tier: user.tier || 'free',
+      proExpiresAt: user.proExpiresAt || null,
       preset: user.preset,
       songKeys: user.songKeys || {},
       hasCompletedOnboarding: user.hasCompletedOnboarding !== false
@@ -609,23 +615,52 @@ app.post('/api/auth/save-profile', (req, res) => {
   const preset = req.body && req.body.preset;
   const songKeys = req.body && req.body.songKeys;
   const hasCompletedOnboarding = req.body && req.body.hasCompletedOnboarding;
+  const tier = req.body && req.body.tier;
+  const proExpiresAt = req.body && req.body.proExpiresAt;
 
   if (!username) return res.status(400).json({ error: 'Username required' });
   const lower = username.toLowerCase();
   let user = usersDb.get(lower);
 
   if (!user) {
-    user = { username, password: '', preset: {}, songKeys: {}, hasCompletedOnboarding: true, createdAt: Date.now() };
+    user = { username, password: '', tier: 'free', proExpiresAt: null, preset: {}, songKeys: {}, hasCompletedOnboarding: true, createdAt: Date.now() };
     usersDb.set(lower, user);
   }
 
   if (preset) user.preset = preset;
   if (songKeys) user.songKeys = songKeys;
   if (typeof hasCompletedOnboarding === 'boolean') user.hasCompletedOnboarding = hasCompletedOnboarding;
+  if (tier) user.tier = tier;
+  if (proExpiresAt !== undefined) user.proExpiresAt = proExpiresAt;
   user.lastActive = Date.now();
   persistUserDb();
 
-  res.json({ success: true });
+  res.json({ success: true, tier: user.tier, proExpiresAt: user.proExpiresAt });
+});
+
+app.post('/api/auth/upgrade-pro', (req, res) => {
+  const username = sanitizeText(req.body && req.body.username, 30);
+  if (!username) return res.status(400).json({ error: 'Username required' });
+  const lower = username.toLowerCase();
+  let user = usersDb.get(lower);
+
+  if (!user) {
+    user = { username, password: '', tier: 'free', preset: {}, songKeys: {}, hasCompletedOnboarding: true, createdAt: Date.now() };
+    usersDb.set(lower, user);
+  }
+
+  // Activate 30-day Pro Pack subscription (49 THB/month)
+  user.tier = 'pro';
+  user.proExpiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  user.lastActive = Date.now();
+  persistUserDb();
+
+  res.json({
+    success: true,
+    tier: 'pro',
+    proExpiresAt: user.proExpiresAt,
+    message: 'อัปเกรดเป็น Pro Pack (49.-/เดือน) สำเร็จเรียบร้อยแล้ว!'
+  });
 });
 
 // Create or Register Room
