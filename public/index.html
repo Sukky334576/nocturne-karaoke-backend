@@ -35,6 +35,16 @@
           <span>ปลั๊กอิน (Plugins)</span>
         </button>
 
+        <!-- Shared Room / Mobile Remote Button -->
+        <button id="openRoomModalBtn" class="btn btn-outline" title="เปิดห้องคาราโอเกะ ให้เพื่อนใช้มือถือสแกนสั่งเพลงเข้าคิว">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+          </svg>
+          <span id="roomStatusBtnText">📱 รีโมทมือถือ (Remote)</span>
+          <span id="roomClientsBadge" class="badge-count hidden" style="margin-left: 4px; font-size: 10px; background: var(--emerald-bright); color: #08090d; font-weight: 700; padding: 1px 6px; border-radius: 9999px;">0</span>
+        </button>
+
         <!-- Setup Guide Button -->
         <button id="openSetupGuideBtn" class="btn btn-outline" title="เปิดคู่มือตั้งค่าระบบเสียง">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
@@ -543,8 +553,14 @@
         <!-- 6. Song Queue -->
         <div class="studio-module">
           <div class="module-header">
-            <h2>Song Queue</h2>
-            <button id="clearQueueBtn" class="btn-link-gold">ล้างคิว</button>
+            <div class="title-with-badge" style="display: flex; align-items: center; gap: 8px;">
+              <h2>Song Queue</h2>
+              <span id="queueBadgeCount" class="badge-count" style="display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9999px; background: var(--gold-primary); color: #08090d; font-weight: 700;">0</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="openRoomModalFromQueueBtn" class="btn-link-gold" title="เปิดรหัสห้องสำหรับมือถือสแกน">📱 รีโมทมือถือ</button>
+              <button id="clearQueueBtn" class="btn-link-gold">ล้างคิว</button>
+            </div>
           </div>
           <div id="queueList" class="queue-list">
             <div class="empty-queue">ไม่มีเพลงในคิว</div>
@@ -755,6 +771,58 @@
             <button id="applyMeasuredOffsetBtn" class="btn btn-outline btn-gold-outline">
               นำค่าเฉลี่ยไปใช้ทันที
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared Room / Mobile Pairing Modal -->
+    <div id="roomModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h3>📱 สแกนสั่งเพลงจากมือถือ (Mobile Remote)</h3>
+            <p>เชื่อมต่อมือถือเข้ากับห้อง เพื่อค้นหาเพลงและจัดคิวเพลงพร้อมกันแบบ 0ms</p>
+          </div>
+          <button id="closeRoomModalBtn" class="btn-icon-close" aria-label="ปิด">✕</button>
+        </div>
+
+        <div class="modal-body" style="text-align: center;">
+          <div class="room-code-display-card" style="background: var(--bg-card); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+            <span style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.08em;">รหัสห้องสำหรับมือถือ (ROOM CODE)</span>
+            <div id="modalRoomCodeBig" class="mono-num" style="font-size: 32px; font-weight: 800; color: var(--gold-bright); margin: 6px 0; letter-spacing: 0.08em;">NOCT-882</div>
+            <div style="display: flex; justify-content: center; gap: 8px;">
+              <button id="copyRoomLinkBtn" class="btn btn-outline btn-xs">📋 คัดลอกลิงก์รีโมท</button>
+              <button id="refreshRoomCodeBtn" class="btn btn-outline btn-xs" title="สร้างรหัสห้องใหม่">🔄 รหัสใหม่</button>
+            </div>
+          </div>
+
+          <!-- QR Code Container -->
+          <div id="qrCodeContainer" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; background: #fff; border-radius: var(--radius-md); width: fit-content; margin: 0 auto 16px auto; box-shadow: 0 4px 16px rgba(0,0,0,0.5);">
+            <img id="roomQrImage" src="" alt="QR Code สำหรับมือถือสแกน" style="width: 180px; height: 180px; display: block;">
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">เปิดกล้องมือถือสแกน QR Code ด้านบนเพื่อเข้าห้องได้ทันที ไม่ต้องโหลดแอพ</p>
+
+          <!-- Direct Links -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px; font-size: 12px; text-align: left; margin-bottom: 14px;">
+            <div style="color: var(--text-gold); font-weight: 600; margin-bottom: 4px;">🌐 ลิงก์เชื่อมต่อ (URL):</div>
+            <div id="lanUrlDisplay" style="color: var(--text-primary); word-break: break-all; margin-bottom: 4px;">-</div>
+            <div id="cloudUrlDisplay" style="color: var(--text-muted); word-break: break-all;">-</div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 14px; text-align: left;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">อนุญาตให้มือถือกดเล่น/หยุด/ข้ามเพลง</div>
+              <div style="font-size: 11px; color: var(--text-muted);">หากปิด มือถือจะทำได้เฉพาะค้นหาและเพิ่มเพลงเข้าคิวเท่านั้น</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="allowRemoteControlToggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button id="finishRoomModalBtn" class="btn btn-primary btn-full">เรียบร้อย</button>
           </div>
         </div>
       </div>

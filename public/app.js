@@ -222,6 +222,23 @@ const roomSizeText = document.getElementById('roomSizeText');
 
 const queueList = document.getElementById('queueList');
 const clearQueueBtn = document.getElementById('clearQueueBtn');
+const queueBadgeCount = document.getElementById('queueBadgeCount');
+
+// Shared Room / Mobile Remote DOM Elements
+const openRoomModalBtn = document.getElementById('openRoomModalBtn');
+const roomStatusBtnText = document.getElementById('roomStatusBtnText');
+const roomClientsBadge = document.getElementById('roomClientsBadge');
+const openRoomModalFromQueueBtn = document.getElementById('openRoomModalFromQueueBtn');
+const roomModal = document.getElementById('roomModal');
+const closeRoomModalBtn = document.getElementById('closeRoomModalBtn');
+const finishRoomModalBtn = document.getElementById('finishRoomModalBtn');
+const modalRoomCodeBig = document.getElementById('modalRoomCodeBig');
+const roomQrImage = document.getElementById('roomQrImage');
+const copyRoomLinkBtn = document.getElementById('copyRoomLinkBtn');
+const refreshRoomCodeBtn = document.getElementById('refreshRoomCodeBtn');
+const lanUrlDisplay = document.getElementById('lanUrlDisplay');
+const cloudUrlDisplay = document.getElementById('cloudUrlDisplay');
+const allowRemoteControlToggle = document.getElementById('allowRemoteControlToggle');
 
 // Modals
 const setupGuideModal = document.getElementById('setupGuideModal');
@@ -752,9 +769,9 @@ async function initAudioEngine() {
     const initCbM = currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20;
     musicCableGain.gain.setValueAtTime(isCableMusicMuted ? 0.0 : initCbM, audioCtx.currentTime);
 
-    // Direct Vocal Sub-Gains
+    // Direct Vocal Sub-Gains (Rule 2: Default 0.0 to prevent headphone mic echo)
     vocalHpGain = audioCtx.createGain();
-    const initHpV = currentUser.preset.hpVocalVol !== undefined ? currentUser.preset.hpVocalVol : 0.8;
+    const initHpV = currentUser.preset.hpVocalVol !== undefined ? currentUser.preset.hpVocalVol : 0.0;
     vocalHpGain.gain.setValueAtTime(isHpVocalMuted ? 0.0 : initHpV, audioCtx.currentTime);
 
     vocalCableGain = audioCtx.createGain();
@@ -890,10 +907,9 @@ async function initAudioEngine() {
     autotuneHpGain.connect(headphoneMixGain);
 
     // 6. TEST RECORDER DESTINATION:
-    cableGain.connect(destRecordTest);          // Synced Backing Track
-    reverbGain.connect(destRecordTest);         // Reverb Tail
-    autotuneCableGain.connect(destRecordTest);  // Tuned Voice (when ON)
-    recordMicGain.connect(destRecordTest);      // Real Direct Voice (when AutoTune OFF)
+    // Captures the exact broadcast stream sent into Discord & FiveM (Backing Track + Vocal + Reverb)
+    // cableGain already contains cableMixGain (musicCableGain + vocalCableGain/autotuneCableGain + reverbGain)
+    cableGain.connect(destRecordTest);
 
     // Load Auto-Tune Worklet
     try {
@@ -950,17 +966,25 @@ window.addEventListener('click', async () => {
   }
 });
 
-// Update Reverb Impulse Response
+// Update Reverb Impulse Response (Debounced to prevent AudioContext glitches)
+let reverbDebounceTimer = null;
 function updateReverbImpulse() {
   if (!audioCtx || !convolverNode) return;
-  const decayVal = parseFloat(reverbDecay.value);
-  const roomVal = parseFloat(roomSize.value);
-  const ir = ReverbGenerator.createImpulseResponse(audioCtx, {
-    duration: decayVal,
-    decay: roomVal * 0.8,
-    preDelay: 0.02
-  });
-  convolverNode.buffer = ir;
+  if (reverbDebounceTimer) clearTimeout(reverbDebounceTimer);
+  reverbDebounceTimer = setTimeout(() => {
+    try {
+      const decayVal = parseFloat(reverbDecay.value);
+      const roomVal = parseFloat(roomSize.value);
+      const ir = ReverbGenerator.createImpulseResponse(audioCtx, {
+        duration: decayVal,
+        decay: roomVal * 0.8,
+        preDelay: 0.02
+      });
+      convolverNode.buffer = ir;
+    } catch (e) {
+      console.warn('Reverb impulse calculation note:', e);
+    }
+  }, 40);
 }
 
 // Initialize Microphone Stream with Vocal Dynamics Chain
@@ -1411,9 +1435,12 @@ function startRecordingTest() {
   };
 
   mediaRecorder.onstop = () => {
+    if (window._currentRecordBlobUrl) {
+      try { URL.revokeObjectURL(window._currentRecordBlobUrl); } catch (e) {}
+    }
     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-    const audioUrl = URL.createObjectURL(blob);
-    recordedAudioPlayer.src = audioUrl;
+    window._currentRecordBlobUrl = URL.createObjectURL(blob);
+    recordedAudioPlayer.src = window._currentRecordBlobUrl;
     playbackWidget.classList.remove('hidden');
     recStatusMsg.innerText = `อัดเสียงเรียบร้อย (${recordSeconds} วินาที) - กด Play เพื่อเช็กเสียงจริงที่เข้า Discord`;
     recStatusMsg.style.color = '#8ce8de';
@@ -1888,6 +1915,12 @@ async function getBestAudioStreamUrl(videoId, startSeconds = 0) {
 // Play Track (Ultra-Reliable Dual Routing to Discord & Headphones with Zero-Fail Guarantee)
 async function playTrack(track, seekSeconds = 0) {
   await initAudioEngine();
+
+  if (currentTrack && currentTrack.id !== track.id) {
+    historyQueue.push(currentTrack);
+    if (historyQueue.length > 25) historyQueue.shift();
+  }
+
   currentTrack = track;
   trackDurationSeconds = track.seconds || parseTimeToSeconds(track.duration) || 240;
   streamOffsetSeconds = seekSeconds;
@@ -1921,6 +1954,8 @@ async function playTrack(track, seekSeconds = 0) {
       activateYtAudioFailover();
     }
   }
+
+  syncHostStateToRoom();
 }
 
 function activateYtAudioFailover() {
@@ -1988,6 +2023,7 @@ function seekToSeconds(seconds) {
   isPlaying = true;
   playPauseBtn.innerHTML = SVG_PAUSE;
   startYtProgressTracker();
+  syncHostStateToRoom();
 }
 
 // Playback Controls
@@ -2008,6 +2044,7 @@ function togglePlayPause() {
     isPlaying = true;
     playPauseBtn.innerHTML = SVG_PAUSE;
   }
+  syncHostStateToRoom();
 }
 
 playPauseBtn.addEventListener('click', togglePlayPause);
@@ -2016,6 +2053,13 @@ function setupAudioElementEvents() {
   audioSourceElement.addEventListener('error', (e) => {
     console.warn('AudioSource stream error event, activating YouTube direct player:', e);
     activateYtAudioFailover();
+  });
+
+  audioSourceElement.addEventListener('ended', () => {
+    if (!isUsingDirectYtAudio) {
+      console.log('⚡ AudioSource finished playback, advancing queue...');
+      playNextInQueue();
+    }
   });
 
   progressBar.addEventListener('mousedown', () => { isUserSeeking = true; });
@@ -2050,49 +2094,341 @@ function formatTime(sec) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-// Queue Management
-function addToQueue(track) {
-  queue.push(track);
-  renderQueue();
+// History Queue (for Previous Button)
+let historyQueue = [];
+
+function playPreviousTrack() {
+  if (historyQueue.length > 0) {
+    const prev = historyQueue.pop();
+    if (currentTrack) queue.unshift(currentTrack);
+    renderQueue(true);
+    playTrack(prev);
+  } else if (currentTrack) {
+    seekToSeconds(0);
+  }
 }
 
-function renderQueue() {
-  if (queue.length === 0) {
+if (prevBtn) prevBtn.addEventListener('click', playPreviousTrack);
+
+// Queue Management
+function addToQueue(track, shouldSync = true) {
+  queue.push(track);
+  renderQueue(shouldSync);
+  if (!isPlaying && !currentTrack) {
+    playNextInQueue();
+  }
+}
+
+function renderQueue(shouldSync = true) {
+  const count = queue.length;
+  if (queueBadgeCount) queueBadgeCount.innerText = count;
+
+  if (count === 0) {
     queueList.innerHTML = '<div class="empty-queue">ไม่มีเพลงในคิว</div>';
+    if (shouldSync) syncHostStateToRoom();
     return;
   }
+
   queueList.innerHTML = '';
   queue.forEach((track, idx) => {
     const item = document.createElement('div');
     item.className = 'queue-item';
+    item.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid rgba(216,177,93,0.1);';
     item.innerHTML = `
-      <span class="queue-item-title">${idx + 1}. ${escapeHtml(track.title)}</span>
-      <button class="btn-link-danger" onclick="removeFromQueue(${idx})">✕</button>
+      <span class="mono-num" style="width:20px; color:var(--gold-primary); font-weight:700;">${idx + 1}.</span>
+      ${track.thumbnail ? `<img src="${escapeHtml(track.thumbnail)}" alt="" style="width:36px; height:36px; border-radius:4px; object-fit:cover;">` : ''}
+      <div style="flex:1; min-width:0;">
+        <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; font-size:13px;">${escapeHtml(track.title)}</div>
+        <div style="font-size:11px; color:var(--text-secondary);">${escapeHtml(track.author || '')} • ${escapeHtml(track.duration || '')} ${track.addedBy ? `• 👤 ${escapeHtml(track.addedBy)}` : ''}</div>
+      </div>
+      <div style="display:flex; gap:4px;">
+        <button class="btn btn-outline btn-xs" onclick="playNowFromQueue(${idx})" title="เล่นเพลงนี้ทันที">▶</button>
+        ${idx > 0 ? `<button class="btn btn-outline btn-xs" onclick="moveQueueItem(${idx}, ${idx - 1})" title="เลื่อนขึ้น">▲</button>` : ''}
+        ${idx < queue.length - 1 ? `<button class="btn btn-outline btn-xs" onclick="moveQueueItem(${idx}, ${idx + 1})" title="เลื่อนลง">▼</button>` : ''}
+        <button class="btn-link-danger" onclick="removeFromQueue(${idx})" title="ลบออก" style="margin-left:4px;">✕</button>
+      </div>
     `;
     queueList.appendChild(item);
   });
+
+  if (shouldSync) syncHostStateToRoom();
 }
 
 window.removeFromQueue = function(idx) {
   queue.splice(idx, 1);
-  renderQueue();
+  renderQueue(true);
+};
+
+window.playNowFromQueue = function(idx) {
+  if (idx >= 0 && idx < queue.length) {
+    const track = queue.splice(idx, 1)[0];
+    renderQueue(true);
+    playTrack(track);
+  }
+};
+
+window.moveQueueItem = function(fromIdx, toIdx) {
+  if (fromIdx >= 0 && fromIdx < queue.length && toIdx >= 0 && toIdx < queue.length) {
+    const item = queue.splice(fromIdx, 1)[0];
+    queue.splice(toIdx, 0, item);
+    renderQueue(true);
+  }
 };
 
 clearQueueBtn.addEventListener('click', () => {
-  queue = [];
-  renderQueue();
+  if (queue.length > 0 && confirm('ล้างคิวเพลงทั้งหมดใช่หรือไม่?')) {
+    queue = [];
+    renderQueue(true);
+  }
 });
 
 function playNextInQueue() {
   if (queue.length > 0) {
     const nextTrack = queue.shift();
-    renderQueue();
+    renderQueue(true);
     playTrack(nextTrack);
   }
 }
 
 nextBtn.addEventListener('click', playNextInQueue);
 audioInitBtn.addEventListener('click', initAudioEngine);
+
+// ==========================================================================
+// 📱 SHARED ROOM & MOBILE REMOTE CONTROLLER ENGINE (HOST)
+// ==========================================================================
+let hostRoomCode = localStorage.getItem('nocturne_host_room_code') || '';
+let hostEventSource = null;
+let roomClientsCount = 0;
+let isAllowRemoteControl = true;
+let localLanUrls = [];
+let cloudRenderUrl = 'https://nocturne-karaoke-backend.onrender.com';
+
+function showHostToast(msg, duration = 3500) {
+  let toastEl = document.getElementById('hostToastContainer');
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.id = 'hostToastContainer';
+    toastEl.style.cssText = 'position:fixed; top:24px; right:24px; z-index:99999; display:flex; flex-direction:column; gap:8px; pointer-events:none;';
+    document.body.appendChild(toastEl);
+  }
+  const pill = document.createElement('div');
+  pill.style.cssText = 'background:rgba(20, 23, 34, 0.95); border:1px solid #d8b15d; color:#f4e6c3; padding:10px 18px; border-radius:9999px; font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,0.6); backdrop-filter:blur(8px); transform:translateX(50px); opacity:0; transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);';
+  pill.innerHTML = msg;
+  toastEl.appendChild(pill);
+  requestAnimationFrame(() => {
+    pill.style.transform = 'translateX(0)';
+    pill.style.opacity = '1';
+  });
+  setTimeout(() => {
+    pill.style.transform = 'translateX(50px)';
+    pill.style.opacity = '0';
+    setTimeout(() => pill.remove(), 300);
+  }, duration);
+}
+
+async function initHostRoom(forcedCode = null) {
+  try {
+    const code = forcedCode || hostRoomCode || '';
+    const res = await fetch('/api/room/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roomCode: code,
+        hostName: currentUser.username || 'Host'
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      hostRoomCode = data.roomCode;
+      localStorage.setItem('nocturne_host_room_code', hostRoomCode);
+      if (data.localIps && data.localIps.length > 0) {
+        localLanUrls = data.localIps.map(ip => `http://${ip}:${data.port || 3300}/remote?room=${hostRoomCode}`);
+      }
+      if (data.renderUrl) {
+        cloudRenderUrl = `${data.renderUrl}/remote?room=${hostRoomCode}`;
+      }
+
+      updateHostRoomUI();
+      connectHostRoomSSE(hostRoomCode);
+      syncHostStateToRoom();
+    }
+  } catch (err) {
+    console.warn('Room initialization note:', err.message);
+  }
+}
+
+function connectHostRoomSSE(code) {
+  if (hostEventSource) hostEventSource.close();
+  try {
+    hostEventSource = new EventSource(`/api/room/${code}/events`);
+
+    hostEventSource.addEventListener('client_count', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        roomClientsCount = data.clientCount || 0;
+        updateHostRoomUI();
+      } catch (err) {}
+    });
+
+    hostEventSource.addEventListener('queue_updated', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (Array.isArray(data.queue)) {
+          queue = data.queue;
+          renderQueue(false);
+        }
+        if (data.addedTrack) {
+          showHostToast(`📱 ${escapeHtml(data.addedBy || 'รีโมทมือถือ')} เพิ่มเพลง "${escapeHtml(data.addedTrack.title)}" เข้าคิว`);
+          if (!isPlaying && !currentTrack) {
+            playNextInQueue();
+          }
+        }
+      } catch (err) {}
+    });
+
+    hostEventSource.addEventListener('host_command', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (!isAllowRemoteControl && data.action !== 'queue') return;
+        handleRemoteCommand(data);
+      } catch (err) {}
+    });
+
+    hostEventSource.onerror = () => {};
+  } catch (e) {}
+}
+
+function handleRemoteCommand({ action, payload, sender }) {
+  showHostToast(`📱 คำสั่งจาก ${escapeHtml(sender || 'รีโมท')}: ${escapeHtml(action)}`);
+  switch (action) {
+    case 'toggle':
+      togglePlayPause();
+      break;
+    case 'play':
+      if (!isPlaying) togglePlayPause();
+      break;
+    case 'pause':
+      if (isPlaying) togglePlayPause();
+      break;
+    case 'next':
+      playNextInQueue();
+      break;
+    case 'prev':
+      playPreviousTrack();
+      break;
+    case 'ducking':
+      toggleDucking();
+      break;
+    case 'play_now':
+      if (payload) {
+        playTrack(payload);
+      }
+      break;
+  }
+}
+
+function syncHostStateToRoom() {
+  if (!hostRoomCode) return;
+  fetch(`/api/room/${hostRoomCode}/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      currentTrack,
+      isPlaying,
+      queue,
+      allowRemoteControl: isAllowRemoteControl,
+      hostName: currentUser.username || 'Host'
+    })
+  }).catch(() => {});
+}
+
+function updateHostRoomUI() {
+  const code = hostRoomCode || 'ROOM';
+  if (roomStatusBtnText) roomStatusBtnText.innerText = `📱 ${code}`;
+  if (roomClientsBadge) {
+    if (roomClientsCount > 0) {
+      roomClientsBadge.innerText = `${roomClientsCount} ออนไลน์`;
+      roomClientsBadge.classList.remove('hidden');
+    } else {
+      roomClientsBadge.classList.add('hidden');
+    }
+  }
+
+  if (modalRoomCodeBig) modalRoomCodeBig.innerText = code;
+
+  const remoteUrl = isCloudHost
+    ? `${window.location.origin}/remote?room=${code}`
+    : (localLanUrls[0] || `${window.location.origin}/remote?room=${code}`);
+
+  if (roomQrImage) {
+    roomQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(remoteUrl)}&color=08090d&bgcolor=ffffff&qzone=1`;
+  }
+
+  if (lanUrlDisplay) lanUrlDisplay.innerHTML = `<b>Local LAN:</b> <a href="${remoteUrl}" target="_blank" style="color:var(--gold-bright);">${remoteUrl}</a>`;
+  if (cloudUrlDisplay) cloudUrlDisplay.innerHTML = `<b>Cloud URL:</b> <a href="${cloudRenderUrl}" target="_blank" style="color:var(--text-secondary);">${cloudRenderUrl}</a>`;
+}
+
+// Room Modal Event Listeners
+if (openRoomModalBtn) {
+  openRoomModalBtn.addEventListener('click', () => {
+    updateHostRoomUI();
+    if (roomModal) roomModal.classList.remove('hidden');
+  });
+}
+
+if (openRoomModalFromQueueBtn) {
+  openRoomModalFromQueueBtn.addEventListener('click', () => {
+    updateHostRoomUI();
+    if (roomModal) roomModal.classList.remove('hidden');
+  });
+}
+
+if (closeRoomModalBtn) {
+  closeRoomModalBtn.addEventListener('click', () => {
+    if (roomModal) roomModal.classList.add('hidden');
+  });
+}
+
+if (finishRoomModalBtn) {
+  finishRoomModalBtn.addEventListener('click', () => {
+    if (roomModal) roomModal.classList.add('hidden');
+  });
+}
+
+if (copyRoomLinkBtn) {
+  copyRoomLinkBtn.addEventListener('click', () => {
+    const code = hostRoomCode || '';
+    const remoteUrl = isCloudHost
+      ? `${window.location.origin}/remote?room=${code}`
+      : (localLanUrls[0] || `${window.location.origin}/remote?room=${code}`);
+    navigator.clipboard.writeText(remoteUrl).then(() => {
+      showHostToast('📋 คัดลอกลิงก์รีโมทมือถือเรียบร้อยแล้ว');
+    }).catch(() => {
+      prompt('คัดลอกลิงก์นี้:', remoteUrl);
+    });
+  });
+}
+
+if (refreshRoomCodeBtn) {
+  refreshRoomCodeBtn.addEventListener('click', () => {
+    if (confirm('สร้างรหัสห้องใหม่หรือไม่? (มือถือที่เชื่อมต่ออยู่จะต้องเข้ารหัสใหม่)')) {
+      initHostRoom('NEW');
+    }
+  });
+}
+
+if (allowRemoteControlToggle) {
+  allowRemoteControlToggle.addEventListener('change', (e) => {
+    isAllowRemoteControl = e.target.checked;
+    syncHostStateToRoom();
+    showHostToast(isAllowRemoteControl ? 'เปิดให้มือถือกดรีโมทได้แล้ว' : 'ปิดการกดรีโมทจากมือถือ (เข้าคิวได้อย่างเดียว)');
+  });
+}
+
+// Auto-boot Host Room on startup
+setTimeout(() => {
+  initHostRoom();
+}, 800);
 
 // ==========================================================================
 // Modular FX Plugin UI & Manager Logic

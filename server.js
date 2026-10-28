@@ -4,6 +4,7 @@ const https = require('https');
 const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const cors = require('cors');
 
 const app = express();
@@ -247,6 +248,326 @@ app.get('/api/audio', async (req, res) => {
     if (!res.headersSent) res.status(500).send('Error streaming audio: ' + err);
   }
 });
+
+// Helper: Get Local IPv4 network addresses for mobile pairing on LAN
+function getLocalIpAddresses() {
+  const nets = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        ips.push(net.address);
+      }
+    }
+  }
+  return ips;
+}
+
+// ==========================================================================
+// 📱 SHARED ROOM REMOTE QUEUEING ENGINE (Real-Time SSE + REST)
+// ==========================================================================
+const rooms = new Map(); // roomCode -> Room Object
+
+function sanitizeText(str, maxLen = 120) {
+  if (!str || typeof str !== 'string') return '';
+  return str.trim().slice(0, maxLen);
+}
+
+function normalizeRoomCode(code) {
+  if (!code || typeof code !== 'string') return '';
+  return code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
+}
+
+function generateRoomCode() {
+  const prefixes = ['NOCT', 'KARA', 'SING', 'VOX', 'BEAT', 'STAR'];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const num = Math.floor(100 + Math.random() * 900);
+  return `${prefix}-${num}`;
+}
+
+function getOrCreateRoom(code, hostName = 'Host') {
+  const norm = normalizeRoomCode(code) || generateRoomCode();
+  let room = rooms.get(norm);
+  if (!room) {
+    room = {
+      code: norm,
+      hostName: sanitizeText(hostName, 32) || 'Host',
+      createdAt: Date.now(),
+      lastActive: Date.now(),
+      currentTrack: null,
+      isPlaying: false,
+      queue: [],
+      allowRemoteControl: true,
+      clients: new Set()
+    };
+    rooms.set(norm, room);
+  } else {
+    room.lastActive = Date.now();
+    if (hostName && hostName !== 'Host') {
+      room.hostName = sanitizeText(hostName, 32);
+    }
+  }
+  return room;
+}
+
+function broadcastRoomEvent(room, eventName, data) {
+  if (!room || !room.clients) return;
+  const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
+  room.clients.forEach(clientRes => {
+    try {
+      clientRes.write(payload);
+    } catch (e) {
+      room.clients.delete(clientRes);
+    }
+  });
+}
+
+function getRoomSnapshot(room) {
+  return {
+    code: room.code,
+    hostName: room.hostName,
+    currentTrack: room.currentTrack,
+    isPlaying: room.isPlaying,
+    queue: room.queue,
+    allowRemoteControl: room.allowRemoteControl,
+    clientCount: room.clients.size
+  };
+}
+
+// Serve Mobile Remote UI
+app.get('/remote', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'remote.html'));
+});
+
+// Network information for QR code & LAN pairing
+app.get('/api/network-info', (req, res) => {
+  res.json({
+    localIps: getLocalIpAddresses(),
+    port: PORT,
+    renderUrl: 'https://nocturne-karaoke-backend.onrender.com'
+  });
+});
+
+// Create or Register Room
+app.post('/api/room/create', (req, res) => {
+  const requestedCode = req.body && req.body.roomCode ? req.body.roomCode : generateRoomCode();
+  const hostName = (req.body && req.body.hostName) ? req.body.hostName : 'Host';
+  const room = getOrCreateRoom(requestedCode, hostName);
+  res.json({
+    roomCode: room.code,
+    hostName: room.hostName,
+    localIps: getLocalIpAddresses(),
+    port: PORT,
+    renderUrl: 'https://nocturne-karaoke-backend.onrender.com'
+  });
+});
+
+// Get Room State
+app.get('/api/room/:code', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = rooms.get(norm);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+  res.json(getRoomSnapshot(room));
+});
+
+// Real-Time Server-Sent Events (SSE) stream for instant sync
+app.get('/api/room/:code/events', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = getOrCreateRoom(norm);
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  room.clients.add(res);
+  room.lastActive = Date.now();
+
+  // Send immediate initial state
+  res.write(`event: init\ndata: ${JSON.stringify(getRoomSnapshot(room))}\n\n`);
+
+  // Broadcast updated client count
+  broadcastRoomEvent(room, 'client_count', { clientCount: room.clients.size });
+
+  // Keep-alive heartbeat every 15s to prevent cloud proxy disconnects
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch (e) {
+      clearInterval(heartbeat);
+      room.clients.delete(res);
+    }
+  }, 15000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    room.clients.delete(res);
+    broadcastRoomEvent(room, 'client_count', { clientCount: room.clients.size });
+  });
+});
+
+// Add Song to Room Queue (from Mobile or Host)
+app.post('/api/room/:code/queue', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = getOrCreateRoom(norm);
+  const track = req.body && req.body.track;
+  const addedBy = sanitizeText(req.body && req.body.addedBy, 32) || 'Guest Mobile';
+
+  if (!track || !track.id || !isValidYouTubeIdOrUrl(track.id)) {
+    return res.status(400).json({ error: 'Valid YouTube video track is required' });
+  }
+
+  // Prevent queue spam (Max 100 songs in queue)
+  if (room.queue.length >= 100) {
+    return res.status(400).json({ error: 'Song queue is full (max 100 tracks)' });
+  }
+
+  const queueItem = {
+    id: track.id,
+    title: sanitizeText(track.title, 120) || 'YouTube Track',
+    author: sanitizeText(track.author, 60) || 'YouTube',
+    duration: sanitizeText(track.duration, 15) || '4:00',
+    seconds: Math.max(10, parseInt(track.seconds) || 240),
+    thumbnail: track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`,
+    url: track.url || `https://youtube.com/watch?v=${track.id}`,
+    addedBy: addedBy,
+    addedAt: Date.now()
+  };
+
+  room.queue.push(queueItem);
+  room.lastActive = Date.now();
+
+  broadcastRoomEvent(room, 'queue_updated', {
+    queue: room.queue,
+    addedTrack: queueItem,
+    addedBy: addedBy
+  });
+
+  res.json({
+    success: true,
+    queue: room.queue,
+    position: room.queue.length
+  });
+});
+
+// Remove Song from Room Queue
+app.delete('/api/room/:code/queue/:index', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = rooms.get(norm);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  const idx = parseInt(req.params.index, 10);
+  if (isNaN(idx) || idx < 0 || idx >= room.queue.length) {
+    return res.status(400).json({ error: 'Invalid queue index' });
+  }
+
+  const removed = room.queue.splice(idx, 1)[0];
+  room.lastActive = Date.now();
+
+  broadcastRoomEvent(room, 'queue_updated', {
+    queue: room.queue,
+    removedTrack: removed
+  });
+
+  res.json({ success: true, queue: room.queue });
+});
+
+// Reorder Song in Room Queue
+app.post('/api/room/:code/queue/move', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = rooms.get(norm);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  const { fromIndex, toIndex } = req.body || {};
+  if (
+    typeof fromIndex !== 'number' || typeof toIndex !== 'number' ||
+    fromIndex < 0 || fromIndex >= room.queue.length ||
+    toIndex < 0 || toIndex >= room.queue.length
+  ) {
+    return res.status(400).json({ error: 'Invalid move indices' });
+  }
+
+  const item = room.queue.splice(fromIndex, 1)[0];
+  room.queue.splice(toIndex, 0, item);
+  room.lastActive = Date.now();
+
+  broadcastRoomEvent(room, 'queue_updated', { queue: room.queue });
+  res.json({ success: true, queue: room.queue });
+});
+
+// Clear Entire Room Queue
+app.post('/api/room/:code/queue/clear', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = rooms.get(norm);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  room.queue = [];
+  room.lastActive = Date.now();
+
+  broadcastRoomEvent(room, 'queue_updated', { queue: [] });
+  res.json({ success: true, queue: [] });
+});
+
+// Host pushes state update (current track, play status, queue sync)
+app.post('/api/room/:code/sync', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = getOrCreateRoom(norm);
+  const { currentTrack, isPlaying, queue, allowRemoteControl, hostName } = req.body || {};
+
+  if (currentTrack !== undefined) room.currentTrack = currentTrack;
+  if (isPlaying !== undefined) room.isPlaying = Boolean(isPlaying);
+  if (Array.isArray(queue)) room.queue = queue.slice(0, 100);
+  if (allowRemoteControl !== undefined) room.allowRemoteControl = Boolean(allowRemoteControl);
+  if (hostName) room.hostName = sanitizeText(hostName, 32);
+
+  room.lastActive = Date.now();
+
+  broadcastRoomEvent(room, 'state_updated', getRoomSnapshot(room));
+  res.json({ success: true });
+});
+
+// Remote triggers playback action (Play/Pause, Skip, Ducking)
+app.post('/api/room/:code/control', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = rooms.get(norm);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  if (!room.allowRemoteControl) {
+    return res.status(403).json({ error: 'Host has disabled remote control for this room' });
+  }
+
+  const { action, payload, sender } = req.body || {};
+  const validActions = ['play', 'pause', 'toggle', 'next', 'prev', 'ducking', 'play_now'];
+  if (!validActions.includes(action)) {
+    return res.status(400).json({ error: 'Invalid action' });
+  }
+
+  broadcastRoomEvent(room, 'host_command', {
+    action,
+    payload,
+    sender: sanitizeText(sender, 32) || 'Remote'
+  });
+
+  res.json({ success: true, action });
+});
+
+// Periodic LRU & Stale Room Garbage Collection (every 15 mins)
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of searchCache.entries()) {
+    if (now - v.time > 4 * 60 * 60 * 1000) searchCache.delete(k);
+  }
+  for (const [k, v] of streamCache.entries()) {
+    if (now - v.time > 4 * 60 * 60 * 1000) streamCache.delete(k);
+  }
+  for (const [code, r] of rooms.entries()) {
+    if (r.clients.size === 0 && (now - r.lastActive > 24 * 60 * 60 * 1000)) {
+      rooms.delete(code);
+    }
+  }
+}, 15 * 60 * 1000);
 
 // Health check endpoint (for Cloud keep-alive)
 app.get('/api/ping', (req, res) => {

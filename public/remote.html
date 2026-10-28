@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NOCTURNE REMOTE • รีโมทสั่งเพลงคาราโอเกะ</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d8b15d'><circle cx='12' cy='12' r='10'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Outfit:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-space: #08090d;
+      --bg-surface: #10121a;
+      --bg-card: #151824;
+      --bg-elevated: #1c2030;
+      --bg-input: #0b0d13;
+      --border-subtle: rgba(216, 177, 93, 0.15);
+      --border-medium: rgba(216, 177, 93, 0.32);
+      --border-bright: rgba(216, 177, 93, 0.6);
+      --gold-primary: #d8b15d;
+      --gold-bright: #f4e6c3;
+      --gold-deep: #967524;
+      --gold-tint: rgba(216, 177, 93, 0.08);
+      --garnet-accent: #9e2a2b;
+      --garnet-bright: #c13334;
+      --emerald-accent: #1b998b;
+      --emerald-bright: #2ec4b6;
+      --text-primary: #f5f6fa;
+      --text-secondary: #9aa0b4;
+      --text-muted: #585d70;
+      --text-gold: #e2c079;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background-color: var(--bg-space);
+      background-image: 
+        radial-gradient(ellipse at 50% 0%, rgba(216, 177, 93, 0.08) 0%, transparent 65%),
+        radial-gradient(circle at 100% 100%, rgba(21, 24, 36, 0.9) 0%, transparent 50%);
+      color: var(--text-primary);
+      font-family: 'Outfit', 'Kanit', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 40px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mono-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .remote-app {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 14px 16px;
+      gap: 14px;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    .top-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-crest {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--gold-deep), var(--gold-primary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #08090d;
+      font-family: 'Cinzel', serif;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .brand-titles h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      letter-spacing: 0.05em;
+      color: var(--gold-bright);
+    }
+
+    .brand-titles p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .room-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #777;
+    }
+    .status-dot.online { background: var(--emerald-bright); box-shadow: 0 0 8px var(--emerald-bright); }
+    .status-dot.connecting { background: var(--gold-primary); animation: pulse 1.2s infinite; }
+    .status-dot.offline { background: var(--garnet-bright); }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* Pairing Screen */
+    .pairing-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .pairing-icon {
+      font-size: 42px;
+      margin-bottom: 4px;
+    }
+
+    .pairing-card h2 {
+      font-family: 'Cinzel', serif;
+      color: var(--gold-bright);
+      font-size: 20px;
+    }
+
+    .pairing-card p {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .input-field {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .input-field:focus {
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 12px rgba(216, 177, 93, 0.25);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold-primary), var(--gold-deep));
+      color: #08090d;
+      box-shadow: 0 4px 14px rgba(216, 177, 93, 0.25);
+    }
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+    }
+    .btn-outline:active { background: rgba(255,255,255,0.05); }
+
+    .btn-xs {
+      padding: 5px 9px;
+      font-size: 11px;
+      border-radius: var(--radius-sm);
+    }
+
+    .btn-gold {
+      background: var(--gold-primary);
+      color: #08090d;
+    }
+
+    .btn-danger {
+      background: var(--garnet-accent);
+      color: #fff;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--gold-bright);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .badge-count {
+      background: var(--gold-primary);
+      color: #08090d;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: var(--radius-pill);
+    }
+
+    /* Now Playing Card */
+    .now-playing-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    .track-thumb-box {
+      width: 54px;
+      height: 54px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: #000;
+      flex-shrink: 0;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .track-thumb-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .track-info-box {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .track-status-pill {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold-primary);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .eq-wave {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 10px;
+    }
+    .eq-bar {
+      width: 2px;
+      background: var(--gold-primary);
+      animation: eqBounce 0.8s ease-in-out infinite alternate;
+    }
+    .eq-bar:nth-child(2) { animation-delay: 0.2s; height: 100%; }
+    .eq-bar:nth-child(3) { animation-delay: 0.4s; height: 60%; }
+    @keyframes eqBounce { 0% { height: 20%; } 100% { height: 100%; } }
+
+    .track-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    .track-artist {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Remote Playback Controls */
+    .playback-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+    }
+
+    .ctrl-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .ctrl-btn:active { transform: scale(0.92); border-color: var(--gold-primary); }
+
+    .ctrl-btn-play {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, var(--gold-primary), var(--gold-deep));
+      color: #08090d;
+      border: none;
+      box-shadow: 0 4px 14px rgba(216, 177, 93, 0.3);
+    }
+
+    .ctrl-btn-ducking {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-gold);
+      padding: 0 14px;
+      width: auto;
+      height: 44px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .ctrl-btn-ducking.active {
+      background: var(--garnet-accent);
+      color: #fff;
+      border-color: var(--garnet-bright);
+    }
+
+    /* Search View */
+    .search-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .search-box-wrap {
+      display: flex;
+      gap: 8px;
+    }
+
+    .search-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .search-chips::-webkit-scrollbar { display: none; }
+
+    .chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .chip:active {
+      background: var(--gold-tint);
+      color: var(--gold-bright);
+      border-color: var(--gold-primary);
+    }
+
+    .search-results-list, .queue-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .song-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.15s ease;
+    }
+    .song-card:active { background: var(--bg-card); }
+
+    .song-card-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #000;
+    }
+
+    .song-card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .song-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-card-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .song-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Queue View */
+    .queue-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .queue-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+    }
+
+    .queue-header-row h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .empty-state {
+      background: var(--bg-surface);
+      border: 1px dashed var(--border-medium);
+      border-radius: var(--radius-md);
+      padding: 32px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .queue-item-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .queue-num {
+      width: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gold-primary);
+      text-align: center;
+    }
+
+    .queue-tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      background: rgba(216, 177, 93, 0.12);
+      border-radius: var(--radius-pill);
+      color: var(--gold-bright);
+      display: inline-block;
+      margin-top: 3px;
+    }
+
+    /* Toast Notification */
+    .toast-banner {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(20, 23, 34, 0.95);
+      border: 1px solid var(--gold-primary);
+      color: var(--gold-bright);
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toast-banner.show { transform: translateX(-50%) translateY(0); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="remote-app">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="top-brand">
+        <div class="brand-crest">N</div>
+        <div class="brand-titles">
+          <h1>NOCTURNE</h1>
+          <p>Karaoke Mobile Remote</p>
+        </div>
+      </div>
+      <div id="roomBadge" class="room-badge" title="คลิกเพื่อออกจากห้อง">
+        <span id="statusDot" class="status-dot connecting"></span>
+        <span id="roomCodeText" class="mono-num">กำลังเชื่อมต่อ...</span>
+      </div>
+    </header>
+
+    <!-- 1. Pairing Screen (When disconnected or not joined) -->
+    <div id="pairingScreen" class="pairing-card">
+      <div class="pairing-icon">🎤</div>
+      <h2>เข้าร่วมห้องคาราโอเกะ</h2>
+      <p>เชื่อมต่อกับหน้าจอเครื่อง Host เพื่อค้นหาเพลงและเพิ่มคิวแบบเรียลไทม์</p>
+
+      <div class="form-group">
+        <label for="roomCodeInput">รหัสห้อง (Room Code)</label>
+        <input type="text" id="roomCodeInput" class="input-field mono-num" placeholder="เช่น NOCT-882" autocomplete="off" autocapitalize="characters">
+      </div>
+
+      <div class="form-group">
+        <label for="nicknameInput">ชื่อของคุณ (Nickname)</label>
+        <input type="text" id="nicknameInput" class="input-field" placeholder="ระบุชื่อของคุณ (เช่น Ice)" autocomplete="off">
+      </div>
+
+      <button id="joinRoomBtn" class="btn btn-primary" style="margin-top: 8px;">
+        🚀 เข้าห้องคาราโอเกะ (Join Room)
+      </button>
+    </div>
+
+    <!-- 2. Main Remote Interface (When joined) -->
+    <main id="remoteMain" class="hidden" style="display: flex; flex-direction: column; gap: 14px;">
+      <!-- Now Playing Card -->
+      <section class="now-playing-card">
+        <div class="track-thumb-box">
+          <img id="currentThumb" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'></svg>" alt="">
+        </div>
+        <div class="track-info-box">
+          <div class="track-status-pill">
+            <span class="eq-wave">
+              <span class="eq-bar"></span>
+              <span class="eq-bar"></span>
+              <span class="eq-bar"></span>
+            </span>
+            <span id="npStatusText">กำลังเล่นบนหน้าจอหลัก</span>
+          </div>
+          <div id="npTitle" class="track-title">ยังไม่มีเพลงที่เล่น</div>
+          <div id="npArtist" class="track-artist">เลือกเพลงหรือเพิ่มเข้าคิวด้านล่าง</div>
+        </div>
+      </section>
+
+      <!-- Quick Playback Controls -->
+      <section class="playback-bar">
+        <button id="btnPrev" class="ctrl-btn" title="เพลงก่อนหน้า">⏮</button>
+        <button id="btnPlayPause" class="ctrl-btn ctrl-btn-play" title="เล่น/หยุด">▶</button>
+        <button id="btnNext" class="ctrl-btn" title="เพลงถัดไป">⏭</button>
+        <button id="btnDucking" class="ctrl-btn ctrl-btn-ducking" title="กดเพื่อเบาเสียงเพลงเวลาคุย">🎙️ Ducking</button>
+      </section>
+
+      <!-- Tab Navigation -->
+      <nav class="tab-bar">
+        <button id="tabSearch" class="tab-btn active">
+          <span>🔍 ค้นหาเพลง</span>
+        </button>
+        <button id="tabQueue" class="tab-btn">
+          <span>🎵 คิวเพลง</span>
+          <span id="queueCountBadge" class="badge-count">0</span>
+        </button>
+        <button id="tabSettings" class="tab-btn">
+          <span>⚙️ ข้อมูลห้อง</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: Search Section -->
+      <section id="panelSearch" class="search-panel">
+        <div class="search-box-wrap">
+          <input type="text" id="searchInput" class="input-field" placeholder="ค้นหาชื่อเพลง, นักร้อง หรือวางลิงก์ YouTube..." autocomplete="off">
+          <button id="searchBtn" class="btn btn-gold" style="padding: 10px 16px;">ค้นหา</button>
+        </div>
+
+        <!-- Quick Search Chips -->
+        <div class="search-chips">
+          <button class="chip" data-q="คาราโอเกะ">🎤 คาราโอเกะ</button>
+          <button class="chip" data-q="เพลงฮิต 2026">🔥 เพลงฮิต</button>
+          <button class="chip" data-q="LOSO คาราโอเกะ">🎸 LOSO</button>
+          <button class="chip" data-q="Bodyslam คาราโอเกะ">⚡ Bodyslam</button>
+          <button class="chip" data-q="T-Pop เพลงรัก">💖 T-Pop</button>
+          <button class="chip" data-q="Karaoke English">🌍 English</button>
+        </div>
+
+        <!-- Search Results List -->
+        <div id="searchResults" class="search-results-list">
+          <div class="empty-state">พิมพ์ชื่อเพลงด้านบน หรือกดแท็กด่วนเพื่อค้นหาเพลง</div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Queue Section -->
+      <section id="panelQueue" class="queue-panel hidden">
+        <div class="queue-header-row">
+          <h3>คิวเพลงที่รอเล่น (<span id="queueCountText">0</span>)</h3>
+          <button id="clearQueueBtn" class="btn btn-outline btn-xs btn-danger">ล้างคิว</button>
+        </div>
+
+        <div id="queueList" class="queue-items-list">
+          <div class="empty-state">ยังไม่มีเพลงในคิว กดค้นหาเพื่อเพิ่มเพลง</div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Room Settings & Info -->
+      <section id="panelSettings" class="search-panel hidden">
+        <div class="pairing-card" style="margin-top: 0; text-align: left;">
+          <h3 style="color: var(--gold-bright); font-size: 16px;">ข้อมูลห้อง (Room Details)</h3>
+          <p style="font-size: 13px;">ห้อง: <b id="infoRoomCode" class="mono-num" style="color: var(--gold-primary);">-</b></p>
+          <p style="font-size: 13px;">ผู้ดูแล Host: <b id="infoHostName">-</b></p>
+          <p style="font-size: 13px;">อุปกรณ์ที่เชื่อมต่อ: <b id="infoClientsCount">1 เครื่อง</b></p>
+          <p style="font-size: 13px;">ชื่อเล่นของคุณ: <b id="infoMyNick">-</b></p>
+
+          <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 6px 0;">
+          <button id="leaveRoomBtn" class="btn btn-outline btn-danger" style="width: 100%;">
+            ออกจากห้องนี้ (Disconnect)
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast-banner">
+      <span id="toastMsg">แจ้งเตือน</span>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let currentRoomCode = '';
+    let myNickname = localStorage.getItem('nocturne_remote_nick') || '';
+    let eventSource = null;
+    let roomState = {
+      currentTrack: null,
+      isPlaying: false,
+      queue: [],
+      allowRemoteControl: true,
+      hostName: 'Host'
+    };
+    let activeTab = 'search';
+
+    // DOM Elements
+    const pairingScreen = document.getElementById('pairingScreen');
+    const remoteMain = document.getElementById('remoteMain');
+    const roomCodeInput = document.getElementById('roomCodeInput');
+    const nicknameInput = document.getElementById('nicknameInput');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const roomBadge = document.getElementById('roomBadge');
+    const roomCodeText = document.getElementById('roomCodeText');
+    const statusDot = document.getElementById('statusDot');
+
+    const npTitle = document.getElementById('npTitle');
+    const npArtist = document.getElementById('npArtist');
+    const npStatusText = document.getElementById('npStatusText');
+    const currentThumb = document.getElementById('currentThumb');
+
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnDucking = document.getElementById('btnDucking');
+
+    const tabSearch = document.getElementById('tabSearch');
+    const tabQueue = document.getElementById('tabQueue');
+    const tabSettings = document.getElementById('tabSettings');
+    const panelSearch = document.getElementById('panelSearch');
+    const panelQueue = document.getElementById('panelQueue');
+    const panelSettings = document.getElementById('panelSettings');
+
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+    const queueList = document.getElementById('queueList');
+    const queueCountBadge = document.getElementById('queueCountBadge');
+    const queueCountText = document.getElementById('queueCountText');
+    const clearQueueBtn = document.getElementById('clearQueueBtn');
+    const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+
+    const infoRoomCode = document.getElementById('infoRoomCode');
+    const infoHostName = document.getElementById('infoHostName');
+    const infoClientsCount = document.getElementById('infoClientsCount');
+    const infoMyNick = document.getElementById('infoMyNick');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+
+    function showToast(text, duration = 2500) {
+      toastMsg.innerText = text;
+      toast.classList.add('show');
+      if (navigator.vibrate) navigator.vibrate(25);
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // Auto-detect Room Code from URL query (?room=CODE)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      roomCodeInput.value = roomParam.trim().toUpperCase();
+    } else {
+      const savedRoom = localStorage.getItem('nocturne_remote_room');
+      if (savedRoom) roomCodeInput.value = savedRoom;
+    }
+
+    if (myNickname) nicknameInput.value = myNickname;
+
+    // Tabs Switcher
+    function switchTab(tab) {
+      activeTab = tab;
+      tabSearch.classList.toggle('active', tab === 'search');
+      tabQueue.classList.toggle('active', tab === 'queue');
+      tabSettings.classList.toggle('active', tab === 'settings');
+
+      panelSearch.classList.toggle('hidden', tab !== 'search');
+      panelQueue.classList.toggle('hidden', tab !== 'queue');
+      panelSettings.classList.toggle('hidden', tab !== 'settings');
+    }
+
+    tabSearch.addEventListener('click', () => switchTab('search'));
+    tabQueue.addEventListener('click', () => switchTab('queue'));
+    tabSettings.addEventListener('click', () => switchTab('settings'));
+
+    // Join Room
+    async function joinRoom(code, nick) {
+      code = (code || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+      nick = (nick || '').trim() || 'Guest';
+
+      if (!code) {
+        showToast('กรุณาระบุรหัสห้อง (Room Code)');
+        return;
+      }
+
+      currentRoomCode = code;
+      myNickname = nick;
+      localStorage.setItem('nocturne_remote_room', code);
+      localStorage.setItem('nocturne_remote_nick', nick);
+
+      roomCodeText.innerText = `ROOM: ${code}`;
+      statusDot.className = 'status-dot connecting';
+
+      try {
+        const res = await fetch(`/api/room/${code}`);
+        if (!res.ok) {
+          showToast('ไม่พบห้องนี้ กรุณาตรวจเช็กรหัสห้องอีกครั้ง');
+          statusDot.className = 'status-dot offline';
+          return;
+        }
+        const data = await res.json();
+        updateRoomUI(data);
+
+        pairingScreen.classList.add('hidden');
+        remoteMain.classList.remove('hidden');
+
+        connectSSE(code);
+        showToast(`เชื่อมต่อกับห้อง ${code} เรียบร้อย!`);
+      } catch (err) {
+        showToast('เชื่อมต่อล้มเหลว กรุณาตรวจเช็กเน็ตเวิร์ก');
+        statusDot.className = 'status-dot offline';
+      }
+    }
+
+    joinRoomBtn.addEventListener('click', () => {
+      joinRoom(roomCodeInput.value, nicknameInput.value);
+    });
+
+    roomCodeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') joinRoom(roomCodeInput.value, nicknameInput.value);
+    });
+
+    // Server-Sent Events (SSE) Real-Time Stream
+    function connectSSE(code) {
+      if (eventSource) eventSource.close();
+
+      eventSource = new EventSource(`/api/room/${code}/events`);
+
+      eventSource.addEventListener('init', (e) => {
+        statusDot.className = 'status-dot online';
+        try {
+          const data = JSON.parse(e.data);
+          updateRoomUI(data);
+        } catch (err) {}
+      });
+
+      eventSource.addEventListener('state_updated', (e) => {
+        statusDot.className = 'status-dot online';
+        try {
+          const data = JSON.parse(e.data);
+          updateRoomUI(data);
+        } catch (err) {}
+      });
+
+      eventSource.addEventListener('queue_updated', (e) => {
+        statusDot.className = 'status-dot online';
+        try {
+          const data = JSON.parse(e.data);
+          if (data.queue) {
+            roomState.queue = data.queue;
+            renderQueueUI(data.queue);
+          }
+          if (data.addedTrack) {
+            showToast(`+ เพิ่ม "${data.addedTrack.title.slice(0, 22)}..." เข้าคิวแล้ว!`);
+          }
+        } catch (err) {}
+      });
+
+      eventSource.addEventListener('client_count', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (infoClientsCount) infoClientsCount.innerText = `${data.clientCount || 1} เครื่อง`;
+        } catch (err) {}
+      });
+
+      eventSource.onerror = () => {
+        statusDot.className = 'status-dot connecting';
+      };
+    }
+
+    // Update Room UI State
+    function updateRoomUI(state) {
+      roomState = { ...roomState, ...state };
+
+      infoRoomCode.innerText = state.code || currentRoomCode;
+      infoHostName.innerText = state.hostName || 'Host';
+      infoMyNick.innerText = myNickname || 'Guest';
+      if (state.clientCount !== undefined) infoClientsCount.innerText = `${state.clientCount} เครื่อง`;
+
+      // Now Playing
+      if (state.currentTrack) {
+        npTitle.innerText = state.currentTrack.title;
+        npArtist.innerText = state.currentTrack.author || '-';
+        if (state.currentTrack.thumbnail) currentThumb.src = state.currentTrack.thumbnail;
+        npStatusText.innerText = state.isPlaying ? 'กำลังเล่นบนหน้าจอหลัก' : 'หยุดชั่วคราว';
+      } else {
+        npTitle.innerText = 'ยังไม่มีเพลงที่เล่น';
+        npArtist.innerText = 'กดค้นหาเพื่อเพิ่มเพลงเข้าคิว';
+        npStatusText.innerText = 'พร้อมเริ่มเล่นเพลง';
+      }
+
+      // Play/Pause button
+      btnPlayPause.innerHTML = state.isPlaying ? '⏸' : '▶';
+
+      // Queue List
+      renderQueueUI(state.queue || []);
+    }
+
+    function renderQueueUI(queue) {
+      const len = queue.length;
+      queueCountBadge.innerText = len;
+      queueCountText.innerText = len;
+
+      if (len === 0) {
+        queueList.innerHTML = '<div class="empty-state">ยังไม่มีเพลงในคิว กดค้นหาเพื่อเพิ่มเพลง</div>';
+        return;
+      }
+
+      queueList.innerHTML = '';
+      queue.forEach((track, idx) => {
+        const item = document.createElement('div');
+        item.className = 'queue-item-card';
+        item.innerHTML = `
+          <div class="queue-num">${idx + 1}</div>
+          <img src="${escapeHtml(track.thumbnail)}" alt="" class="song-card-thumb">
+          <div class="song-card-info">
+            <div class="song-card-title">${escapeHtml(track.title)}</div>
+            <div class="song-card-meta">${escapeHtml(track.author)} • ${escapeHtml(track.duration)}</div>
+            <span class="queue-tag">👤 ${escapeHtml(track.addedBy || 'Mobile')}</span>
+          </div>
+          <div class="song-actions">
+            ${idx > 0 ? `<button class="btn btn-outline btn-xs btn-move-up" data-idx="${idx}" title="เลื่อนขึ้น">▲</button>` : ''}
+            <button class="btn btn-outline btn-xs btn-remove btn-danger" data-idx="${idx}" title="ลบออก">✕</button>
+          </div>
+        `;
+        queueList.appendChild(item);
+      });
+    }
+
+    // Queue Item Actions (Remove & Move)
+    queueList.addEventListener('click', async (e) => {
+      const btnRemove = e.target.closest('.btn-remove');
+      if (btnRemove) {
+        const idx = btnRemove.getAttribute('data-idx');
+        await fetch(`/api/room/${currentRoomCode}/queue/${idx}`, { method: 'DELETE' });
+        showToast('ลบเพลงออกจากคิวแล้ว');
+        return;
+      }
+
+      const btnUp = e.target.closest('.btn-move-up');
+      if (btnUp) {
+        const idx = parseInt(btnUp.getAttribute('data-idx'), 10);
+        if (idx > 0) {
+          await fetch(`/api/room/${currentRoomCode}/queue/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fromIndex: idx, toIndex: idx - 1 })
+          });
+        }
+      }
+    });
+
+    clearQueueBtn.addEventListener('click', async () => {
+      if (confirm('คุณต้องการล้างคิวเพลงทั้งหมดใช่หรือไม่?')) {
+        await fetch(`/api/room/${currentRoomCode}/queue/clear`, { method: 'POST' });
+        showToast('ล้างคิวเรียบร้อย');
+      }
+    });
+
+    // Remote Controls
+    async function sendControl(action, payload = null) {
+      if (!currentRoomCode) return;
+      try {
+        await fetch(`/api/room/${currentRoomCode}/control`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, payload, sender: myNickname })
+        });
+      } catch (e) {
+        showToast('ส่งคำสั่งไม่สำเร็จ');
+      }
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      sendControl('toggle');
+      if (navigator.vibrate) navigator.vibrate(15);
+    });
+
+    btnNext.addEventListener('click', () => {
+      sendControl('next');
+      showToast('ข้ามไปเพลงถัดไป ⏭');
+    });
+
+    btnPrev.addEventListener('click', () => {
+      sendControl('prev');
+      showToast('เล่นเพลงก่อนหน้า ⏮');
+    });
+
+    btnDucking.addEventListener('click', () => {
+      sendControl('ducking');
+      btnDucking.classList.toggle('active');
+      showToast(btnDucking.classList.contains('active') ? 'โหมดพูดคุย (Ducked)' : 'โหมดร้องเพลง');
+    });
+
+    // YouTube Search
+    searchBtn.addEventListener('click', performSearch);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') performSearch();
+    });
+
+    // Quick Chips
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        searchInput.value = chip.getAttribute('data-q');
+        performSearch();
+      });
+    });
+
+    async function performSearch() {
+      const q = searchInput.value.trim();
+      if (!q) return;
+
+      searchBtn.innerText = '...';
+      searchResults.innerHTML = '<div class="empty-state">กำลังค้นหาเพลง...</div>';
+
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        const videos = data.videos || [];
+        renderSearchResults(videos);
+      } catch (err) {
+        searchResults.innerHTML = '<div class="empty-state">ค้นหาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</div>';
+      } finally {
+        searchBtn.innerText = 'ค้นหา';
+      }
+    }
+
+    function renderSearchResults(videos) {
+      if (!videos || videos.length === 0) {
+        searchResults.innerHTML = '<div class="empty-state">ไม่พบเพลงที่ค้นหา</div>';
+        return;
+      }
+
+      searchResults.innerHTML = '';
+      videos.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'song-card';
+        card.innerHTML = `
+          <img src="${escapeHtml(v.thumbnail)}" alt="" class="song-card-thumb">
+          <div class="song-card-info">
+            <div class="song-card-title">${escapeHtml(v.title)}</div>
+            <div class="song-card-meta">${escapeHtml(v.author)} • ${escapeHtml(v.duration)}</div>
+          </div>
+          <div class="song-actions">
+            <button class="btn btn-gold btn-xs btn-add-q">+ คิว</button>
+            <button class="btn btn-outline btn-xs btn-play-now" title="เล่นทันที">▶ เล่น</button>
+          </div>
+        `;
+
+        card.querySelector('.btn-add-q').addEventListener('click', (e) => {
+          e.stopPropagation();
+          addSongToQueue(v);
+        });
+
+        card.querySelector('.btn-play-now').addEventListener('click', (e) => {
+          e.stopPropagation();
+          playSongNow(v);
+        });
+
+        searchResults.appendChild(card);
+      });
+    }
+
+    // Add Song into Room Queue
+    async function addSongToQueue(track) {
+      if (!currentRoomCode) {
+        showToast('กรุณาเข้าห้องก่อนเพิ่มเพลง');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/room/${currentRoomCode}/queue`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ track, addedBy: myNickname })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`เพิ่ม "${track.title.slice(0, 20)}..." เข้าคิวแล้ว! (#${data.position})`);
+        } else {
+          showToast(data.error || 'เพิ่มเพลงไม่สำเร็จ');
+        }
+      } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการเพิ่มเพลง');
+      }
+    }
+
+    // Play Song Now (bypass queue)
+    async function playSongNow(track) {
+      if (!currentRoomCode) return;
+      try {
+        await sendControl('play_now', track);
+        showToast(`กำลังส่ง "${track.title.slice(0, 20)}..." เล่นบนหน้าจอหลัก!`);
+      } catch (e) {
+        showToast('สั่งเล่นเพลงไม่สำเร็จ');
+      }
+    }
+
+    // Disconnect / Leave Room
+    leaveRoomBtn.addEventListener('click', () => {
+      if (confirm('ต้องการออกจากห้องคาราโอเกะนี้ใช่หรือไม่?')) {
+        if (eventSource) eventSource.close();
+        currentRoomCode = '';
+        localStorage.removeItem('nocturne_remote_room');
+        remoteMain.classList.add('hidden');
+        pairingScreen.classList.remove('hidden');
+        roomCodeText.innerText = 'ยังไม่ได้เชื่อมต่อ';
+        statusDot.className = 'status-dot offline';
+      }
+    });
+
+    roomBadge.addEventListener('click', () => {
+      switchTab('settings');
+    });
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Auto-join if roomParam exists
+    if (roomParam) {
+      joinRoom(roomParam, myNickname);
+    }
+  </script>
+</body>
+</html>
