@@ -613,8 +613,9 @@ function applyVocalPreset(presetKey) {
     atAmountText.innerText = Math.round(cfg.autotuneAmount * 100) + '%';
   }
 
-  isReverbEnabled = cfg.reverbEnabled;
-  reverbToggle.checked = cfg.reverbEnabled;
+  const isProTier = currentUser.tier === 'pro';
+  isReverbEnabled = isProTier ? cfg.reverbEnabled : false;
+  reverbToggle.checked = isReverbEnabled;
   if (cfg.reverbMix !== undefined) {
     reverbMix.value = cfg.reverbMix;
     reverbMixText.innerText = Math.round(cfg.reverbMix * 100) + '%';
@@ -686,6 +687,14 @@ function updateAuthUI() {
       } else {
         upgradeProBtn.innerText = '⭐ ทดลอง / ปลดล็อก Pro Pack (49.- / เดือน)';
         upgradeProBtn.style.opacity = '1';
+      }
+    }
+
+    if (!isPro) {
+      if (reverbToggle) reverbToggle.checked = false;
+      isReverbEnabled = false;
+      if (reverbGain && audioCtx) {
+        reverbGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
       }
     }
   } else {
@@ -1426,7 +1435,8 @@ async function initAudioEngine() {
     reverbInputGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
     reverbGain = audioCtx.createGain();
-    reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
+    const activeReverb = (currentUser.tier === 'pro' && isReverbEnabled);
+    reverbGain.gain.setValueAtTime(activeReverb ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
 
     headphoneReverbGain = audioCtx.createGain();
     headphoneReverbGain.gain.setValueAtTime(1.2, audioCtx.currentTime);
@@ -2849,6 +2859,15 @@ cableVol.addEventListener('input', (e) => {
 
 // Reverb Sliders
 reverbToggle.addEventListener('change', (e) => {
+  if (e.target.checked && currentUser.tier !== 'pro') {
+    e.target.checked = false;
+    isReverbEnabled = false;
+    if (reverbGain && audioCtx) {
+      reverbGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
+    alert('✨ Studio Vocal Reverb เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nช่วยปรับเสียงร้องให้ก้องละมุนมีมิติระดับสตูดิโอ สามารถเปิดใช้งานได้ที่เมนูโปรไฟล์มุมขวาบนครับ');
+    return;
+  }
   isReverbEnabled = e.target.checked;
   if (reverbGain && audioCtx) {
     reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
