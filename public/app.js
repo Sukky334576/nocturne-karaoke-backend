@@ -267,17 +267,30 @@ const trafficCableDot = document.getElementById('trafficCableDot');
 const authModal = document.getElementById('authModal');
 const userProfileBtn = document.getElementById('userProfileBtn');
 const userProfileLabel = document.getElementById('userProfileLabel');
-const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
-const submitAuthBtn = document.getElementById('submitAuthBtn');
-const guestAuthBtn = document.getElementById('guestAuthBtn');
-const authUsernameInput = document.getElementById('authUsernameInput');
-const authPasswordInput = document.getElementById('authPasswordInput');
-const authConfirmPasswordGroup = document.getElementById('authConfirmPasswordGroup');
-const authConfirmPasswordInput = document.getElementById('authConfirmPasswordInput');
-const authSubtitleText = document.getElementById('authSubtitleText');
-const authStatusMsg = document.getElementById('authStatusMsg');
-const tabLoginBtn = document.getElementById('tabLoginBtn');
-const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+
+// Gated Landing Screen DOM (Mandatory Auth - No Close Button)
+const landingGate = document.getElementById('landingGate');
+const gateTabLoginBtn = document.getElementById('gateTabLoginBtn');
+const gateTabRegisterBtn = document.getElementById('gateTabRegisterBtn');
+const gateAuthStatusMsg = document.getElementById('gateAuthStatusMsg');
+const gateUsernameInput = document.getElementById('gateUsernameInput');
+const gatePasswordInput = document.getElementById('gatePasswordInput');
+const gateConfirmPasswordGroup = document.getElementById('gateConfirmPasswordGroup');
+const gateConfirmPasswordInput = document.getElementById('gateConfirmPasswordInput');
+const gateSubmitBtn = document.getElementById('gateSubmitBtn');
+const gateGuestBtn = document.getElementById('gateGuestBtn');
+
+// User Profile Modal DOM (with Close Button)
+const userProfileModal = document.getElementById('userProfileModal');
+const closeProfileModalBtn = document.getElementById('closeProfileModalBtn');
+const profileUsernameText = document.getElementById('profileUsernameText');
+const profileTierBadge = document.getElementById('profileTierBadge');
+const profileSongKeysCount = document.getElementById('profileSongKeysCount');
+const profileSyncOffsetText = document.getElementById('profileSyncOffsetText');
+const profileProStatusPill = document.getElementById('profileProStatusPill');
+const upgradeProBtn = document.getElementById('upgradeProBtn');
+const profileWizardBtn = document.getElementById('profileWizardBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 
 // Onboarding Setup Wizard DOM
 const onboardingWizardModal = document.getElementById('onboardingWizardModal');
@@ -419,17 +432,21 @@ function loadUserProfile() {
   applyUserPreset(currentUser.preset);
   updateAuthUI();
 
-  // First-Visit Experience:
-  // 1. If user is not logged in / no active session, show Login / Register / Guest Welcome screen first
-  // 2. If logged in but hasn't completed hardware check, open Onboarding Wizard
+  // Strict Gated Funnel:
+  // 1. If not logged in: lock screen with landingGate (no close button)
+  // 2. If logged in but hasn't completed hardware check: open Setup Wizard (3 steps)
+  // 3. If logged in and completed onboarding: studio ready!
   if (!currentUser.isLoggedIn) {
-    setTimeout(() => {
-      openAuthModal();
-    }, 450);
+    if (landingGate) landingGate.classList.remove('hidden');
+    if (onboardingWizardModal) onboardingWizardModal.classList.add('hidden');
   } else if (!currentUser.hasCompletedOnboarding) {
+    if (landingGate) landingGate.classList.add('hidden');
     setTimeout(() => {
       openOnboardingWizard();
-    }, 450);
+    }, 300);
+  } else {
+    if (landingGate) landingGate.classList.add('hidden');
+    if (onboardingWizardModal) onboardingWizardModal.classList.add('hidden');
   }
 }
 
@@ -622,16 +639,6 @@ function applyVocalPreset(presetKey) {
 }
 
 function updateAuthUI() {
-  const authModalTitle = document.getElementById('authModalTitle');
-  const authSubtitleText = document.getElementById('authSubtitleText');
-  const authFormSection = document.getElementById('authFormSection');
-  const authProfileSection = document.getElementById('authProfileSection');
-  const profileUsernameText = document.getElementById('profileUsernameText');
-  const profileTierBadge = document.getElementById('profileTierBadge');
-  const profileSongKeysCount = document.getElementById('profileSongKeysCount');
-  const profileSyncOffsetText = document.getElementById('profileSyncOffsetText');
-  const profileProStatusPill = document.getElementById('profileProStatusPill');
-
   const songKeysCount = currentUser.songKeys ? Object.keys(currentUser.songKeys).length : 0;
   if (profileSongKeysCount) profileSongKeysCount.innerText = songKeysCount;
   if (profileSyncOffsetText) profileSyncOffsetText.innerText = `${cableSyncOffsetMs}ms`;
@@ -643,10 +650,7 @@ function updateAuthUI() {
     const tierPill = isPro ? '<span class="tier-pill pro">PRO ⭐</span>' : '<span class="tier-pill free">FREE</span>';
     userProfileLabel.innerHTML = `<b>${displayName}</b> ${tierPill}`;
 
-    if (authFormSection) authFormSection.style.display = 'none';
-    if (authProfileSection) authProfileSection.style.display = 'block';
-    if (authModalTitle) authModalTitle.innerText = '👤 บัญชีผู้ใช้งานของคุณ (Account Profile)';
-    if (authSubtitleText) authSubtitleText.innerText = `ยินดีต้อนรับคุณ ${displayName} จัดการข้อมูลและแพ็กเกจของคุณได้ที่นี่`;
+    if (landingGate) landingGate.classList.add('hidden');
 
     if (profileUsernameText) profileUsernameText.innerText = displayName;
     if (profileTierBadge) {
@@ -668,24 +672,9 @@ function updateAuthUI() {
     }
   } else {
     userProfileLabel.innerHTML = 'เข้าสู่ระบบ / สมาชิก';
-    if (authFormSection) authFormSection.style.display = 'block';
-    if (authProfileSection) authProfileSection.style.display = 'none';
-    if (authModalTitle) authModalTitle.innerText = '🎤 NOCTURNE STUDIO';
-    if (authSubtitleText) authSubtitleText.innerText = 'เข้าสู่ระบบเพื่อโหลดการตั้งค่าไมค์ Soundcard และคีย์เพลงโปรดของคุณ';
+    if (landingGate) landingGate.classList.remove('hidden');
+    if (userProfileModal) userProfileModal.classList.add('hidden');
   }
-}
-
-function openAuthModal(preferForm = false) {
-  if (!authModal) return;
-  clearAuthStatus();
-  updateAuthUI();
-  if (preferForm) {
-    const authFormSection = document.getElementById('authFormSection');
-    const authProfileSection = document.getElementById('authProfileSection');
-    if (authFormSection) authFormSection.style.display = 'block';
-    if (authProfileSection) authProfileSection.style.display = 'none';
-  }
-  authModal.classList.remove('hidden');
 }
 
 // Preset Pills Listeners
@@ -708,148 +697,165 @@ finishSetupGuideBtn.addEventListener('click', () => {
   initAudioEngine();
 });
 
-// --- Enhanced Authentication System ---
-let authMode = 'login'; // 'login' | 'register'
+// --- Gated Landing Screen Controller (Mandatory Auth - No Bypass) ---
+let gateAuthMode = 'login'; // 'login' | 'register'
 
-function showAuthStatus(msg, isSuccess = false) {
-  if (!authStatusMsg) return;
-  authStatusMsg.style.display = 'block';
-  authStatusMsg.className = `auth-status-msg ${isSuccess ? 'success' : 'error'}`;
-  authStatusMsg.innerText = msg;
+function showGateAuthStatus(msg, isSuccess = false) {
+  if (!gateAuthStatusMsg) return;
+  gateAuthStatusMsg.style.display = 'block';
+  gateAuthStatusMsg.className = `auth-status-msg ${isSuccess ? 'success' : 'error'}`;
+  gateAuthStatusMsg.innerText = msg;
 }
 
-function clearAuthStatus() {
-  if (!authStatusMsg) return;
-  authStatusMsg.style.display = 'none';
-  authStatusMsg.innerText = '';
+function clearGateAuthStatus() {
+  if (!gateAuthStatusMsg) return;
+  gateAuthStatusMsg.style.display = 'none';
+  gateAuthStatusMsg.innerText = '';
 }
 
-if (tabLoginBtn && tabRegisterBtn) {
-  tabLoginBtn.addEventListener('click', () => {
-    authMode = 'login';
-    tabLoginBtn.classList.add('active');
-    tabRegisterBtn.classList.remove('active');
-    tabLoginBtn.style.background = 'rgba(216,177,93,0.15)';
-    tabLoginBtn.style.borderColor = '#d8b15d';
-    tabLoginBtn.style.color = '#f4e6c3';
-    tabRegisterBtn.style.background = 'rgba(255,255,255,0.03)';
-    tabRegisterBtn.style.borderColor = 'var(--border-subtle)';
-    tabRegisterBtn.style.color = 'var(--text-secondary)';
-    if (authConfirmPasswordGroup) authConfirmPasswordGroup.style.display = 'none';
-    if (submitAuthBtn) submitAuthBtn.innerText = 'เข้าสู่ระบบ (Login)';
-    if (authSubtitleText) authSubtitleText.innerText = 'เข้าสู่ระบบเพื่อโหลดการตั้งค่าไมค์ Soundcard และคีย์เพลงโปรดของคุณ';
-    clearAuthStatus();
+if (gateTabLoginBtn && gateTabRegisterBtn) {
+  gateTabLoginBtn.addEventListener('click', () => {
+    gateAuthMode = 'login';
+    gateTabLoginBtn.classList.add('active');
+    gateTabRegisterBtn.classList.remove('active');
+    gateTabLoginBtn.style.background = 'rgba(216,177,93,0.15)';
+    gateTabLoginBtn.style.borderColor = '#d8b15d';
+    gateTabLoginBtn.style.color = '#f4e6c3';
+    gateTabRegisterBtn.style.background = 'rgba(255,255,255,0.03)';
+    gateTabRegisterBtn.style.borderColor = 'var(--border-subtle)';
+    gateTabRegisterBtn.style.color = 'var(--text-secondary)';
+    if (gateConfirmPasswordGroup) gateConfirmPasswordGroup.style.display = 'none';
+    if (gateSubmitBtn) gateSubmitBtn.innerText = 'เข้าสู่ระบบ (Login)';
+    clearGateAuthStatus();
   });
 
-  tabRegisterBtn.addEventListener('click', () => {
-    authMode = 'register';
-    tabRegisterBtn.classList.add('active');
-    tabLoginBtn.classList.remove('active');
-    tabRegisterBtn.style.background = 'rgba(216,177,93,0.15)';
-    tabRegisterBtn.style.borderColor = '#d8b15d';
-    tabRegisterBtn.style.color = '#f4e6c3';
-    tabLoginBtn.style.background = 'rgba(255,255,255,0.03)';
-    tabLoginBtn.style.borderColor = 'var(--border-subtle)';
-    tabLoginBtn.style.color = 'var(--text-secondary)';
-    if (authConfirmPasswordGroup) authConfirmPasswordGroup.style.display = 'block';
-    if (submitAuthBtn) submitAuthBtn.innerText = 'สมัครสมาชิกใหม่ (Register)';
-    if (authSubtitleText) authSubtitleText.innerText = 'สร้างบัญชีเพื่อบันทึกการตั้งค่าระบบเสียงของคุณถาวร';
-    clearAuthStatus();
+  gateTabRegisterBtn.addEventListener('click', () => {
+    gateAuthMode = 'register';
+    gateTabRegisterBtn.classList.add('active');
+    gateTabLoginBtn.classList.remove('active');
+    gateTabRegisterBtn.style.background = 'rgba(216,177,93,0.15)';
+    gateTabRegisterBtn.style.borderColor = '#d8b15d';
+    gateTabRegisterBtn.style.color = '#f4e6c3';
+    gateTabLoginBtn.style.background = 'rgba(255,255,255,0.03)';
+    gateTabLoginBtn.style.borderColor = 'var(--border-subtle)';
+    gateTabLoginBtn.style.color = 'var(--text-secondary)';
+    if (gateConfirmPasswordGroup) gateConfirmPasswordGroup.style.display = 'block';
+    if (gateSubmitBtn) gateSubmitBtn.innerText = 'สมัครสมาชิกใหม่ (Register)';
+    clearGateAuthStatus();
   });
 }
 
-userProfileBtn.addEventListener('click', () => {
-  openAuthModal();
-});
+if (gateGuestBtn) {
+  gateGuestBtn.addEventListener('click', () => {
+    currentUser.username = 'Guest';
+    currentUser.isGuest = true;
+    currentUser.isLoggedIn = true;
+    currentUser.tier = 'free';
+    saveUserProfile();
+    updateAuthUI();
+    if (landingGate) landingGate.classList.add('hidden');
+    if (!currentUser.hasCompletedOnboarding) {
+      openOnboardingWizard();
+    }
+  });
+}
 
-closeAuthModalBtn.addEventListener('click', () => {
-  authModal.classList.add('hidden');
-});
+if (gateSubmitBtn) {
+  gateSubmitBtn.addEventListener('click', async () => {
+    const uname = gateUsernameInput ? gateUsernameInput.value.trim() : '';
+    const pwd = gatePasswordInput ? gatePasswordInput.value.trim() : '';
 
-guestAuthBtn.addEventListener('click', () => {
-  currentUser.username = 'Guest';
-  currentUser.isGuest = true;
-  currentUser.isLoggedIn = true;
-  currentUser.tier = 'free';
-  saveUserProfile();
-  updateAuthUI();
-  authModal.classList.add('hidden');
-  if (!currentUser.hasCompletedOnboarding) {
-    openOnboardingWizard();
-  }
-});
-
-submitAuthBtn.addEventListener('click', async () => {
-  const uname = authUsernameInput.value.trim();
-  const pwd = authPasswordInput.value.trim();
-
-  if (!uname || uname.length < 2) {
-    showAuthStatus('กรุณาระบุชื่อผู้ใช้งานอย่างน้อย 2 ตัวอักษร');
-    return;
-  }
-  if (!pwd || pwd.length < 3) {
-    showAuthStatus('กรุณากรอกรหัสผ่านอย่างน้อย 3 ตัวอักษร');
-    return;
-  }
-
-  if (authMode === 'register') {
-    const confirmPwd = authConfirmPasswordInput.value.trim();
-    if (pwd !== confirmPwd) {
-      showAuthStatus('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+    if (!uname || uname.length < 2) {
+      showGateAuthStatus('กรุณาระบุชื่อผู้ใช้งานอย่างน้อย 2 ตัวอักษร');
       return;
     }
-  }
-
-  submitAuthBtn.disabled = true;
-  submitAuthBtn.innerHTML = '<span>⏳ กำลังดำเนินการ...</span>';
-
-  try {
-    const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: uname,
-        password: pwd,
-        preset: currentUser.preset
-      })
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      showAuthStatus(data.error || 'เกิดข้อผิดพลาดในการตรวจสอบบัญชี');
-    } else {
-      showAuthStatus(authMode === 'register' ? 'สมัครสมาชิกสำเร็จ!' : 'เข้าสู่ระบบสำเร็จ!', true);
-      currentUser.username = data.user.username;
-      currentUser.isGuest = false;
-      currentUser.isLoggedIn = true;
-      currentUser.tier = data.user.tier || 'free';
-      currentUser.proExpiresAt = data.user.proExpiresAt || null;
-      if (data.user.preset) currentUser.preset = { ...currentUser.preset, ...data.user.preset };
-      if (data.user.songKeys) currentUser.songKeys = data.user.songKeys;
-      currentUser.hasCompletedOnboarding = data.user.hasCompletedOnboarding;
-      
-      saveUserProfile();
-      applyUserPreset(currentUser.preset);
-      updateAuthUI();
-
-      setTimeout(() => {
-        authModal.classList.add('hidden');
-        if (!currentUser.hasCompletedOnboarding) {
-          openOnboardingWizard();
-        }
-      }, 700);
+    if (!pwd || pwd.length < 3) {
+      showGateAuthStatus('กรุณากรอกรหัสผ่านอย่างน้อย 3 ตัวอักษร');
+      return;
     }
-  } catch (e) {
-    showAuthStatus('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-  } finally {
-    submitAuthBtn.disabled = false;
-    submitAuthBtn.innerText = authMode === 'register' ? 'สมัครสมาชิกใหม่ (Register)' : 'เข้าสู่ระบบ (Login)';
-  }
-});
 
-// User Profile Actions: Logout, Switch Account, Wizard, Pro Upgrade
-const logoutBtn = document.getElementById('logoutBtn');
+    if (gateAuthMode === 'register') {
+      const confirmPwd = gateConfirmPasswordInput ? gateConfirmPasswordInput.value.trim() : '';
+      if (pwd !== confirmPwd) {
+        showGateAuthStatus('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+        return;
+      }
+    }
+
+    gateSubmitBtn.disabled = true;
+    gateSubmitBtn.innerHTML = '<span>⏳ กำลังดำเนินการ...</span>';
+
+    try {
+      const endpoint = gateAuthMode === 'register' ? '/api/auth/register' : '/api/auth/login';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: uname,
+          password: pwd,
+          preset: currentUser.preset
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showGateAuthStatus(data.error || 'เกิดข้อผิดพลาดในการตรวจสอบบัญชี');
+      } else {
+        showGateAuthStatus(gateAuthMode === 'register' ? 'สมัครสมาชิกสำเร็จ!' : 'เข้าสู่ระบบสำเร็จ!', true);
+        currentUser.username = data.user.username;
+        currentUser.isGuest = false;
+        currentUser.isLoggedIn = true;
+        currentUser.tier = data.user.tier || 'free';
+        currentUser.proExpiresAt = data.user.proExpiresAt || null;
+        if (data.user.preset) currentUser.preset = { ...currentUser.preset, ...data.user.preset };
+        if (data.user.songKeys) currentUser.songKeys = data.user.songKeys;
+        currentUser.hasCompletedOnboarding = data.user.hasCompletedOnboarding;
+        
+        saveUserProfile();
+        applyUserPreset(currentUser.preset);
+        updateAuthUI();
+
+        setTimeout(() => {
+          if (landingGate) landingGate.classList.add('hidden');
+          if (!currentUser.hasCompletedOnboarding) {
+            openOnboardingWizard();
+          }
+        }, 600);
+      }
+    } catch (e) {
+      showGateAuthStatus('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+    } finally {
+      gateSubmitBtn.disabled = false;
+      gateSubmitBtn.innerText = gateAuthMode === 'register' ? 'สมัครสมาชิกใหม่ (Register)' : 'เข้าสู่ระบบ (Login)';
+    }
+  });
+}
+
+// User Profile Modal Handlers (Accessible from header button when logged in)
+if (userProfileBtn) {
+  userProfileBtn.addEventListener('click', () => {
+    if (currentUser.isLoggedIn) {
+      updateAuthUI();
+      if (userProfileModal) userProfileModal.classList.remove('hidden');
+    } else {
+      if (landingGate) landingGate.classList.remove('hidden');
+    }
+  });
+}
+
+if (closeProfileModalBtn) {
+  closeProfileModalBtn.addEventListener('click', () => {
+    if (userProfileModal) userProfileModal.classList.add('hidden');
+  });
+}
+
+if (profileWizardBtn) {
+  profileWizardBtn.addEventListener('click', () => {
+    if (userProfileModal) userProfileModal.classList.add('hidden');
+    openOnboardingWizard();
+  });
+}
+
 if (logoutBtn) {
   logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('karaoke_current_user');
@@ -858,39 +864,17 @@ if (logoutBtn) {
     currentUser.isGuest = false;
     currentUser.tier = 'free';
     currentUser.proExpiresAt = null;
+    currentUser.hasCompletedOnboarding = false;
     currentUser.songKeys = {};
     saveUserProfile();
+
+    if (userProfileModal) userProfileModal.classList.add('hidden');
     updateAuthUI();
-
-    const authFormSection = document.getElementById('authFormSection');
-    const authProfileSection = document.getElementById('authProfileSection');
-    if (authFormSection) authFormSection.style.display = 'block';
-    if (authProfileSection) authProfileSection.style.display = 'none';
-
-    showAuthStatus('ออกจากระบบเรียบร้อยแล้ว คุณสามารถเข้าสู่ระบบใหม่หรือเข้าใช้งานแบบ Guest ได้ทันที', true);
+    clearGateAuthStatus();
+    showGateAuthStatus('ออกจากระบบเรียบร้อยแล้ว เข้าสู่ระบบใหม่หรือเลือกใช้แบบ Guest ได้ทันที', true);
   });
 }
 
-const switchAccountBtn = document.getElementById('switchAccountBtn');
-if (switchAccountBtn) {
-  switchAccountBtn.addEventListener('click', () => {
-    clearAuthStatus();
-    const authFormSection = document.getElementById('authFormSection');
-    const authProfileSection = document.getElementById('authProfileSection');
-    if (authFormSection) authFormSection.style.display = 'block';
-    if (authProfileSection) authProfileSection.style.display = 'none';
-  });
-}
-
-const profileWizardBtn = document.getElementById('profileWizardBtn');
-if (profileWizardBtn) {
-  profileWizardBtn.addEventListener('click', () => {
-    authModal.classList.add('hidden');
-    openOnboardingWizard();
-  });
-}
-
-const upgradeProBtn = document.getElementById('upgradeProBtn');
 if (upgradeProBtn) {
   upgradeProBtn.addEventListener('click', async () => {
     upgradeProBtn.disabled = true;
@@ -932,6 +916,15 @@ function openOnboardingWizard() {
   if (!onboardingWizardModal) return;
   onboardingWizardModal.classList.remove('hidden');
   goToWizardStep(1);
+
+  // Gating: If initial setup, hide close button so user must finish setting up audio
+  if (closeWizardModalBtn) {
+    if (!currentUser.hasCompletedOnboarding) {
+      closeWizardModalBtn.style.display = 'none';
+    } else {
+      closeWizardModalBtn.style.display = 'block';
+    }
+  }
 
   // Sync available audio devices into wizard dropdowns
   if (typeof enumerateAudioDevices === 'function') {

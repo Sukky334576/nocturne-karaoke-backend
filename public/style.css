@@ -2107,3 +2107,25 @@ kbd {
   border-radius: 4px;
   display: inline-block;
 }
+
+/* Gated Landing Screen Overlay */
+.landing-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: radial-gradient(circle at 50% 25%, #181d2e 0%, #08090d 75%);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.landing-gate-overlay.hidden {
+  display: none !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
