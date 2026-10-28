@@ -296,6 +296,31 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 9: Verify Cloud Audio Routing & Tab Audio Capture Invariants
+  try {
+    console.log('\n[Edge Case 9] Verifying Cloud Audio & Tab Audio Capture Architecture...');
+    const appJsContent = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const serverJsContent = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+    const hasTabCapture = appJsContent.includes('startTabAudioCapture') &&
+                          appJsContent.includes('tabAudioSourceNode.connect(cableMixGain)');
+    const hasCloudRecordRouting = appJsContent.includes('isUsingDirectYtAudio && !isTabAudioActive') &&
+                                  appJsContent.includes('cableGain.connect(destRecordTest);');
+    const hasServerCloudFallback = serverJsContent.includes('fetchUpstreamFallbackStream') &&
+                                   serverJsContent.includes('pipeDirectAudioStream');
+
+    if (hasTabCapture && hasCloudRecordRouting && hasServerCloudFallback) {
+      console.log('  ✅ Passed: Cloud audio pipeline, Tab Audio routing to cableMixGain & server fallbacks verified');
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Cloud audio or tab audio invariants missing');
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 9 Error:', err.message);
+    failed++;
+  }
+
   if (testProcess) testProcess.kill();
 
   console.log('\n====================================================');

@@ -116,33 +116,114 @@ function fastYoutubeSearch(query) {
   });
 }
 
-function extractStreamUrl(targetUrl) {
-  return new Promise((resolve, reject) => {
-    const cached = streamCache.get(targetUrl);
-    if (cached && (Date.now() - cached.time < 4 * 60 * 60 * 1000)) {
-      return resolve(cached.url);
-    }
+// Upstream Fallback Audio Stream Finder (for Cloud / Render datacenter IPs)
+async function fetchUpstreamFallbackStream(videoId) {
+  const upstreamInstances = [
+    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`,
+    `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140`,
+    `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
+    `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140`
+  ];
 
-    execFile(ytDlpPath, [
+  for (const candidate of upstreamInstances) {
+    try {
+      const streamUrl = await new Promise((resolve, reject) => {
+        const req = https.get(candidate, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          timeout: 4000
+        }, (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            resolve(res.headers.location);
+          } else if (res.statusCode === 200) {
+            resolve(candidate);
+          } else {
+            reject(new Error('Status ' + res.statusCode));
+          }
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      });
+      if (streamUrl && streamUrl.startsWith('http')) {
+        return streamUrl;
+      }
+    } catch (e) {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+function runYtDlpExtract(clientArgs, targetUrl) {
+  return new Promise((resolve, reject) => {
+    const args = [
       '--no-update',
       '--js-runtimes', 'node',
-      '--extractor-args', 'youtube:player_client=android,web',
-      '-f', 'ba/b',
+      '--extractor-args', clientArgs,
+      '--geo-bypass',
+      '-f', '18/ba/b',
       '-g',
-      '--no-playlist',
-      '--',
-      targetUrl
-    ], (error, stdout, stderr) => {
-      if (error) {
-        console.error('yt-dlp extract error:', stderr || error.message);
-        return reject(stderr || error.message);
-      }
+      '--no-playlist'
+    ];
+
+    if (process.env.PO_TOKEN) {
+      args.push('--extractor-args', `youtube:po_token=${process.env.PO_TOKEN}`);
+    }
+
+    if (process.env.COOKIES_FILE && fs.existsSync(process.env.COOKIES_FILE)) {
+      args.push('--cookies', process.env.COOKIES_FILE);
+    }
+
+    args.push('--', targetUrl);
+
+    execFile(ytDlpPath, args, { timeout: 15000 }, (error, stdout, stderr) => {
+      if (error) return reject(stderr || error.message);
       const streamUrl = stdout.trim().split('\n').filter(l => l.startsWith('http'))[0];
-      if (!streamUrl) return reject('No stream URL returned');
-      setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+      if (!streamUrl) return reject(new Error('No stream URL returned'));
       resolve(streamUrl);
     });
   });
+}
+
+async function extractStreamUrl(targetUrl) {
+  const cached = streamCache.get(targetUrl);
+  if (cached && (Date.now() - cached.time < 4 * 60 * 60 * 1000)) {
+    return cached.url;
+  }
+
+  // 1. Try resilient client configs with yt-dlp
+  const clientConfigs = [
+    'youtube:player_client=android,web',
+    'youtube:player_client=android_vr,web_embedded,android,web',
+    'youtube:player_client=ios,mweb'
+  ];
+
+  for (const clientArgs of clientConfigs) {
+    try {
+      const streamUrl = await runYtDlpExtract(clientArgs, targetUrl);
+      if (streamUrl) {
+        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+        return streamUrl;
+      }
+    } catch (e) {
+      // try next config
+    }
+  }
+
+  // 2. If yt-dlp encounters datacenter blocks on Cloud, try upstream fallback streams
+  const match = targetUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+  if (match && match[1]) {
+    try {
+      const upstreamUrl = await fetchUpstreamFallbackStream(match[1]);
+      if (upstreamUrl) {
+        setBoundedCache(streamCache, targetUrl, { url: upstreamUrl, time: Date.now() }, 100);
+        return upstreamUrl;
+      }
+    } catch (e) {
+      console.warn('Upstream fallback stream note:', e.message);
+    }
+  }
+
+  throw new Error('All audio stream extraction strategies exhausted for ' + targetUrl);
 }
 
 // API: Search YouTube with Instant Sub-Second InnerTube API & 1ms In-Memory Caching
@@ -188,7 +269,37 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// API: Audio Stream (Direct Pipe via FFmpeg)
+function pipeDirectAudioStream(url, res) {
+  try {
+    const protocol = url.startsWith('https') ? https : http;
+    const reqAudio = protocol.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      timeout: 10000
+    }, (resp) => {
+      if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
+        return pipeDirectAudioStream(resp.headers.location, res);
+      }
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': resp.headers['content-type'] || 'audio/mpeg',
+          'Access-Control-Allow-Origin': '*',
+          'Accept-Ranges': 'none'
+        });
+      }
+      resp.pipe(res);
+    });
+    reqAudio.on('error', (err) => {
+      console.error('Direct audio pipe error:', err);
+      if (!res.headersSent) res.status(500).send('Direct audio pipe failed: ' + err.message);
+    });
+  } catch (e) {
+    if (!res.headersSent) res.status(500).send('Direct audio pipe failed: ' + e.message);
+  }
+}
+
+// API: Audio Stream (Direct Pipe via FFmpeg or Direct HTTP Stream)
 app.get('/api/audio', async (req, res) => {
   const idOrUrl = req.query.id || req.query.url;
   const startTime = Math.max(0, parseFloat(req.query.t || req.query.start || 0));
@@ -208,9 +319,9 @@ app.get('/api/audio', async (req, res) => {
     const ffmpegArgs = [
       '-fflags', 'nobuffer',
       '-flags', 'low_delay',
-      '-probesize', '32',
+      '-probesize', '64k',
       '-analyzeduration', '0',
-      '-headers', 'User-Agent: Mozilla/5.0\r\n'
+      '-headers', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n'
     ];
 
     if (startTime > 0) {
@@ -232,6 +343,11 @@ app.get('/api/audio', async (req, res) => {
       stdio: ['ignore', 'pipe', 'ignore']
     });
 
+    let hasReceivedData = false;
+    ffmpegProcess.stdout.on('data', () => {
+      hasReceivedData = true;
+    });
+
     ffmpegProcess.stdout.pipe(res);
 
     req.on('close', () => {
@@ -241,8 +357,17 @@ app.get('/api/audio', async (req, res) => {
     });
 
     ffmpegProcess.on('error', (err) => {
-      console.error('FFmpeg process error:', err);
-      if (!res.headersSent) res.status(500).send('FFmpeg stream failed');
+      console.error('FFmpeg process error, falling back to direct pipe:', err);
+      if (!hasReceivedData && !res.headersSent) {
+        pipeDirectAudioStream(directUrl, res);
+      }
+    });
+
+    ffmpegProcess.on('close', (code) => {
+      if (code !== 0 && !hasReceivedData && !res.headersSent) {
+        console.warn('FFmpeg closed with code', code, 'before streaming data, trying direct pipe...');
+        pipeDirectAudioStream(directUrl, res);
+      }
     });
   } catch (err) {
     console.error('Audio stream error:', err);

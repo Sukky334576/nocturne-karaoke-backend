@@ -44,5 +44,21 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Upstream public proxy fallback for serverless cloud execution
+  const upstreamInstances = [
+    `https://yt.chocolatemoo53.com/latest_version?id=${encodeURIComponent(id)}&itag=140`,
+    `https://invidious.tiekoetter.com/latest_version?id=${encodeURIComponent(id)}&itag=140`,
+    `https://inv.nadeko.net/latest_version?id=${encodeURIComponent(id)}&itag=140`
+  ];
+
+  for (const fallback of upstreamInstances) {
+    try {
+      await streamFromTunnel(fallback, res);
+      return;
+    } catch (e) {
+      console.warn(`Upstream fallback ${fallback} note:`, e);
+    }
+  }
+
   res.status(500).send('All audio backends unavailable');
 };

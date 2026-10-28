@@ -64,7 +64,10 @@ const isLocalHostOrLan = ['localhost', '127.0.0.1', '::1'].includes(window.locat
                          /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname) ||
                          window.location.hostname.endsWith('.local');
 const isCloudHost = !isLocalHostOrLan;
-let isUsingDirectYtAudio = isCloudHost;
+let isUsingDirectYtAudio = false; // Always attempt Web Audio DSP stream first across Local & Cloud!
+let tabAudioStream = null;
+let tabAudioSourceNode = null;
+let isTabAudioActive = false;
 
 // User Profile & App State
 let currentUser = {
@@ -1420,10 +1423,22 @@ function resetSamples() {
 resetSamplesBtn.addEventListener('click', resetSamples);
 
 // --- Embedded Record Test & Playback Engine ---
-function startRecordingTest() {
+async function startRecordingTest() {
   if (!destRecordTest || !destRecordTest.stream) {
     alert('กรุณากด START ENGINE ก่อนเริ่มอัดเสียง');
     return;
+  }
+
+  // If in Direct YouTube mode and tab audio capture is not active yet, offer to connect tab audio so music is recorded
+  if (isUsingDirectYtAudio && !isTabAudioActive) {
+    const wantTab = confirm(
+      '💡 ขณะนี้ใช้งานโหมด YouTube Direct Audio (Cloud)\n\n' +
+      'เพื่อให้ระบบอัดเสียงบันทึกทั้ง "เสียงเพลง" และ "เสียงไมค์" พร้อมกัน\n' +
+      'กรุณากด ตกลง (OK) เพื่อเลือกแชร์เสียงเพลงจากแท็บนี้ (Share tab audio)'
+    );
+    if (wantTab) {
+      await startTabAudioCapture();
+    }
   }
 
   recordedChunks = [];
@@ -1491,13 +1506,125 @@ function stopRecordingTest() {
   `;
 }
 
-toggleRecordBtn.addEventListener('click', () => {
+toggleRecordBtn.addEventListener('click', async () => {
   if (!isRecordingTest) {
-    startRecordingTest();
+    await startRecordingTest();
   } else {
     stopRecordingTest();
   }
 });
+
+// --- Tab Audio Capture (Cloud Fallback for YouTube Iframe Audio) ---
+async function startTabAudioCapture() {
+  try {
+    await initAudioEngine();
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      },
+      systemAudio: 'include',
+      surfaceSwitching: 'include',
+      selfBrowserSurface: 'include'
+    });
+
+    const audioTrack = displayStream.getAudioTracks()[0];
+    if (!audioTrack) {
+      alert('ไม่พบสัญญาณเสียงจากแท็บ! กรุณาติ๊กเลือก "Also share tab audio" (แชร์เสียงจากแท็บ) ตอนเลือกหน้าต่าง');
+      displayStream.getTracks().forEach(t => t.stop());
+      return false;
+    }
+
+    // Stop video track immediately to save processing power
+    displayStream.getVideoTracks().forEach(t => t.stop());
+
+    tabAudioStream = new MediaStream([audioTrack]);
+    if (tabAudioSourceNode) {
+      try { tabAudioSourceNode.disconnect(); } catch (e) {}
+    }
+
+    tabAudioSourceNode = audioCtx.createMediaStreamSource(tabAudioStream);
+    
+    // Connect tab audio directly to cableMixGain so it enters cableGain and destRecordTest without double-monitoring in headphones
+    if (cableMixGain) {
+      tabAudioSourceNode.connect(cableMixGain);
+    }
+
+    isTabAudioActive = true;
+    updateTabAudioUI();
+
+    audioTrack.onended = () => {
+      stopTabAudioCapture();
+    };
+
+    return true;
+  } catch (err) {
+    console.warn('Tab audio capture note:', err);
+    return false;
+  }
+}
+
+function stopTabAudioCapture() {
+  if (tabAudioStream) {
+    tabAudioStream.getTracks().forEach(t => t.stop());
+    tabAudioStream = null;
+  }
+  if (tabAudioSourceNode) {
+    try { tabAudioSourceNode.disconnect(); } catch (e) {}
+    tabAudioSourceNode = null;
+  }
+  isTabAudioActive = false;
+  updateTabAudioUI();
+}
+
+function toggleTabAudioCapture() {
+  if (isTabAudioActive) {
+    stopTabAudioCapture();
+  } else {
+    startTabAudioCapture();
+  }
+}
+
+function updateTabAudioUI() {
+  const btn = document.getElementById('tabAudioCaptureBtn');
+  const txt = document.getElementById('tabAudioStatusText');
+  const badge = document.getElementById('audioPipelineBadge');
+  if (btn && txt) {
+    if (isTabAudioActive) {
+      btn.style.background = 'rgba(78, 201, 176, 0.2)';
+      btn.style.borderColor = '#4ec9b0';
+      btn.style.color = '#4ec9b0';
+      txt.innerText = '✓ เสียงเพลงจากแท็บเชื่อมต่อแล้ว (Tab Audio Active)';
+    } else {
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      txt.innerText = '🎙️ ดึงเสียงเพลงจากแท็บ (Tab Audio บน Cloud)';
+    }
+  }
+  if (badge) {
+    if (isTabAudioActive) {
+      badge.innerText = 'Pipeline: Tab Audio + Mic Mix (100% Cloud Record)';
+      badge.style.color = '#4ec9b0';
+      badge.style.borderColor = 'rgba(78, 201, 176, 0.4)';
+    } else if (!isUsingDirectYtAudio) {
+      badge.innerText = 'Pipeline: Web Audio DSP (Music + Mic)';
+      badge.style.color = '#d8b15d';
+      badge.style.borderColor = 'rgba(216, 177, 93, 0.3)';
+    } else {
+      badge.innerText = 'Pipeline: YouTube Direct (Mic only without Tab Audio)';
+      badge.style.color = '#ff9800';
+      badge.style.borderColor = 'rgba(255, 152, 0, 0.3)';
+    }
+  }
+}
+
+const tabAudioCaptureBtn = document.getElementById('tabAudioCaptureBtn');
+if (tabAudioCaptureBtn) {
+  tabAudioCaptureBtn.addEventListener('click', toggleTabAudioCapture);
+}
 
 // Metronome Beep Generator
 function playMetronomeBeep(beat) {
@@ -1953,10 +2080,9 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // On Local Engine, try local stream first for each new track
-  if (!isCloudHost) {
-    isUsingDirectYtAudio = false;
-  }
+  // Always attempt Web Audio DSP stream first across Local and Cloud
+  isUsingDirectYtAudio = false;
+  updateTabAudioUI();
 
   // Load YouTube Visuals and Audio
   initYtPlayer(track.id, seekSeconds);
@@ -1966,7 +2092,7 @@ async function playTrack(track, seekSeconds = 0) {
     isPlaying = true;
     playPauseBtn.innerHTML = SVG_PAUSE;
   } else {
-    // On Local Engine: Stream through Web Audio DSP into VB-CABLE and Headphones
+    // Stream through Web Audio DSP into VB-CABLE, Headphones, and Record Test Destination
     const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
     audioSourceElement.src = streamUrl;
     try {
@@ -1985,6 +2111,7 @@ async function playTrack(track, seekSeconds = 0) {
 function activateYtAudioFailover() {
   console.log('⚡ Switching to YouTube Direct Audio playback mode (Cloud Failover)');
   isUsingDirectYtAudio = true;
+  updateTabAudioUI();
   if (audioSourceElement) {
     audioSourceElement.pause();
     audioSourceElement.removeAttribute('src');
