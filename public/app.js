@@ -971,8 +971,31 @@ async function initAudioEngine() {
     audioInitBtn.style.border = '1px solid #d8b15d';
 
     console.log('⚡ Audio Engine Initialized Successfully');
+    playEngineStartupChime();
   } catch (err) {
     console.error('Audio engine init error:', err);
+  }
+}
+
+// Startup Acoustic Tone (Verifies headphone output immediately on click)
+function playEngineStartupChime() {
+  if (!audioCtx) return;
+  try {
+    const now = audioCtx.currentTime;
+    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+      g.gain.setValueAtTime(0.15, now + idx * 0.08);
+      g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.22);
+      osc.connect(g);
+      g.connect(headphoneMixGain || audioCtx.destination);
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.22);
+    });
+  } catch (e) {
+    console.warn('Chime note:', e);
   }
 }
 
@@ -1792,16 +1815,64 @@ async function enumerateAudioDevices() {
       micSelect.appendChild(opt);
     });
 
+    // 1. Auto-select Headphone (Prioritize Maono Fairy / Headphones)
+    let hpFound = false;
+    for (let i = 0; i < headphoneSelect.options.length; i++) {
+      const text = headphoneSelect.options[i].text.toLowerCase();
+      if (text.includes('maono') || text.includes('fairy') || text.includes('headphones') || text.includes('headphone')) {
+        headphoneSelect.selectedIndex = i;
+        setSinkHeadphone(headphoneSelect.value);
+        hpFound = true;
+        break;
+      }
+    }
+    if (!hpFound && headphoneSelect.options.length > 0) {
+      setSinkHeadphone(headphoneSelect.value);
+    }
+
+    // 2. Auto-select Virtual Cable (Strictly prioritize 'cable input' over '16ch' or generic virtual outputs)
+    let cableFound = false;
     for (let i = 0; i < virtualCableSelect.options.length; i++) {
       const text = virtualCableSelect.options[i].text.toLowerCase();
-      if (text.includes('cable') || text.includes('virtual') || text.includes('vb-audio')) {
+      if (text.includes('cable input') || (text.includes('cable') && !text.includes('16ch') && !text.includes('output'))) {
         virtualCableSelect.selectedIndex = i;
         setSinkCable(virtualCableSelect.value);
+        cableFound = true;
+        break;
+      }
+    }
+    if (!cableFound) {
+      for (let i = 0; i < virtualCableSelect.options.length; i++) {
+        const text = virtualCableSelect.options[i].text.toLowerCase();
+        if (text.includes('cable') || text.includes('virtual') || text.includes('vb-audio')) {
+          virtualCableSelect.selectedIndex = i;
+          setSinkCable(virtualCableSelect.value);
+          break;
+        }
+      }
+    }
+
+    // 3. Auto-select Microphone (Prioritize Maono Fairy)
+    for (let i = 0; i < micSelect.options.length; i++) {
+      const text = micSelect.options[i].text.toLowerCase();
+      if (text.includes('maono') || text.includes('fairy')) {
+        micSelect.selectedIndex = i;
         break;
       }
     }
   } catch (err) {
     console.warn('Enumerate devices note:', err.message);
+  }
+}
+
+async function setSinkHeadphone(deviceId) {
+  if (audioCtx && typeof audioCtx.setSinkId === 'function') {
+    try {
+      await audioCtx.setSinkId(deviceId);
+      console.log('✅ Master Headphone connected to:', deviceId);
+    } catch (e) {
+      console.warn('setSinkId Headphone note:', e.message);
+    }
   }
 }
 
@@ -1815,6 +1886,10 @@ async function setSinkCable(deviceId) {
     }
   }
 }
+
+headphoneSelect.addEventListener('change', (e) => {
+  setSinkHeadphone(e.target.value);
+});
 
 virtualCableSelect.addEventListener('change', (e) => {
   setSinkCable(e.target.value);
