@@ -8,7 +8,11 @@ const BACKEND_TUNNELS = [
 async function streamFromTunnel(url, res) {
   return new Promise((resolve, reject) => {
     const reqT = https.get(url, { timeout: 8000 }, (resp) => {
-      if (resp.statusCode !== 200) return reject('Status ' + resp.statusCode);
+      if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
+        const redirected = new URL(resp.headers.location, url).href;
+        return streamFromTunnel(redirected, res).then(resolve).catch(reject);
+      }
+      if (resp.statusCode !== 200) return reject(new Error('Status ' + resp.statusCode));
       res.writeHead(resp.statusCode, {
         'Content-Type': resp.headers['content-type'] || 'audio/mpeg',
         'Access-Control-Allow-Origin': '*',
@@ -19,8 +23,13 @@ async function streamFromTunnel(url, res) {
       resp.pipe(res);
       resolve();
     });
+
+    res.on('close', () => {
+      if (reqT && !reqT.destroyed) reqT.destroy();
+    });
+
     reqT.on('error', reject);
-    reqT.on('timeout', () => { reqT.destroy(); reject('timeout'); });
+    reqT.on('timeout', () => { reqT.destroy(); reject(new Error('timeout')); });
   });
 }
 

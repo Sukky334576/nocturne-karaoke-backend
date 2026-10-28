@@ -67,6 +67,7 @@ const isCloudHost = !isLocalHostOrLan;
 let isUsingDirectYtAudio = false; // Always attempt Web Audio DSP stream first across Local & Cloud!
 let tabAudioStream = null;
 let tabAudioSourceNode = null;
+let tabMusicGain = null;
 let isTabAudioActive = false;
 
 // User Profile & App State
@@ -595,7 +596,8 @@ openRecordTestBtn.addEventListener('click', () => {
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
   const origin = window.location.origin;
-  const muteFlag = isUsingDirectYtAudio ? 0 : 1;
+  const isDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
+  const muteFlag = isDirectOrTab ? 0 : 1;
   const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
   const volInt = isHpMusicMuted ? 0 : Math.round(hpVol * 100);
 
@@ -607,7 +609,7 @@ function initYtPlayer(videoId, startSec = 0) {
   if (ytPlayer && ytPlayer.loadVideoById) {
     try {
       ytPlayer.loadVideoById({ videoId, startSeconds: Math.floor(startSec) });
-      if (isUsingDirectYtAudio) {
+      if (isDirectOrTab) {
         if (ytPlayer.unMute) ytPlayer.unMute();
         if (ytPlayer.setVolume) ytPlayer.setVolume(volInt);
       } else {
@@ -634,7 +636,7 @@ function initYtPlayer(videoId, startSec = 0) {
       events: {
         onReady: (e) => {
           isYtReady = true;
-          if (isUsingDirectYtAudio) {
+          if (isDirectOrTab) {
             if (e.target && e.target.unMute) e.target.unMute();
             if (e.target && e.target.setVolume) e.target.setVolume(volInt);
           } else {
@@ -645,7 +647,7 @@ function initYtPlayer(videoId, startSec = 0) {
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
             isPlaying = true;
-            if (isUsingDirectYtAudio) {
+            if (isDirectOrTab) {
               if (ytPlayer && ytPlayer.unMute) ytPlayer.unMute();
               if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(volInt);
             } else {
@@ -777,6 +779,10 @@ async function initAudioEngine() {
     const initCbM = currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20;
     musicCableGain.gain.setValueAtTime(isCableMusicMuted ? 0.0 : initCbM, audioCtx.currentTime);
 
+    // Tab Audio Music Gain (Calibrated for Cloud Tab Audio streaming into Cable / Discord / Record Test)
+    tabMusicGain = audioCtx.createGain();
+    tabMusicGain.gain.setValueAtTime(isCableMusicMuted ? 0.0 : initCbM, audioCtx.currentTime);
+
     // Direct Vocal Sub-Gains (Rule 2: Default 0.0 to prevent headphone mic echo)
     vocalHpGain = audioCtx.createGain();
     const initHpV = currentUser.preset.hpVocalVol !== undefined ? currentUser.preset.hpVocalVol : 0.0;
@@ -888,6 +894,9 @@ async function initAudioEngine() {
     masterGain.connect(musicCableGain);
     musicCableGain.connect(cableSyncDelayNode);
     cableSyncDelayNode.connect(cableMixGain);
+    if (tabMusicGain) {
+      tabMusicGain.connect(cableMixGain);
+    }
 
     // 2. MASTER HEADPHONE OUTPUT:
     headphoneMixGain.connect(headphoneGain);
@@ -1244,6 +1253,10 @@ function updateMusicCableLevel(val, shouldSave = true) {
     const target = isCableMusicMuted ? 0.0 : v;
     musicCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
   }
+  if (tabMusicGain && audioCtx) {
+    const target = isCableMusicMuted ? 0.0 : v;
+    tabMusicGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
   if (shouldSave) saveUserProfile();
 }
 
@@ -1255,6 +1268,10 @@ function toggleCableMusicMute() {
   if (musicCableGain && audioCtx) {
     const target = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol || 0.20);
     musicCableGain.gain.setValueAtTime(target, audioCtx.currentTime);
+  }
+  if (tabMusicGain && audioCtx) {
+    const target = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol || 0.20);
+    tabMusicGain.gain.setValueAtTime(target, audioCtx.currentTime);
   }
   saveUserProfile();
 }
@@ -1425,12 +1442,16 @@ resetSamplesBtn.addEventListener('click', resetSamples);
 // --- Embedded Record Test & Playback Engine ---
 async function startRecordingTest() {
   if (!destRecordTest || !destRecordTest.stream) {
+    await initAudioEngine();
+  }
+  if (!destRecordTest || !destRecordTest.stream) {
     alert('กรุณากด START ENGINE ก่อนเริ่มอัดเสียง');
     return;
   }
 
   // If in Direct YouTube mode and tab audio capture is not active yet, offer to connect tab audio so music is recorded
-  if (isUsingDirectYtAudio && !isTabAudioActive) {
+  const isAudioSourceStreaming = audioSourceElement && !audioSourceElement.paused && audioSourceElement.currentTime > 0;
+  if ((isUsingDirectYtAudio && !isTabAudioActive) || (isCloudHost && !isTabAudioActive && !isAudioSourceStreaming)) {
     const wantTab = confirm(
       '💡 ขณะนี้ใช้งานโหมด YouTube Direct Audio (Cloud)\n\n' +
       'เพื่อให้ระบบอัดเสียงบันทึกทั้ง "เสียงเพลง" และ "เสียงไมค์" พร้อมกัน\n' +
@@ -1547,9 +1568,18 @@ async function startTabAudioCapture() {
 
     tabAudioSourceNode = audioCtx.createMediaStreamSource(tabAudioStream);
     
-    // Connect tab audio directly to cableMixGain so it enters cableGain and destRecordTest without double-monitoring in headphones
-    if (cableMixGain) {
+    // Connect tab audio through tabMusicGain into cableMixGain so it enters cableGain and destRecordTest with proper volume balance and without double-monitoring in headphones
+    if (tabMusicGain) {
+      tabAudioSourceNode.connect(tabMusicGain);
+    } else if (cableMixGain) {
       tabAudioSourceNode.connect(cableMixGain);
+    }
+
+    // Ensure YouTube player is unmuted so tab emits audio
+    if (ytPlayer && ytPlayer.unMute) {
+      ytPlayer.unMute();
+      const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+      if (ytPlayer.setVolume) ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
     }
 
     isTabAudioActive = true;
@@ -1892,6 +1922,12 @@ function toggleDucking() {
     }
   }
 
+  if (tabMusicGain && audioCtx) {
+    const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
+    const target = isDucked ? baseCableVol * 0.2 : baseCableVol;
+    tabMusicGain.gain.setTargetAtTime(target, audioCtx.currentTime, isDucked ? 0.08 : 0.12);
+  }
+
   if (isDucked) {
     if (duckingBtn) duckingBtn.classList.add('ducked');
     if (duckingStatusText) duckingStatusText.innerText = 'TALKING (DUCKED)';
@@ -2080,8 +2116,12 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // Always attempt Web Audio DSP stream first across Local and Cloud
-  isUsingDirectYtAudio = false;
+  // When Tab Audio is active, YouTube Iframe provides direct unmuted audio without waiting for DSP stream
+  if (isTabAudioActive) {
+    isUsingDirectYtAudio = true;
+  } else if (!isCloudHost) {
+    isUsingDirectYtAudio = false;
+  }
   updateTabAudioUI();
 
   // Load YouTube Visuals and Audio
@@ -2117,10 +2157,21 @@ function activateYtAudioFailover() {
     audioSourceElement.removeAttribute('src');
     audioSourceElement.load();
   }
-  if (currentTrack) {
-    const origin = window.location.origin;
-    const seekSec = Math.floor(streamOffsetSeconds || 0);
-    ytPlayerDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${currentTrack.id}?autoplay=1&controls=1&mute=0&start=${seekSec}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+  if (ytPlayer && typeof ytPlayer.unMute === 'function') {
+    try {
+      ytPlayer.unMute();
+      const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+      const volInt = isHpMusicMuted ? 0 : Math.round(hpVol * 100);
+      if (ytPlayer.setVolume) ytPlayer.setVolume(volInt);
+      if (ytPlayer.playVideo) ytPlayer.playVideo();
+    } catch (e) {
+      console.warn('YT unmute error, re-rendering iframe:', e);
+      if (currentTrack) {
+        initYtPlayer(currentTrack.id, Math.floor(streamOffsetSeconds || 0));
+      }
+    }
+  } else if (currentTrack) {
+    initYtPlayer(currentTrack.id, Math.floor(streamOffsetSeconds || 0));
   }
   isPlaying = true;
   playPauseBtn.innerHTML = SVG_PAUSE;
@@ -2164,10 +2215,14 @@ function seekToSeconds(seconds) {
 
   if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
     ytPlayer.seekTo(clamped, true);
-    if (ytPlayer.mute) ytPlayer.mute();
+    if (isUsingDirectYtAudio || isTabAudioActive) {
+      if (ytPlayer.unMute) ytPlayer.unMute();
+    } else {
+      if (ytPlayer.mute) ytPlayer.mute();
+    }
     if (ytPlayer.playVideo) ytPlayer.playVideo();
   }
-  if (audioSourceElement) {
+  if (!isUsingDirectYtAudio && audioSourceElement) {
     audioSourceElement.src = `/api/audio?id=${currentTrack.id}&t=${clamped}`;
     audioSourceElement.play().catch(() => {});
   }
@@ -2185,11 +2240,17 @@ function togglePlayPause() {
     isPlaying = false;
     playPauseBtn.innerHTML = SVG_PLAY;
   } else {
-    if (audioSourceElement) {
+    if (!isUsingDirectYtAudio && audioSourceElement) {
       audioSourceElement.play().catch(() => {});
     }
     if (ytPlayer && ytPlayer.playVideo) {
-      if (ytPlayer.mute) ytPlayer.mute();
+      if (isUsingDirectYtAudio || isTabAudioActive) {
+        if (ytPlayer.unMute) ytPlayer.unMute();
+        const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+        if (ytPlayer.setVolume) ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+      } else {
+        if (ytPlayer.mute) ytPlayer.mute();
+      }
       ytPlayer.playVideo();
     }
     isPlaying = true;

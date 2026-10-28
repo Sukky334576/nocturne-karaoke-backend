@@ -303,14 +303,17 @@ async function runEdgeCaseTests() {
     const serverJsContent = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
 
     const hasTabCapture = appJsContent.includes('startTabAudioCapture') &&
-                          appJsContent.includes('tabAudioSourceNode.connect(cableMixGain)');
+                          appJsContent.includes('tabAudioSourceNode.connect(cableMixGain)') &&
+                          appJsContent.includes('tabMusicGain');
     const hasCloudRecordRouting = appJsContent.includes('isUsingDirectYtAudio && !isTabAudioActive') &&
                                   appJsContent.includes('cableGain.connect(destRecordTest);');
     const hasServerCloudFallback = serverJsContent.includes('fetchUpstreamFallbackStream') &&
                                    serverJsContent.includes('pipeDirectAudioStream');
+    const hasUnmuteSafety = appJsContent.includes('isDirectOrTab') &&
+                            appJsContent.includes('ytPlayer.unMute()');
 
-    if (hasTabCapture && hasCloudRecordRouting && hasServerCloudFallback) {
-      console.log('  ✅ Passed: Cloud audio pipeline, Tab Audio routing to cableMixGain & server fallbacks verified');
+    if (hasTabCapture && hasCloudRecordRouting && hasServerCloudFallback && hasUnmuteSafety) {
+      console.log('  ✅ Passed: Cloud audio pipeline, Tab Audio volume scaling & server fallbacks verified');
       passed++;
     } else {
       console.error('  ❌ Failed: Cloud audio or tab audio invariants missing');

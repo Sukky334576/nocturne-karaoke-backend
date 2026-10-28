@@ -122,7 +122,8 @@ async function fetchUpstreamFallbackStream(videoId) {
     `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`,
     `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140`,
     `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
-    `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140`
+    `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140`,
+    `https://inv.zzls.xyz/latest_version?id=${videoId}&itag=140`
   ];
 
   for (const candidate of upstreamInstances) {
@@ -130,10 +131,11 @@ async function fetchUpstreamFallbackStream(videoId) {
       const streamUrl = await new Promise((resolve, reject) => {
         const req = https.get(candidate, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-          timeout: 4000
+          timeout: 3500
         }, (res) => {
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            resolve(res.headers.location);
+            const loc = new URL(res.headers.location, candidate).href;
+            resolve(loc);
           } else if (res.statusCode === 200) {
             resolve(candidate);
           } else {
@@ -165,6 +167,11 @@ function runYtDlpExtract(clientArgs, targetUrl) {
       '--no-playlist'
     ];
 
+    const proxy = process.env.YOUTUBE_PROXY || process.env.PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    if (proxy) {
+      args.push('--proxy', proxy);
+    }
+
     if (process.env.PO_TOKEN) {
       args.push('--extractor-args', `youtube:po_token=${process.env.PO_TOKEN}`);
     }
@@ -175,7 +182,7 @@ function runYtDlpExtract(clientArgs, targetUrl) {
 
     args.push('--', targetUrl);
 
-    execFile(ytDlpPath, args, { timeout: 15000 }, (error, stdout, stderr) => {
+    execFile(ytDlpPath, args, { timeout: 8000 }, (error, stdout, stderr) => {
       if (error) return reject(stderr || error.message);
       const streamUrl = stdout.trim().split('\n').filter(l => l.startsWith('http'))[0];
       if (!streamUrl) return reject(new Error('No stream URL returned'));
@@ -194,7 +201,9 @@ async function extractStreamUrl(targetUrl) {
   const clientConfigs = [
     'youtube:player_client=android,web',
     'youtube:player_client=android_vr,web_embedded,android,web',
-    'youtube:player_client=ios,mweb'
+    'youtube:player_client=android_embedded,android,web',
+    'youtube:player_client=ios,mweb',
+    'youtube:player_client=tv,android'
   ];
 
   for (const clientArgs of clientConfigs) {
@@ -279,7 +288,12 @@ function pipeDirectAudioStream(url, res) {
       timeout: 10000
     }, (resp) => {
       if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
-        return pipeDirectAudioStream(resp.headers.location, res);
+        const redirected = new URL(resp.headers.location, url).href;
+        return pipeDirectAudioStream(redirected, res);
+      }
+      if (resp.statusCode !== 200) {
+        if (!res.headersSent) res.status(resp.statusCode).send('Audio stream returned ' + resp.statusCode);
+        return;
       }
       if (!res.headersSent) {
         res.writeHead(200, {
@@ -290,6 +304,11 @@ function pipeDirectAudioStream(url, res) {
       }
       resp.pipe(res);
     });
+
+    res.on('close', () => {
+      if (reqAudio && !reqAudio.destroyed) reqAudio.destroy();
+    });
+
     reqAudio.on('error', (err) => {
       console.error('Direct audio pipe error:', err);
       if (!res.headersSent) res.status(500).send('Direct audio pipe failed: ' + err.message);
