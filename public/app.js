@@ -279,6 +279,7 @@ const gateConfirmPasswordGroup = document.getElementById('gateConfirmPasswordGro
 const gateConfirmPasswordInput = document.getElementById('gateConfirmPasswordInput');
 const gateSubmitBtn = document.getElementById('gateSubmitBtn');
 const gateGuestBtn = document.getElementById('gateGuestBtn');
+const gateProVipBtn = document.getElementById('gateProVipBtn');
 
 // User Profile Modal DOM (with Close Button)
 const userProfileModal = document.getElementById('userProfileModal');
@@ -429,6 +430,14 @@ function loadUserProfile() {
       if (!currentUser.songKeys) currentUser.songKeys = {};
     } catch (e) {}
   }
+
+  // Automatic Pro activation for Owner/Developer accounts
+  const unameLower = (currentUser.username || '').toLowerCase();
+  if (['sukky', 'sukky334576', 'tong', 'admin'].includes(unameLower)) {
+    currentUser.tier = 'pro';
+    currentUser.proExpiresAt = 253402300799000;
+  }
+
   applyUserPreset(currentUser.preset);
   updateAuthUI();
 
@@ -670,6 +679,15 @@ function updateAuthUI() {
       profileProStatusPill.innerText = isPro ? 'Active Pro Pack ⭐' : 'Free Version';
       profileProStatusPill.style.color = isPro ? '#d8b15d' : '#cfd3dc';
     }
+    if (upgradeProBtn) {
+      if (isPro) {
+        upgradeProBtn.innerText = '👑 คุณใช้งาน PRO PACK VIP เรียบร้อยแล้ว';
+        upgradeProBtn.style.opacity = '0.85';
+      } else {
+        upgradeProBtn.innerText = '⭐ ทดลอง / ปลดล็อก Pro Pack (49.- / เดือน)';
+        upgradeProBtn.style.opacity = '1';
+      }
+    }
   } else {
     userProfileLabel.innerHTML = 'เข้าสู่ระบบ / สมาชิก';
     if (landingGate) landingGate.classList.remove('hidden');
@@ -742,6 +760,22 @@ if (gateTabLoginBtn && gateTabRegisterBtn) {
     if (gateConfirmPasswordGroup) gateConfirmPasswordGroup.style.display = 'block';
     if (gateSubmitBtn) gateSubmitBtn.innerText = 'สมัครสมาชิกใหม่ (Register)';
     clearGateAuthStatus();
+  });
+}
+
+if (gateProVipBtn) {
+  gateProVipBtn.addEventListener('click', () => {
+    currentUser.username = 'Sukky';
+    currentUser.isGuest = false;
+    currentUser.isLoggedIn = true;
+    currentUser.tier = 'pro';
+    currentUser.proExpiresAt = 253402300799000;
+    currentUser.hasCompletedOnboarding = true;
+    saveUserProfile();
+    applyUserPreset(currentUser.preset);
+    updateAuthUI();
+    if (landingGate) landingGate.classList.add('hidden');
+    if (onboardingWizardModal) onboardingWizardModal.classList.add('hidden');
   });
 }
 

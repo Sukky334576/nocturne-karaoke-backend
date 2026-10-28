@@ -516,7 +516,7 @@ try {
   if (fs.existsSync(userDbFile)) {
     const raw = fs.readFileSync(userDbFile, 'utf8');
     const parsed = JSON.parse(raw);
-    Object.keys(parsed).forEach(k => usersDb.set(k, parsed[k]));
+    Object.keys(parsed).forEach(k => usersDb.set(k.toLowerCase(), parsed[k]));
   }
 } catch (e) {
   console.warn('User DB load warning:', e.message);
