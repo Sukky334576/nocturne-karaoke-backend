@@ -74,6 +74,9 @@ let isTabAudioActive = false;
 let currentUser = {
   username: 'tong3',
   isGuest: false,
+  isLoggedIn: false,
+  hasCompletedOnboarding: false,
+  songKeys: {},
   preset: {
     syncOffsetMs: 120,
     hpMusicVol: 0.9,
@@ -253,6 +256,12 @@ const openSetupGuideBtn = document.getElementById('openSetupGuideBtn');
 const closeSetupGuideBtn = document.getElementById('closeSetupGuideBtn');
 const finishSetupGuideBtn = document.getElementById('finishSetupGuideBtn');
 
+// Traffic Light Ready Status DOM
+const trafficMicDot = document.getElementById('trafficMicDot');
+const trafficMusicDot = document.getElementById('trafficMusicDot');
+const trafficCableDot = document.getElementById('trafficCableDot');
+
+// Auth DOM Elements
 const authModal = document.getElementById('authModal');
 const userProfileBtn = document.getElementById('userProfileBtn');
 const userProfileLabel = document.getElementById('userProfileLabel');
@@ -260,6 +269,36 @@ const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
 const submitAuthBtn = document.getElementById('submitAuthBtn');
 const guestAuthBtn = document.getElementById('guestAuthBtn');
 const authUsernameInput = document.getElementById('authUsernameInput');
+const authPasswordInput = document.getElementById('authPasswordInput');
+const authConfirmPasswordGroup = document.getElementById('authConfirmPasswordGroup');
+const authConfirmPasswordInput = document.getElementById('authConfirmPasswordInput');
+const authSubtitleText = document.getElementById('authSubtitleText');
+const authStatusMsg = document.getElementById('authStatusMsg');
+const tabLoginBtn = document.getElementById('tabLoginBtn');
+const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+
+// Onboarding Setup Wizard DOM
+const onboardingWizardModal = document.getElementById('onboardingWizardModal');
+const closeWizardModalBtn = document.getElementById('closeWizardModalBtn');
+const wizardStepPill1 = document.getElementById('wizardStepPill1');
+const wizardStepPill2 = document.getElementById('wizardStepPill2');
+const wizardStepPill3 = document.getElementById('wizardStepPill3');
+const wizardStep1 = document.getElementById('wizardStep1');
+const wizardStep2 = document.getElementById('wizardStep2');
+const wizardStep3 = document.getElementById('wizardStep3');
+const wizardCardFiveM = document.getElementById('wizardCardFiveM');
+const wizardCardSolo = document.getElementById('wizardCardSolo');
+const wizardNextBtn1 = document.getElementById('wizardNextBtn1');
+const wizardPrevBtn2 = document.getElementById('wizardPrevBtn2');
+const wizardNextBtn2 = document.getElementById('wizardNextBtn2');
+const wizardPrevBtn3 = document.getElementById('wizardPrevBtn3');
+const wizardFinishBtn = document.getElementById('wizardFinishBtn');
+const wizardHeadphoneSelect = document.getElementById('wizardHeadphoneSelect');
+const wizardMicSelect = document.getElementById('wizardMicSelect');
+const wizardMicVuBar = document.getElementById('wizardMicVuBar');
+const wizardMicStatusText = document.getElementById('wizardMicStatusText');
+const wizardSonarBtn = document.getElementById('wizardSonarBtn');
+const wizardPresetCards = document.querySelectorAll('.wizard-preset-card');
 
 const syncModal = document.getElementById('syncModal');
 const openSyncModalBtn = document.getElementById('openSyncModalBtn');
@@ -370,14 +409,24 @@ function loadUserProfile() {
   const saved = localStorage.getItem('karaoke_current_user');
   if (saved) {
     try {
-      currentUser = JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      currentUser = { ...currentUser, ...parsed };
+      if (!currentUser.songKeys) currentUser.songKeys = {};
     } catch (e) {}
   }
   applyUserPreset(currentUser.preset);
   updateAuthUI();
+
+  // If user hasn't completed onboarding or isn't logged in, prompt wizard or login
+  if (!currentUser.hasCompletedOnboarding) {
+    setTimeout(() => {
+      openOnboardingWizard();
+    }, 400);
+  }
 }
 
 function saveUserProfile() {
+  currentUser.songKeys = currentUser.songKeys || {};
   currentUser.preset = {
     syncOffsetMs: cableSyncOffsetMs,
     hpMusicVol: hpMusicVol ? parseFloat(hpMusicVol.value) : 0.9,
@@ -404,6 +453,20 @@ function saveUserProfile() {
     plugins: window.nocturnePlugins ? window.nocturnePlugins.getSerializedState() : []
   };
   localStorage.setItem('karaoke_current_user', JSON.stringify(currentUser));
+
+  // Sync to backend if username exists
+  if (currentUser.username && currentUser.username !== 'Guest') {
+    fetch('/api/auth/save-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: currentUser.username,
+        preset: currentUser.preset,
+        songKeys: currentUser.songKeys,
+        hasCompletedOnboarding: currentUser.hasCompletedOnboarding
+      })
+    }).catch(() => {});
+  }
 }
 
 function applyUserPreset(preset) {
@@ -551,9 +614,13 @@ function applyVocalPreset(presetKey) {
 }
 
 function updateAuthUI() {
-  if (currentUser.username) {
+  if (currentUser && currentUser.username && currentUser.username !== 'Guest') {
     userProfileLabel.innerHTML = `<b>${currentUser.username}</b> (${cableSyncOffsetMs}ms)`;
-    authUsernameInput.value = currentUser.username;
+    if (authUsernameInput) authUsernameInput.value = currentUser.username;
+  } else if (currentUser && currentUser.isGuest) {
+    userProfileLabel.innerHTML = `<b>Guest</b> (${cableSyncOffsetMs}ms)`;
+  } else {
+    userProfileLabel.innerHTML = 'เข้าสู่ระบบ / สมาชิก';
   }
 }
 
@@ -565,9 +632,9 @@ presetPills.forEach(pill => {
   });
 });
 
-// Setup Guide Modal Listeners
+// Setup Guide / Wizard Modal Trigger
 openSetupGuideBtn.addEventListener('click', () => {
-  setupGuideModal.classList.remove('hidden');
+  openOnboardingWizard();
 });
 closeSetupGuideBtn.addEventListener('click', () => {
   setupGuideModal.classList.add('hidden');
@@ -577,25 +644,316 @@ finishSetupGuideBtn.addEventListener('click', () => {
   initAudioEngine();
 });
 
-// Auth Modal Listeners
+// --- Enhanced Authentication System ---
+let authMode = 'login'; // 'login' | 'register'
+
+function showAuthStatus(msg, isSuccess = false) {
+  if (!authStatusMsg) return;
+  authStatusMsg.style.display = 'block';
+  authStatusMsg.className = `auth-status-msg ${isSuccess ? 'success' : 'error'}`;
+  authStatusMsg.innerText = msg;
+}
+
+function clearAuthStatus() {
+  if (!authStatusMsg) return;
+  authStatusMsg.style.display = 'none';
+  authStatusMsg.innerText = '';
+}
+
+if (tabLoginBtn && tabRegisterBtn) {
+  tabLoginBtn.addEventListener('click', () => {
+    authMode = 'login';
+    tabLoginBtn.classList.add('active');
+    tabRegisterBtn.classList.remove('active');
+    tabLoginBtn.style.background = 'rgba(216,177,93,0.15)';
+    tabLoginBtn.style.borderColor = '#d8b15d';
+    tabLoginBtn.style.color = '#f4e6c3';
+    tabRegisterBtn.style.background = 'rgba(255,255,255,0.03)';
+    tabRegisterBtn.style.borderColor = 'var(--border-subtle)';
+    tabRegisterBtn.style.color = 'var(--text-secondary)';
+    if (authConfirmPasswordGroup) authConfirmPasswordGroup.style.display = 'none';
+    if (submitAuthBtn) submitAuthBtn.innerText = 'เข้าสู่ระบบ (Login)';
+    if (authSubtitleText) authSubtitleText.innerText = 'เข้าสู่ระบบเพื่อโหลดการตั้งค่าไมค์ Soundcard และคีย์เพลงโปรดของคุณ';
+    clearAuthStatus();
+  });
+
+  tabRegisterBtn.addEventListener('click', () => {
+    authMode = 'register';
+    tabRegisterBtn.classList.add('active');
+    tabLoginBtn.classList.remove('active');
+    tabRegisterBtn.style.background = 'rgba(216,177,93,0.15)';
+    tabRegisterBtn.style.borderColor = '#d8b15d';
+    tabRegisterBtn.style.color = '#f4e6c3';
+    tabLoginBtn.style.background = 'rgba(255,255,255,0.03)';
+    tabLoginBtn.style.borderColor = 'var(--border-subtle)';
+    tabLoginBtn.style.color = 'var(--text-secondary)';
+    if (authConfirmPasswordGroup) authConfirmPasswordGroup.style.display = 'block';
+    if (submitAuthBtn) submitAuthBtn.innerText = 'สมัครสมาชิกใหม่ (Register)';
+    if (authSubtitleText) authSubtitleText.innerText = 'สร้างบัญชีเพื่อบันทึกการตั้งค่าระบบเสียงของคุณถาวร';
+    clearAuthStatus();
+  });
+}
+
 userProfileBtn.addEventListener('click', () => {
+  clearAuthStatus();
   authModal.classList.remove('hidden');
 });
+
 closeAuthModalBtn.addEventListener('click', () => {
   authModal.classList.add('hidden');
 });
+
 guestAuthBtn.addEventListener('click', () => {
+  currentUser.username = 'Guest';
+  currentUser.isGuest = true;
+  currentUser.isLoggedIn = true;
+  saveUserProfile();
+  updateAuthUI();
   authModal.classList.add('hidden');
-});
-submitAuthBtn.addEventListener('click', () => {
-  const uname = authUsernameInput.value.trim();
-  if (uname) {
-    currentUser.username = uname;
-    saveUserProfile();
-    updateAuthUI();
-    authModal.classList.add('hidden');
+  if (!currentUser.hasCompletedOnboarding) {
+    openOnboardingWizard();
   }
 });
+
+submitAuthBtn.addEventListener('click', async () => {
+  const uname = authUsernameInput.value.trim();
+  const pwd = authPasswordInput.value.trim();
+
+  if (!uname || uname.length < 2) {
+    showAuthStatus('กรุณาระบุชื่อผู้ใช้งานอย่างน้อย 2 ตัวอักษร');
+    return;
+  }
+  if (!pwd || pwd.length < 3) {
+    showAuthStatus('กรุณากรอกรหัสผ่านอย่างน้อย 3 ตัวอักษร');
+    return;
+  }
+
+  if (authMode === 'register') {
+    const confirmPwd = authConfirmPasswordInput.value.trim();
+    if (pwd !== confirmPwd) {
+      showAuthStatus('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+      return;
+    }
+  }
+
+  submitAuthBtn.disabled = true;
+  submitAuthBtn.innerHTML = '<span>⏳ กำลังดำเนินการ...</span>';
+
+  try {
+    const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: uname,
+        password: pwd,
+        preset: currentUser.preset
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showAuthStatus(data.error || 'เกิดข้อผิดพลาดในการตรวจสอบบัญชี');
+    } else {
+      showAuthStatus(authMode === 'register' ? 'สมัครสมาชิกสำเร็จ!' : 'เข้าสู่ระบบสำเร็จ!', true);
+      currentUser.username = data.user.username;
+      currentUser.isGuest = false;
+      currentUser.isLoggedIn = true;
+      if (data.user.preset) currentUser.preset = { ...currentUser.preset, ...data.user.preset };
+      if (data.user.songKeys) currentUser.songKeys = data.user.songKeys;
+      currentUser.hasCompletedOnboarding = data.user.hasCompletedOnboarding;
+      
+      saveUserProfile();
+      applyUserPreset(currentUser.preset);
+      updateAuthUI();
+
+      setTimeout(() => {
+        authModal.classList.add('hidden');
+        if (!currentUser.hasCompletedOnboarding) {
+          openOnboardingWizard();
+        }
+      }, 700);
+    }
+  } catch (e) {
+    showAuthStatus('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+  } finally {
+    submitAuthBtn.disabled = false;
+    submitAuthBtn.innerText = authMode === 'register' ? 'สมัครสมาชิกใหม่ (Register)' : 'เข้าสู่ระบบ (Login)';
+  }
+});
+
+// --- Onboarding Setup Wizard Controller ---
+let wizardPurpose = 'fivem'; // 'fivem' | 'solo'
+let wizardChosenPreset = 'pop'; // 'pop' | 'tpain' | 'rock' | 'talk'
+
+function openOnboardingWizard() {
+  if (!onboardingWizardModal) return;
+  onboardingWizardModal.classList.remove('hidden');
+  goToWizardStep(1);
+
+  // Sync available audio devices into wizard dropdowns
+  syncWizardDeviceSelectors();
+}
+
+function syncWizardDeviceSelectors() {
+  if (wizardHeadphoneSelect && headphoneSelect) {
+    wizardHeadphoneSelect.innerHTML = headphoneSelect.innerHTML;
+    wizardHeadphoneSelect.selectedIndex = headphoneSelect.selectedIndex;
+  }
+  if (wizardMicSelect && micSelect) {
+    wizardMicSelect.innerHTML = micSelect.innerHTML;
+    wizardMicSelect.selectedIndex = micSelect.selectedIndex;
+  }
+}
+
+if (wizardHeadphoneSelect) {
+  wizardHeadphoneSelect.addEventListener('change', (e) => {
+    if (headphoneSelect) {
+      headphoneSelect.value = e.target.value;
+      setSinkHeadphone(e.target.value);
+    }
+  });
+}
+
+if (wizardMicSelect) {
+  wizardMicSelect.addEventListener('change', (e) => {
+    if (micSelect) {
+      micSelect.value = e.target.value;
+      if (audioCtx) initMicrophoneStream(e.target.value);
+    }
+  });
+}
+
+function goToWizardStep(stepNum) {
+  [wizardStep1, wizardStep2, wizardStep3].forEach(panel => {
+    if (panel) panel.classList.add('hidden');
+  });
+  [wizardStepPill1, wizardStepPill2, wizardStepPill3].forEach(pill => {
+    if (pill) {
+      pill.classList.remove('active');
+      pill.style.background = 'rgba(255,255,255,0.03)';
+      pill.style.borderColor = 'var(--border-subtle)';
+      pill.style.color = 'var(--text-muted)';
+    }
+  });
+
+  if (stepNum === 1) {
+    if (wizardStep1) wizardStep1.classList.remove('hidden');
+    if (wizardStepPill1) {
+      wizardStepPill1.classList.add('active');
+      wizardStepPill1.style.background = 'rgba(216,177,93,0.18)';
+      wizardStepPill1.style.borderColor = '#d8b15d';
+      wizardStepPill1.style.color = '#f4e6c3';
+    }
+  } else if (stepNum === 2) {
+    if (wizardStep2) wizardStep2.classList.remove('hidden');
+    if (wizardStepPill2) {
+      wizardStepPill2.classList.add('active');
+      wizardStepPill2.style.background = 'rgba(216,177,93,0.18)';
+      wizardStepPill2.style.borderColor = '#d8b15d';
+      wizardStepPill2.style.color = '#f4e6c3';
+    }
+    syncWizardDeviceSelectors();
+    initAudioEngine(); // Start engine to enable live mic visualization
+  } else if (stepNum === 3) {
+    if (wizardStep3) wizardStep3.classList.remove('hidden');
+    if (wizardStepPill3) {
+      wizardStepPill3.classList.add('active');
+      wizardStepPill3.style.background = 'rgba(216,177,93,0.18)';
+      wizardStepPill3.style.borderColor = '#d8b15d';
+      wizardStepPill3.style.color = '#f4e6c3';
+    }
+  }
+}
+
+// Wizard Step 1: Purpose Cards
+if (wizardCardFiveM && wizardCardSolo) {
+  wizardCardFiveM.addEventListener('click', () => {
+    wizardPurpose = 'fivem';
+    wizardCardFiveM.classList.add('active');
+    wizardCardSolo.classList.remove('active');
+    wizardCardFiveM.style.background = 'rgba(216,177,93,0.12)';
+    wizardCardFiveM.style.borderColor = '#d8b15d';
+    wizardCardSolo.style.background = 'rgba(255,255,255,0.03)';
+    wizardCardSolo.style.borderColor = 'var(--border-subtle)';
+  });
+
+  wizardCardSolo.addEventListener('click', () => {
+    wizardPurpose = 'solo';
+    wizardCardSolo.classList.add('active');
+    wizardCardFiveM.classList.remove('active');
+    wizardCardSolo.style.background = 'rgba(216,177,93,0.12)';
+    wizardCardSolo.style.borderColor = '#d8b15d';
+    wizardCardFiveM.style.background = 'rgba(255,255,255,0.03)';
+    wizardCardFiveM.style.borderColor = 'var(--border-subtle)';
+  });
+}
+
+if (wizardNextBtn1) wizardNextBtn1.addEventListener('click', () => goToWizardStep(2));
+if (wizardPrevBtn2) wizardPrevBtn2.addEventListener('click', () => goToWizardStep(1));
+if (wizardNextBtn2) wizardNextBtn2.addEventListener('click', () => goToWizardStep(3));
+if (wizardPrevBtn3) wizardPrevBtn3.addEventListener('click', () => goToWizardStep(2));
+
+if (closeWizardModalBtn) {
+  closeWizardModalBtn.addEventListener('click', () => {
+    onboardingWizardModal.classList.add('hidden');
+  });
+}
+
+// Wizard Sonar Trigger
+if (wizardSonarBtn) {
+  wizardSonarBtn.addEventListener('click', () => {
+    initAudioEngine();
+    syncModal.classList.remove('hidden');
+    if (tabSonarBtn) tabSonarBtn.click();
+  });
+}
+
+// Wizard Step 3: Preset Cards
+wizardPresetCards.forEach(card => {
+  card.addEventListener('click', () => {
+    wizardPresetCards.forEach(c => {
+      c.classList.remove('active');
+      c.style.background = 'rgba(255,255,255,0.03)';
+      c.style.borderColor = 'var(--border-subtle)';
+    });
+    card.classList.add('active');
+    card.style.background = 'rgba(216,177,93,0.14)';
+    card.style.borderColor = '#d8b15d';
+    wizardChosenPreset = card.getAttribute('data-wizard-preset') || 'pop';
+  });
+});
+
+// Wizard Finish Action
+if (wizardFinishBtn) {
+  wizardFinishBtn.addEventListener('click', async () => {
+    await initAudioEngine();
+
+    // 1. Apply Purpose Settings
+    if (wizardPurpose === 'fivem') {
+      updateMusicCableLevel(0.30, false);
+      updateVocalCableLevel(0.85, false);
+      if (isCableMusicMuted) toggleCableMusicMute();
+      if (isCableVocalMuted) toggleCableVocalMute();
+      setSyncOffset(120);
+    } else {
+      updateMusicHpLevel(0.95, false);
+      if (!isCableMusicMuted) toggleCableMusicMute();
+      if (!isCableVocalMuted) toggleCableVocalMute();
+    }
+
+    // 2. Apply Selected Vocal Preset
+    applyVocalPreset(wizardChosenPreset);
+
+    // 3. Mark Onboarding as Completed
+    currentUser.hasCompletedOnboarding = true;
+    saveUserProfile();
+    updateAuthUI();
+
+    onboardingWizardModal.classList.add('hidden');
+    alert(`🎉 ตั้งค่าระบบเสียงเสร็จสมบูรณ์! ขอให้มีความสุขกับการร้องเพลงใน Nocturne Studio ครับ!`);
+  });
+}
 
 // Scroll smoothly to Record Test Section
 openRecordTestBtn.addEventListener('click', () => {
@@ -1425,6 +1783,25 @@ function startVuMeters() {
       const percent = Math.min(100, Math.round((sum / micData.length / 128) * 100));
       micVuBar.style.transform = `scaleX(${percent / 100})`;
 
+      // Wizard Live Mic Test Meter update
+      if (wizardMicVuBar && onboardingWizardModal && !onboardingWizardModal.classList.contains('hidden')) {
+        wizardMicVuBar.style.transform = `scaleX(${percent / 100})`;
+        if (wizardMicStatusText) {
+          if (percent > 15) {
+            wizardMicStatusText.style.color = '#4ade80';
+            wizardMicStatusText.innerText = '🟢 ยอดเยี่ยม! ไมค์ของคุณทำงานชัดเจนดีมาก';
+          } else {
+            wizardMicStatusText.style.color = 'var(--gold-primary)';
+            wizardMicStatusText.innerText = 'รอสัญญาณเสียงพูด...';
+          }
+        }
+      }
+
+      // Traffic Light: Mic
+      if (trafficMicDot) {
+        trafficMicDot.classList.toggle('active', isAudioInitialized && percent > 2);
+      }
+
       if (isMetronomeRunning && maxVal > 140 && (performance.now() - lastClapTime > 350)) {
         lastClapTime = performance.now();
         const nowSec = audioCtx ? audioCtx.currentTime : 0;
@@ -1450,6 +1827,15 @@ function startVuMeters() {
       for (let i = 0; i < cbData.length; i++) sum += cbData[i];
       const percent = Math.min(100, Math.round((sum / cbData.length / 128) * 100));
       cableVuBar.style.transform = `scaleX(${percent / 100})`;
+    }
+
+    // Traffic Light Status: Music & FiveM
+    if (trafficMusicDot) {
+      const isMusicPlaying = (audioSourceElement && !audioSourceElement.paused) || (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1);
+      trafficMusicDot.classList.toggle('active', isAudioInitialized && isMusicPlaying);
+    }
+    if (trafficCableDot) {
+      trafficCableDot.classList.toggle('active', isAudioInitialized && audioElCable && !audioElCable.muted);
     }
   }
   draw();
@@ -2258,8 +2644,8 @@ roomSize.addEventListener('input', (e) => {
   saveUserProfile();
 });
 
-// Backing Track Key Shifter (Pitch Shift)
-function setPitchShift(semitone) {
+// Backing Track Key Shifter (Pitch Shift with Personal Song Key Memory)
+function setPitchShift(semitone, shouldSaveSongKey = true) {
   currentSemitone = semitone;
   pitchDisplay.innerText = `${semitone > 0 ? '+' : ''}${semitone} SEMITONES`;
   pitchSlider.value = semitone;
@@ -2274,6 +2660,13 @@ function setPitchShift(semitone) {
     if (param) {
       param.setValueAtTime(semitone, audioCtx.currentTime);
     }
+  }
+
+  // Personal Song Key Memory: Save user's preference for this track!
+  if (shouldSaveSongKey && currentTrack && currentTrack.id) {
+    currentUser.songKeys = currentUser.songKeys || {};
+    currentUser.songKeys[currentTrack.id] = semitone;
+    saveUserProfile();
   }
 }
 
@@ -2498,6 +2891,15 @@ async function playTrack(track, seekSeconds = 0) {
   totalDurationText.innerText = formatTime(trackDurationSeconds);
   currentTimeText.innerText = formatTime(seekSeconds);
   progressBar.value = (seekSeconds / trackDurationSeconds) * 100;
+
+  // Auto-Recall Personal Saved Key for this track:
+  if (currentUser && currentUser.songKeys && currentUser.songKeys[track.id] !== undefined) {
+    const savedKey = currentUser.songKeys[track.id];
+    setPitchShift(savedKey, false);
+    console.log(`🎵 [Personal Key Memory] Auto-applied saved key: ${savedKey > 0 ? '+' : ''}${savedKey} st for "${track.title}"`);
+  } else {
+    setPitchShift(0, false);
+  }
 
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');

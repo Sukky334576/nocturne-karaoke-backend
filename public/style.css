@@ -1981,3 +1981,82 @@ kbd {
   border-color: #d8b15d !important;
   color: #f4e6c3 !important;
 }
+
+/* Audio Traffic Light Header Status */
+.audio-traffic-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+}
+
+.traffic-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+}
+
+.traffic-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #475569;
+  display: inline-block;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.traffic-dot.active {
+  background: #4ade80 !important;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+}
+
+.traffic-sep {
+  color: var(--border-medium);
+  font-size: 10px;
+}
+
+/* Onboarding Wizard Styles */
+.wizard-pill {
+  transition: all 0.2s ease;
+}
+
+.wizard-pill.active {
+  background: rgba(216, 177, 93, 0.18) !important;
+  border-color: #d8b15d !important;
+  color: #f4e6c3 !important;
+}
+
+.wizard-purpose-card,
+.wizard-preset-card {
+  transition: all 0.2s ease;
+}
+
+.wizard-purpose-card:hover,
+.wizard-preset-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(216, 177, 93, 0.5) !important;
+}
+
+.wizard-purpose-card.active,
+.wizard-preset-card.active {
+  background: rgba(216, 177, 93, 0.14) !important;
+  border-color: #d8b15d !important;
+  box-shadow: 0 0 15px rgba(216, 177, 93, 0.15);
+}
+
+.auth-status-msg.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+}
+
+.auth-status-msg.success {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid #4ade80;
+  color: #86efac;
+}

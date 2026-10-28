@@ -508,6 +508,126 @@ app.post('/api/open-sound-settings', (req, res) => {
   res.status(400).json({ error: 'Sound control panel shortcut is only applicable on Windows' });
 });
 
+// --- In-Memory & File-Backed User Profiles Database ---
+const usersDb = new Map();
+const userDbFile = path.join(__dirname, 'users.json');
+
+try {
+  if (fs.existsSync(userDbFile)) {
+    const raw = fs.readFileSync(userDbFile, 'utf8');
+    const parsed = JSON.parse(raw);
+    Object.keys(parsed).forEach(k => usersDb.set(k, parsed[k]));
+  }
+} catch (e) {
+  console.warn('User DB load warning:', e.message);
+}
+
+function persistUserDb() {
+  try {
+    const obj = {};
+    for (const [k, v] of usersDb.entries()) {
+      obj[k] = v;
+    }
+    fs.writeFileSync(userDbFile, JSON.stringify(obj, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('User DB save warning:', e.message);
+  }
+}
+
+app.post('/api/auth/register', (req, res) => {
+  const username = sanitizeText(req.body && req.body.username, 30);
+  const password = req.body && req.body.password;
+  const initialPreset = req.body && req.body.preset;
+
+  if (!username || username.length < 2) {
+    return res.status(400).json({ error: 'ชื่อผู้ใช้งานต้องมีความยาวอย่างน้อย 2 ตัวอักษร' });
+  }
+  if (!password || password.length < 3) {
+    return res.status(400).json({ error: 'รหัสผ่านต้องมีความยาวอย่างน้อย 3 ตัวอักษร' });
+  }
+
+  const lower = username.toLowerCase();
+  if (usersDb.has(lower)) {
+    return res.status(409).json({ error: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเข้าสู่ระบบ' });
+  }
+
+  const user = {
+    username,
+    password, // In-memory/simple file persistence
+    preset: initialPreset || {},
+    songKeys: {},
+    hasCompletedOnboarding: false,
+    createdAt: Date.now(),
+    lastLogin: Date.now()
+  };
+
+  usersDb.set(lower, user);
+  persistUserDb();
+
+  res.json({
+    success: true,
+    user: {
+      username: user.username,
+      preset: user.preset,
+      songKeys: user.songKeys,
+      hasCompletedOnboarding: user.hasCompletedOnboarding
+    }
+  });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const username = sanitizeText(req.body && req.body.username, 30);
+  const password = req.body && req.body.password;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' });
+  }
+
+  const lower = username.toLowerCase();
+  const user = usersDb.get(lower);
+
+  if (!user || user.password !== password) {
+    return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+  }
+
+  user.lastLogin = Date.now();
+  persistUserDb();
+
+  res.json({
+    success: true,
+    user: {
+      username: user.username,
+      preset: user.preset,
+      songKeys: user.songKeys || {},
+      hasCompletedOnboarding: user.hasCompletedOnboarding !== false
+    }
+  });
+});
+
+app.post('/api/auth/save-profile', (req, res) => {
+  const username = sanitizeText(req.body && req.body.username, 30);
+  const preset = req.body && req.body.preset;
+  const songKeys = req.body && req.body.songKeys;
+  const hasCompletedOnboarding = req.body && req.body.hasCompletedOnboarding;
+
+  if (!username) return res.status(400).json({ error: 'Username required' });
+  const lower = username.toLowerCase();
+  let user = usersDb.get(lower);
+
+  if (!user) {
+    user = { username, password: '', preset: {}, songKeys: {}, hasCompletedOnboarding: true, createdAt: Date.now() };
+    usersDb.set(lower, user);
+  }
+
+  if (preset) user.preset = preset;
+  if (songKeys) user.songKeys = songKeys;
+  if (typeof hasCompletedOnboarding === 'boolean') user.hasCompletedOnboarding = hasCompletedOnboarding;
+  user.lastActive = Date.now();
+  persistUserDb();
+
+  res.json({ success: true });
+});
+
 // Create or Register Room
 app.post('/api/room/create', (req, res) => {
   const requestedCode = req.body && req.body.roomCode ? req.body.roomCode : generateRoomCode();
