@@ -941,6 +941,14 @@
       // Play/Pause button
       btnPlayPause.innerHTML = state.isPlaying ? '⏸' : '▶';
 
+      // Reflect allowRemoteControl state
+      const isAllowed = (state.allowRemoteControl !== false);
+      const ctrlGroup = document.querySelector('.player-ctrl-group');
+      if (ctrlGroup) {
+        ctrlGroup.style.opacity = isAllowed ? '1' : '0.45';
+        ctrlGroup.style.pointerEvents = isAllowed ? 'auto' : 'none';
+      }
+
       // Queue List
       renderQueueUI(state.queue || []);
     }
@@ -1008,37 +1016,50 @@
 
     // Remote Controls
     async function sendControl(action, payload = null) {
-      if (!currentRoomCode) return;
+      if (!currentRoomCode) return false;
       try {
-        await fetch(`/api/room/${currentRoomCode}/control`, {
+        const res = await fetch(`/api/room/${currentRoomCode}/control`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action, payload, sender: myNickname })
         });
+        if (res.status === 403) {
+          const d = await res.json().catch(() => ({}));
+          showToast(d.error || 'โฮสต์ปิดการควบคุมผ่านรีโมท (เพิ่มคิวได้อย่างเดียว)');
+          return false;
+        }
+        if (!res.ok) {
+          showToast('ส่งคำสั่งไม่สำเร็จ');
+          return false;
+        }
+        return true;
       } catch (e) {
         showToast('ส่งคำสั่งไม่สำเร็จ');
+        return false;
       }
     }
 
-    btnPlayPause.addEventListener('click', () => {
-      sendControl('toggle');
-      if (navigator.vibrate) navigator.vibrate(15);
+    btnPlayPause.addEventListener('click', async () => {
+      const ok = await sendControl('toggle');
+      if (ok && navigator.vibrate) navigator.vibrate(15);
     });
 
-    btnNext.addEventListener('click', () => {
-      sendControl('next');
-      showToast('ข้ามไปเพลงถัดไป ⏭');
+    btnNext.addEventListener('click', async () => {
+      const ok = await sendControl('next');
+      if (ok) showToast('ข้ามไปเพลงถัดไป ⏭');
     });
 
-    btnPrev.addEventListener('click', () => {
-      sendControl('prev');
-      showToast('เล่นเพลงก่อนหน้า ⏮');
+    btnPrev.addEventListener('click', async () => {
+      const ok = await sendControl('prev');
+      if (ok) showToast('เล่นเพลงก่อนหน้า ⏮');
     });
 
-    btnDucking.addEventListener('click', () => {
-      sendControl('ducking');
-      btnDucking.classList.toggle('active');
-      showToast(btnDucking.classList.contains('active') ? 'โหมดพูดคุย (Ducked)' : 'โหมดร้องเพลง');
+    btnDucking.addEventListener('click', async () => {
+      const ok = await sendControl('ducking');
+      if (ok) {
+        btnDucking.classList.toggle('active');
+        showToast(btnDucking.classList.contains('active') ? 'โหมดพูดคุย (Ducked)' : 'โหมดร้องเพลง');
+      }
     });
 
     // YouTube Search
@@ -1136,11 +1157,9 @@
     // Play Song Now (bypass queue)
     async function playSongNow(track) {
       if (!currentRoomCode) return;
-      try {
-        await sendControl('play_now', track);
+      const ok = await sendControl('play_now', track);
+      if (ok) {
         showToast(`กำลังส่ง "${track.title.slice(0, 20)}..." เล่นบนหน้าจอหลัก!`);
-      } catch (e) {
-        showToast('สั่งเล่นเพลงไม่สำเร็จ');
       }
     }
 
@@ -1170,6 +1189,19 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
     }
+
+    // Mobile background/wake re-sync resilience
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && currentRoomCode) {
+        if (!eventSource || eventSource.readyState === 2) {
+          connectSSE(currentRoomCode);
+        }
+        fetch(`/api/room/${currentRoomCode}`)
+          .then(res => res.json())
+          .then(data => updateRoomUI(data))
+          .catch(() => {});
+      }
+    });
 
     // Auto-join if roomParam exists
     if (roomParam) {

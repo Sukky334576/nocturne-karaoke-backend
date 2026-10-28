@@ -227,16 +227,16 @@ async function runTests() {
   try {
     console.log('\n[Test 4] Testing Audio Streaming Pipeline (/api/audio?id=oJ7cV4LcYQg)...');
     const res4 = await checkStream(`http://127.0.0.1:${testPort}/api/audio?id=oJ7cV4LcYQg`);
-    if (res4.status === 200 && res4.contentType && res4.contentType.includes('audio')) {
+    if (res4.status === 200 && res4.contentType && res4.contentType.includes('audio') && res4.bytesReceived > 0) {
       console.log(`  ✅ Passed: Clean Audio Stream connected! Received ${res4.bytesReceived} bytes (${res4.contentType})`);
       passed++;
     } else {
-      console.log(`  ⚠️ Audio fallback check: Status ${res4.status}`);
-      passed++;
+      console.error(`  ❌ Failed: Audio stream failed (Status: ${res4.status}, Content-Type: ${res4.contentType})`);
+      failed++;
     }
   } catch (err) {
-    console.warn('  ⚠️ Audio stream warning:', err.message);
-    passed++;
+    console.error('  ❌ Test 4 Error:', err.message);
+    failed++;
   }
 
   // Test 5: Shared Room Remote Queueing REST API & Network Info

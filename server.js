@@ -124,8 +124,9 @@ function extractStreamUrl(targetUrl) {
     }
 
     execFile(ytDlpPath, [
+      '--no-update',
       '--js-runtimes', 'node',
-      '--extractor-args', 'youtube:player_client=android_creator,tv_embedded,web_creator,visionos',
+      '--extractor-args', 'youtube:player_client=android,web',
       '-f', 'ba/b',
       '-g',
       '--no-playlist',
@@ -270,12 +271,14 @@ const rooms = new Map(); // roomCode -> Room Object
 
 function sanitizeText(str, maxLen = 120) {
   if (!str || typeof str !== 'string') return '';
-  return str.trim().slice(0, maxLen);
+  return str.replace(/[<>]/g, '').trim().slice(0, maxLen);
 }
 
 function normalizeRoomCode(code) {
   if (!code || typeof code !== 'string') return '';
-  return code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
+  const cleaned = code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
+  if (cleaned === 'NEW') return '';
+  return cleaned;
 }
 
 function generateRoomCode() {
@@ -544,9 +547,25 @@ app.post('/api/room/:code/control', (req, res) => {
     return res.status(400).json({ error: 'Invalid action' });
   }
 
+  let safePayload = payload;
+  if (action === 'play_now') {
+    if (!payload || !payload.id || !isValidYouTubeIdOrUrl(payload.id)) {
+      return res.status(400).json({ error: 'Valid YouTube video track required for play_now' });
+    }
+    safePayload = {
+      id: payload.id,
+      title: sanitizeText(payload.title, 120) || 'YouTube Track',
+      author: sanitizeText(payload.author, 60) || 'YouTube',
+      duration: sanitizeText(payload.duration, 15) || '4:00',
+      seconds: Math.max(10, parseInt(payload.seconds) || 240),
+      thumbnail: payload.thumbnail || `https://i.ytimg.com/vi/${payload.id}/hqdefault.jpg`,
+      url: payload.url || `https://youtube.com/watch?v=${payload.id}`
+    };
+  }
+
   broadcastRoomEvent(room, 'host_command', {
     action,
-    payload,
+    payload: safePayload,
     sender: sanitizeText(sender, 32) || 'Remote'
   });
 

@@ -58,9 +58,12 @@ let mediaElementSource = null;
 let ytPlayer = null;
 let isYtReady = false;
 let ytProgressInterval = null;
-const isCloudHost = window.location.hostname.includes('onrender.com') ||
-                    window.location.hostname.includes('vercel.app') ||
-                    (!['localhost', '127.0.0.1'].includes(window.location.hostname));
+const isLocalHostOrLan = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname) ||
+                         /^192\.168\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname) ||
+                         /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname) ||
+                         /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname) ||
+                         window.location.hostname.endsWith('.local');
+const isCloudHost = !isLocalHostOrLan;
 let isUsingDirectYtAudio = isCloudHost;
 
 // User Profile & App State
@@ -651,7 +654,9 @@ function initYtPlayer(videoId, startSec = 0) {
             isPlaying = false;
             playPauseBtn.innerHTML = SVG_PLAY;
           } else if (e.data === YT.PlayerState.ENDED) {
-            playNextInQueue();
+            if (isUsingDirectYtAudio) {
+              playNextInQueue();
+            }
           }
         }
       }
@@ -1742,16 +1747,30 @@ pitchSlider.addEventListener('input', (e) => {
 
 // Ducking Toggle
 function toggleDucking() {
-  if (!duckingGain || !audioCtx) return;
   isDucked = !isDucked;
+  if (duckingGain && audioCtx) {
+    if (isDucked) {
+      duckingGain.gain.setTargetAtTime(0.2, audioCtx.currentTime, 0.08);
+    } else {
+      duckingGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.12);
+    }
+  }
+
+  if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function') {
+    const baseVol = Math.round((currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9) * 100);
+    if (isDucked) {
+      ytPlayer.setVolume(Math.round(baseVol * 0.2));
+    } else {
+      ytPlayer.setVolume(isHpMusicMuted ? 0 : baseVol);
+    }
+  }
+
   if (isDucked) {
-    duckingGain.gain.setTargetAtTime(0.2, audioCtx.currentTime, 0.08);
-    duckingBtn.classList.add('ducked');
-    duckingStatusText.innerText = 'TALKING (DUCKED)';
+    if (duckingBtn) duckingBtn.classList.add('ducked');
+    if (duckingStatusText) duckingStatusText.innerText = 'TALKING (DUCKED)';
   } else {
-    duckingGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.12);
-    duckingBtn.classList.remove('ducked');
-    duckingStatusText.innerText = 'SINGING MODE';
+    if (duckingBtn) duckingBtn.classList.remove('ducked');
+    if (duckingStatusText) duckingStatusText.innerText = 'SINGING MODE';
   }
 }
 
@@ -1933,6 +1952,11 @@ async function playTrack(track, seekSeconds = 0) {
 
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
+
+  // On Local Engine, try local stream first for each new track
+  if (!isCloudHost) {
+    isUsingDirectYtAudio = false;
+  }
 
   // Load YouTube Visuals and Audio
   initYtPlayer(track.id, seekSeconds);
@@ -2182,11 +2206,30 @@ clearQueueBtn.addEventListener('click', () => {
   }
 });
 
+let isTransitioningTrack = false;
 function playNextInQueue() {
+  if (isTransitioningTrack) return;
+  isTransitioningTrack = true;
+  setTimeout(() => { isTransitioningTrack = false; }, 400);
+
   if (queue.length > 0) {
     const nextTrack = queue.shift();
     renderQueue(true);
     playTrack(nextTrack);
+  } else {
+    isPlaying = false;
+    playPauseBtn.innerHTML = SVG_PLAY;
+    currentTrack = null;
+    currentTrackTitle.innerText = 'เลือกเพลงเพื่อเริ่มร้อง';
+    currentTrackArtist.innerText = '-';
+    currentTimeText.innerText = '0:00';
+    progressBar.value = 0;
+    if (audioSourceElement) {
+      audioSourceElement.pause();
+      audioSourceElement.removeAttribute('src');
+      audioSourceElement.load();
+    }
+    syncHostStateToRoom();
   }
 }
 
@@ -2228,7 +2271,7 @@ function showHostToast(msg, duration = 3500) {
 
 async function initHostRoom(forcedCode = null) {
   try {
-    const code = forcedCode || hostRoomCode || '';
+    const code = (forcedCode === 'NEW' || forcedCode === true) ? '' : (forcedCode || hostRoomCode || '');
     const res = await fetch('/api/room/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

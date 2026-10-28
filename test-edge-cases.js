@@ -127,11 +127,13 @@ async function runEdgeCaseTests() {
 
     const roomData = await fetchJson(`http://127.0.0.1:${testPort}/api/room/SEC-001`);
     const qTrack = roomData.data.queue[0];
-    if (qTrack && qTrack.title.length <= 120 && qTrack.addedBy.length <= 32) {
-      console.log('  ✅ Passed: XSS payload bounded, stored safely');
+    const isTagFree = !qTrack.title.includes('<') && !qTrack.title.includes('>') &&
+                      !qTrack.addedBy.includes('<') && !qTrack.addedBy.includes('>');
+    if (qTrack && qTrack.title.length <= 120 && qTrack.addedBy.length <= 32 && isTagFree) {
+      console.log('  ✅ Passed: XSS payload stripped of angle brackets & bounded, stored safely');
       passed++;
     } else {
-      console.error('  ❌ Failed: Queue track not bounded or stored');
+      console.error('  ❌ Failed: Queue track contains unstripped tags or not bounded');
       failed++;
     }
   } catch (err) {
@@ -229,6 +231,68 @@ async function runEdgeCaseTests() {
     }
   } catch (err) {
     console.error('  ❌ Edge Case 5 Error:', err.message);
+    failed++;
+  }
+
+  // Edge Case 6: Reject Malicious / Invalid Track Payload in play_now Remote Command
+  try {
+    console.log('\n[Edge Case 6] Testing play_now control payload validation...');
+    await postJson(`http://127.0.0.1:${testPort}/api/room/SEC-001/sync`, {
+      allowRemoteControl: true
+    });
+    const badPlayNow = await postJson(`http://127.0.0.1:${testPort}/api/room/SEC-001/control`, {
+      action: 'play_now',
+      payload: { id: '; rm -rf / ; invalid' },
+      sender: 'Guest'
+    });
+    if (badPlayNow.status === 400) {
+      console.log('  ✅ Passed: Server rejected invalid video ID in play_now payload with 400 Bad Request');
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Server allowed invalid play_now payload:', badPlayNow.status);
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 6 Error:', err.message);
+    failed++;
+  }
+
+  // Edge Case 7: Room Code Refresh with 'NEW' Returns Fresh Generated Room Code
+  try {
+    console.log('\n[Edge Case 7] Testing room creation with "NEW" code sentinel...');
+    const refreshRes = await postJson(`http://127.0.0.1:${testPort}/api/room/create`, {
+      roomCode: 'NEW',
+      hostName: 'Host'
+    });
+    if (refreshRes.status === 200 && refreshRes.data.roomCode && refreshRes.data.roomCode !== 'NEW' && refreshRes.data.roomCode.includes('-')) {
+      console.log(`  ✅ Passed: Fresh room code successfully generated: ${refreshRes.data.roomCode}`);
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Room code refresh generated invalid or literal "NEW":', refreshRes.data?.roomCode);
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 7 Error:', err.message);
+    failed++;
+  }
+
+  // Edge Case 8: Additional Invariants (LAN Subnet recognition & Cloud Ducking)
+  try {
+    console.log('\n[Edge Case 8] Verifying LAN subnet recognition & Cloud Ducking in app.js...');
+    const appJsContent = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const hasLanRegex = appJsContent.includes('192\\.168');
+    const hasCloudDucking = appJsContent.includes('isUsingDirectYtAudio && typeof ytPlayer.setVolume');
+    const hasEndedGuard = appJsContent.includes('isUsingDirectYtAudio') && appJsContent.includes('playNextInQueue()');
+
+    if (hasLanRegex && hasCloudDucking && hasEndedGuard) {
+      console.log('  ✅ Passed: LAN subnet detection, Cloud Ducking & Queue ended guards all verified');
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Invariants missing (hasLanRegex, hasCloudDucking, or hasEndedGuard)');
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 8 Error:', err.message);
     failed++;
   }
 
