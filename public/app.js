@@ -792,21 +792,38 @@ function openOnboardingWizard() {
   goToWizardStep(1);
 
   // Sync available audio devices into wizard dropdowns
-  syncWizardDeviceSelectors();
+  if (typeof enumerateAudioDevices === 'function') {
+    enumerateAudioDevices().then(() => syncWizardDeviceSelectors()).catch(() => syncWizardDeviceSelectors());
+  } else {
+    syncWizardDeviceSelectors();
+  }
 }
 
 function syncWizardDeviceSelectors() {
   if (wizardHeadphoneSelect && headphoneSelect) {
-    wizardHeadphoneSelect.innerHTML = headphoneSelect.innerHTML;
-    wizardHeadphoneSelect.selectedIndex = headphoneSelect.selectedIndex;
+    if (headphoneSelect.options.length > 0) {
+      wizardHeadphoneSelect.innerHTML = headphoneSelect.innerHTML;
+      wizardHeadphoneSelect.value = headphoneSelect.value;
+    } else if (wizardHeadphoneSelect.options.length === 0) {
+      wizardHeadphoneSelect.innerHTML = '<option value="default">หูฟัง / ลำโพงเริ่มต้น (Default System Output)</option>';
+    }
   }
   if (wizardMicSelect && micSelect) {
-    wizardMicSelect.innerHTML = micSelect.innerHTML;
-    wizardMicSelect.selectedIndex = micSelect.selectedIndex;
+    if (micSelect.options.length > 0) {
+      wizardMicSelect.innerHTML = micSelect.innerHTML;
+      wizardMicSelect.value = micSelect.value;
+    } else if (wizardMicSelect.options.length === 0) {
+      wizardMicSelect.innerHTML = '<option value="default">ไมโครโฟนเริ่มต้น (Default Live Mic)</option>';
+    }
   }
 }
 
 if (wizardHeadphoneSelect) {
+  wizardHeadphoneSelect.addEventListener('focus', () => {
+    if (wizardHeadphoneSelect.options.length <= 1 && typeof enumerateAudioDevices === 'function') {
+      enumerateAudioDevices().then(() => syncWizardDeviceSelectors()).catch(() => {});
+    }
+  });
   wizardHeadphoneSelect.addEventListener('change', (e) => {
     if (headphoneSelect) {
       headphoneSelect.value = e.target.value;
@@ -816,6 +833,11 @@ if (wizardHeadphoneSelect) {
 }
 
 if (wizardMicSelect) {
+  wizardMicSelect.addEventListener('focus', () => {
+    if (wizardMicSelect.options.length <= 1 && typeof enumerateAudioDevices === 'function') {
+      enumerateAudioDevices().then(() => syncWizardDeviceSelectors()).catch(() => {});
+    }
+  });
   wizardMicSelect.addEventListener('change', (e) => {
     if (micSelect) {
       micSelect.value = e.target.value;
@@ -854,7 +876,14 @@ function goToWizardStep(stepNum) {
       wizardStepPill2.style.color = '#f4e6c3';
     }
     syncWizardDeviceSelectors();
-    initAudioEngine(); // Start engine to enable live mic visualization
+    if (typeof enumerateAudioDevices === 'function') {
+      enumerateAudioDevices().then(() => syncWizardDeviceSelectors()).catch(() => {});
+    }
+    initAudioEngine().then(() => {
+      if (typeof enumerateAudioDevices === 'function') {
+        enumerateAudioDevices().then(() => syncWizardDeviceSelectors()).catch(() => {});
+      }
+    }).catch(() => {});
   } else if (stepNum === 3) {
     if (wizardStep3) wizardStep3.classList.remove('hidden');
     if (wizardStepPill3) {
@@ -2450,6 +2479,10 @@ if (openSonarFromRecordBtn) {
 // Enumerate Audio Devices
 async function enumerateAudioDevices() {
   try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      syncWizardDeviceSelectors();
+      return;
+    }
     const devices = await navigator.mediaDevices.enumerateDevices();
 
     headphoneSelect.innerHTML = '';
@@ -2462,7 +2495,7 @@ async function enumerateAudioDevices() {
     audioOutputs.forEach((d, i) => {
       const opt1 = document.createElement('option');
       opt1.value = d.deviceId;
-      opt1.text = d.label || `Output Device ${i + 1}`;
+      opt1.text = d.label || `หูฟัง / Output Device ${i + 1}`;
       headphoneSelect.appendChild(opt1);
 
       const opt2 = document.createElement('option');
@@ -2477,6 +2510,26 @@ async function enumerateAudioDevices() {
       opt.text = d.label || `Microphone ${i + 1}`;
       micSelect.appendChild(opt);
     });
+
+    // Fallbacks if browser restricts or hasn't enumerated labels yet
+    if (headphoneSelect.options.length === 0) {
+      const defaultHpOpt = document.createElement('option');
+      defaultHpOpt.value = 'default';
+      defaultHpOpt.text = 'หูฟัง / ลำโพงเริ่มต้น (Default System Output)';
+      headphoneSelect.appendChild(defaultHpOpt);
+    }
+    if (virtualCableSelect.options.length === 0) {
+      const defaultCableOpt = document.createElement('option');
+      defaultCableOpt.value = 'default';
+      defaultCableOpt.text = 'CABLE Input (VB-Audio Virtual Cable)';
+      virtualCableSelect.appendChild(defaultCableOpt);
+    }
+    if (micSelect.options.length === 0) {
+      const defaultMicOpt = document.createElement('option');
+      defaultMicOpt.value = 'default';
+      defaultMicOpt.text = 'ไมโครโฟนเริ่มต้น (Default Live Mic)';
+      micSelect.appendChild(defaultMicOpt);
+    }
 
     // 1. Auto-select Headphone (Prioritize Maono Fairy / Headphones)
     let hpFound = false;
@@ -2523,8 +2576,12 @@ async function enumerateAudioDevices() {
         break;
       }
     }
+
+    // 4. Always sync newly populated options into Wizard dropdowns
+    syncWizardDeviceSelectors();
   } catch (err) {
     console.warn('Enumerate devices note:', err.message);
+    syncWizardDeviceSelectors();
   }
 }
 
@@ -2568,6 +2625,9 @@ headphoneSelect.addEventListener('change', (e) => {
   if (virtualCableSelect) {
     setSinkCable(virtualCableSelect.value);
   }
+  if (wizardHeadphoneSelect) {
+    wizardHeadphoneSelect.value = e.target.value;
+  }
 });
 
 virtualCableSelect.addEventListener('change', (e) => {
@@ -2577,6 +2637,9 @@ virtualCableSelect.addEventListener('change', (e) => {
 micSelect.addEventListener('change', (e) => {
   if (audioCtx) {
     initMicrophoneStream(e.target.value);
+  }
+  if (wizardMicSelect) {
+    wizardMicSelect.value = e.target.value;
   }
 });
 
@@ -3736,3 +3799,18 @@ if (window.nocturnePlugins) {
 
 // Initialize User Profile on Page Load
 loadUserProfile();
+
+// Enumerate audio devices on initial boot & listen for hardware plug/unplug
+if (navigator.mediaDevices) {
+  if (typeof enumerateAudioDevices === 'function') {
+    enumerateAudioDevices().catch(() => {});
+  }
+  if (typeof navigator.mediaDevices.addEventListener === 'function') {
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+      if (typeof enumerateAudioDevices === 'function') {
+        enumerateAudioDevices().catch(() => {});
+      }
+    });
+  }
+}
+

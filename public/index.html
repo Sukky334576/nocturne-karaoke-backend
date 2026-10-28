@@ -437,7 +437,9 @@
               <span id="headphoneVolText" class="val-text mono-num">80% Master</span>
             </div>
             
-            <select id="headphoneSelect" class="select-box"></select>
+            <select id="headphoneSelect" class="select-box">
+              <option value="default">หูฟัง / ลำโพงเริ่มต้น (Default System Output)</option>
+            </select>
 
             <div class="channel-controls-subgrid">
               <!-- Sub: Music in HP -->
@@ -485,7 +487,9 @@
               <span id="cableVolText" class="val-text mono-num">90% Master</span>
             </div>
 
-            <select id="virtualCableSelect" class="select-box"></select>
+            <select id="virtualCableSelect" class="select-box">
+              <option value="default">CABLE Input (VB-Audio Virtual Cable)</option>
+            </select>
 
             <div class="channel-controls-subgrid">
               <!-- Sub: Music in Cable (Calibrated default 20%) -->
@@ -562,7 +566,9 @@
 
           <div class="control-group">
             <label for="micSelect">ไมโครโฟนร้องสด (Live Mic)</label>
-            <select id="micSelect" class="select-box"></select>
+            <select id="micSelect" class="select-box">
+              <option value="default">ไมโครโฟนเริ่มต้น (Default Live Mic)</option>
+            </select>
             <div class="vu-meter-container">
               <div class="vu-bar" id="micVuBar"></div>
             </div>
@@ -853,11 +859,15 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
               <div class="control-group">
                 <label for="wizardHeadphoneSelect">หูฟังของคุณ (Output)</label>
-                <select id="wizardHeadphoneSelect" class="select-box"></select>
+                <select id="wizardHeadphoneSelect" class="select-box">
+                  <option value="default">หูฟัง / ลำโพงเริ่มต้น (Default System Output)</option>
+                </select>
               </div>
               <div class="control-group">
                 <label for="wizardMicSelect">ไมโครโฟนของคุณ (Input)</label>
-                <select id="wizardMicSelect" class="select-box"></select>
+                <select id="wizardMicSelect" class="select-box">
+                  <option value="default">ไมโครโฟนเริ่มต้น (Default Live Mic)</option>
+                </select>
               </div>
             </div>
 
