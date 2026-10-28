@@ -495,6 +495,19 @@ app.get('/api/network-info', (req, res) => {
   });
 });
 
+// Launch Windows Sound Control Panel directly on Recording tab for zero-latency setup verification
+app.post('/api/open-sound-settings', (req, res) => {
+  if (process.platform === 'win32') {
+    try {
+      spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,1'], { detached: true, stdio: 'ignore' });
+      return res.json({ success: true, message: 'Opened Windows Sound Control Panel (Recording tab)' });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+  res.status(400).json({ error: 'Sound control panel shortcut is only applicable on Windows' });
+});
+
 // Create or Register Room
 app.post('/api/room/create', (req, res) => {
   const requestedCode = req.body && req.body.roomCode ? req.body.roomCode : generateRoomCode();

@@ -883,6 +883,7 @@ async function initAudioEngine() {
       document.body.appendChild(audioElCable);
     }
     audioElCable.srcObject = destCable.stream;
+    audioElCable.muted = true; // Safety invariant: Always keep muted until safely bound to a distinct virtual cable!
 
     // --- Audio Graph Wiring ---
     if (pitchNode) {
@@ -1884,18 +1885,34 @@ async function setSinkHeadphone(deviceId) {
 }
 
 async function setSinkCable(deviceId) {
-  if (audioElCable && typeof audioElCable.setSinkId === 'function') {
+  if (!audioElCable) return;
+  if (typeof audioElCable.setSinkId === 'function') {
     try {
+      const currentHpSink = headphoneSelect ? headphoneSelect.value : '';
+      // Guard: Never play Channel 2 (FiveM broadcast stream) to default or headphone sink!
+      if (!deviceId || deviceId === 'default' || (currentHpSink && deviceId === currentHpSink)) {
+        console.warn('Virtual cable destination matches default or headphone output. Muting audioElCable to prevent headphone echo.');
+        audioElCable.muted = true;
+        return;
+      }
       await audioElCable.setSinkId(deviceId);
-      console.log('✅ Backing track connected to CABLE Input:', deviceId);
+      audioElCable.muted = false; // Only unmute when safely assigned to a distinct virtual cable!
+      console.log('✅ Backing track and broadcast stream connected to CABLE Input:', deviceId);
     } catch (e) {
       console.warn('setSinkId CABLE error:', e);
+      audioElCable.muted = true;
     }
+  } else {
+    // If setSinkId is not supported, mute audioElCable to prevent leakage into default output
+    audioElCable.muted = true;
   }
 }
 
 headphoneSelect.addEventListener('change', (e) => {
   setSinkHeadphone(e.target.value);
+  if (virtualCableSelect) {
+    setSinkCable(virtualCableSelect.value);
+  }
 });
 
 virtualCableSelect.addEventListener('change', (e) => {
@@ -1907,6 +1924,24 @@ micSelect.addEventListener('change', (e) => {
     initMicrophoneStream(e.target.value);
   }
 });
+
+const openSoundSettingsBtn = document.getElementById('openSoundSettingsBtn');
+if (openSoundSettingsBtn) {
+  openSoundSettingsBtn.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/open-sound-settings', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        openSoundSettingsBtn.innerHTML = '<span>✅ เปิดหน้าต่างเสียงแล้ว ให้ไปที่แท็บ "การบันทึก (Recording)"</span>';
+        setTimeout(() => {
+          openSoundSettingsBtn.innerHTML = '⚙️ เปิดหน้าต่างเสียง Windows (เช็กเอาติ๊ก "ฟังอุปกรณ์นี้" ออก)';
+        }, 4000);
+      }
+    } catch (e) {
+      console.warn('Could not launch Windows sound settings dialog:', e);
+    }
+  });
+}
 
 // Volume Sliders (Master Outputs)
 headphoneVol.addEventListener('input', (e) => {
