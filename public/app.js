@@ -609,7 +609,8 @@ function initYtPlayer(videoId, startSec = 0) {
   if (ytPlayer && ytPlayer.loadVideoById) {
     try {
       ytPlayer.loadVideoById({ videoId, startSeconds: Math.floor(startSec) });
-      if (isDirectOrTab) {
+      const currentDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
+      if (currentDirectOrTab) {
         if (ytPlayer.unMute) ytPlayer.unMute();
         if (ytPlayer.setVolume) ytPlayer.setVolume(volInt);
       } else {
@@ -636,9 +637,12 @@ function initYtPlayer(videoId, startSec = 0) {
       events: {
         onReady: (e) => {
           isYtReady = true;
-          if (isDirectOrTab) {
+          const currentDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
+          const curHpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+          const curVolInt = isHpMusicMuted ? 0 : Math.round(curHpVol * 100);
+          if (currentDirectOrTab) {
             if (e.target && e.target.unMute) e.target.unMute();
-            if (e.target && e.target.setVolume) e.target.setVolume(volInt);
+            if (e.target && e.target.setVolume) e.target.setVolume(curVolInt);
           } else {
             if (e.target && e.target.mute) e.target.mute();
           }
@@ -647,9 +651,12 @@ function initYtPlayer(videoId, startSec = 0) {
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
             isPlaying = true;
-            if (isDirectOrTab) {
+            const currentDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
+            const curHpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+            const curVolInt = isHpMusicMuted ? 0 : Math.round(curHpVol * 100);
+            if (currentDirectOrTab) {
               if (ytPlayer && ytPlayer.unMute) ytPlayer.unMute();
-              if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(volInt);
+              if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(curVolInt);
             } else {
               if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
             }
@@ -2191,10 +2198,10 @@ async function playTrack(track, seekSeconds = 0) {
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
-  // When Tab Audio is active, YouTube Iframe provides direct unmuted audio without waiting for DSP stream
-  if (isTabAudioActive) {
+  // When Tab Audio is active or running on Cloud, YouTube Iframe provides direct unmuted audio without waiting for DSP stream
+  if (isTabAudioActive || isCloudHost) {
     isUsingDirectYtAudio = true;
-  } else if (!isCloudHost) {
+  } else {
     isUsingDirectYtAudio = false;
   }
   updateTabAudioUI();
@@ -2290,8 +2297,12 @@ function seekToSeconds(seconds) {
 
   if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
     ytPlayer.seekTo(clamped, true);
-    if (isUsingDirectYtAudio || isTabAudioActive) {
+    const currentDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
+    const curHpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+    const curVolInt = isHpMusicMuted ? 0 : Math.round(curHpVol * 100);
+    if (currentDirectOrTab) {
       if (ytPlayer.unMute) ytPlayer.unMute();
+      if (ytPlayer.setVolume) ytPlayer.setVolume(curVolInt);
     } else {
       if (ytPlayer.mute) ytPlayer.mute();
     }
@@ -2319,10 +2330,12 @@ function togglePlayPause() {
       audioSourceElement.play().catch(() => {});
     }
     if (ytPlayer && ytPlayer.playVideo) {
-      if (isUsingDirectYtAudio || isTabAudioActive) {
+      const currentDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
+      const curHpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
+      const curVolInt = isHpMusicMuted ? 0 : Math.round(curHpVol * 100);
+      if (currentDirectOrTab) {
         if (ytPlayer.unMute) ytPlayer.unMute();
-        const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
-        if (ytPlayer.setVolume) ytPlayer.setVolume(isHpMusicMuted ? 0 : Math.round(hpVol * 100));
+        if (ytPlayer.setVolume) ytPlayer.setVolume(curVolInt);
       } else {
         if (ytPlayer.mute) ytPlayer.mute();
       }
