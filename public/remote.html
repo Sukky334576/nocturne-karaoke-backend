@@ -588,6 +588,30 @@
     }
     .toast-banner.show { transform: translateX(-50%) translateY(0); }
 
+    /* VIP Mobile Remote Banner & Priority Buttons */
+    .vip-room-banner {
+      background: linear-gradient(135deg, rgba(216, 177, 93, 0.2), rgba(216, 177, 93, 0.05));
+      border: 1px solid rgba(216, 177, 93, 0.4);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #f4e6c3;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn-priority {
+      background: rgba(216, 177, 93, 0.15) !important;
+      border-color: var(--gold-primary) !important;
+      color: var(--gold-bright) !important;
+    }
+    .btn-priority:active {
+      background: var(--gold-primary) !important;
+      color: #08090d !important;
+    }
+
     .hidden { display: none !important; }
   </style>
 </head>
@@ -994,6 +1018,7 @@
             <span class="queue-tag">👤 ${escapeHtml(track.addedBy || 'Mobile')}</span>
           </div>
           <div class="song-actions">
+            ${roomState && roomState.hostTier === 'pro' && idx > 0 ? `<button class="btn btn-outline btn-xs btn-priority btn-jump-top" data-idx="${idx}" title="⚡ [VIP] แซงขึ้นเป็นคิวแรก">⚡</button>` : ''}
             ${idx > 0 ? `<button class="btn btn-outline btn-xs btn-move-up" data-idx="${idx}" title="เลื่อนขึ้น">▲</button>` : ''}
             <button class="btn btn-outline btn-xs btn-remove btn-danger" data-idx="${idx}" title="ลบออก">✕</button>
           </div>
@@ -1002,8 +1027,22 @@
       });
     }
 
-    // Queue Item Actions (Remove & Move)
+    // Queue Item Actions (Remove, Priority Move & Reorder)
     queueList.addEventListener('click', async (e) => {
+      const btnJump = e.target.closest('.btn-jump-top');
+      if (btnJump) {
+        const idx = parseInt(btnJump.getAttribute('data-idx'), 10);
+        if (idx > 0) {
+          await fetch(`/api/room/${currentRoomCode}/queue/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fromIndex: idx, toIndex: 0 })
+          });
+          showToast('⚡ [VIP] แซงขึ้นเป็นคิวแรกแล้ว!');
+        }
+        return;
+      }
+
       const btnRemove = e.target.closest('.btn-remove');
       if (btnRemove) {
         const idx = btnRemove.getAttribute('data-idx');

@@ -544,11 +544,13 @@ function loadUserProfile() {
     } catch (e) {}
   }
 
-  // Automatic Pro activation for Owner/Developer accounts
+  // Automatic Pro activation for Owner/Developer accounts, and expiry check
   const unameLower = (currentUser.username || '').toLowerCase();
   if (['sukky', 'sukky334576', 'tong', 'admin'].includes(unameLower)) {
     currentUser.tier = 'pro';
     currentUser.proExpiresAt = 253402300799000;
+  } else if (currentUser.tier === 'pro' && currentUser.proExpiresAt && currentUser.proExpiresAt < Date.now()) {
+    currentUser.tier = 'free';
   }
 
   applyUserPreset(currentUser.preset);
@@ -597,6 +599,15 @@ function saveUserProfile() {
     noiseGateThreshold: noiseGateSlider ? parseFloat(noiseGateSlider.value) : -45,
     compressorRatio: compressorSlider ? parseFloat(compressorSlider.value) : 4,
     dynamicsEnabled: isDynamicsEnabled,
+    eqEnabled: isVocalEqEnabled,
+    eqLowCut: isEqLowCutActive,
+    eqMid: eqMidSlider ? parseFloat(eqMidSlider.value) : 0,
+    eqHigh: eqHighAirSlider ? parseFloat(eqHighAirSlider.value) : 0,
+    doublerEnabled: isDoublerEnabled,
+    doublerMix: doublerMix ? parseFloat(doublerMix.value) : 0,
+    smartDuckingEnabled: isSmartDuckingEnabled,
+    smartDuckingDepth: smartDuckingDepthVal,
+    sfxVol: sfxVol ? parseFloat(sfxVol.value) : 0.8,
     plugins: window.nocturnePlugins ? window.nocturnePlugins.getSerializedState() : []
   };
   localStorage.setItem('karaoke_current_user', JSON.stringify(currentUser));
@@ -695,6 +706,57 @@ function applyUserPreset(preset) {
     dynamicsToggle.checked = preset.dynamicsEnabled;
     isDynamicsEnabled = preset.dynamicsEnabled;
   }
+
+  const isPro = currentUser.tier === 'pro';
+
+  // 3-Band Vocal EQ
+  if (preset.eqEnabled !== undefined && vocalEqToggle) {
+    isVocalEqEnabled = isPro ? preset.eqEnabled : false;
+    vocalEqToggle.checked = isVocalEqEnabled;
+  }
+  if (preset.eqLowCut !== undefined) {
+    isEqLowCutActive = preset.eqLowCut;
+  }
+  if (preset.eqMid !== undefined && eqMidSlider) {
+    eqMidSlider.value = preset.eqMid;
+    if (eqMidText) eqMidText.innerText = `${preset.eqMid > 0 ? '+' : ''}${preset.eqMid} dB`;
+  }
+  if (preset.eqHigh !== undefined && eqHighAirSlider) {
+    eqHighAirSlider.value = preset.eqHigh;
+    if (eqHighAirText) eqHighAirText.innerText = `${preset.eqHigh > 0 ? '+' : ''}${preset.eqHigh} dB`;
+  }
+  if (typeof updateVocalEqParams === 'function') updateVocalEqParams();
+
+  // Vocal Doubler
+  if (preset.doublerEnabled !== undefined && doublerToggle) {
+    isDoublerEnabled = isPro ? preset.doublerEnabled : false;
+    doublerToggle.checked = isDoublerEnabled;
+  }
+  if (preset.doublerMix !== undefined && doublerMix) {
+    doublerMix.value = preset.doublerMix;
+    if (doublerMixText) doublerMixText.innerText = `${Math.round(preset.doublerMix * 100)}%`;
+  }
+  if (typeof updateDoublerParams === 'function') updateDoublerParams();
+
+  // Smart Ducking
+  if (preset.smartDuckingEnabled !== undefined && smartDuckingToggle) {
+    isSmartDuckingEnabled = isPro ? preset.smartDuckingEnabled : false;
+    smartDuckingToggle.checked = isSmartDuckingEnabled;
+  }
+  if (preset.smartDuckingDepth !== undefined && smartDuckingDepth) {
+    smartDuckingDepthVal = preset.smartDuckingDepth;
+    smartDuckingDepth.value = preset.smartDuckingDepth;
+    if (smartDuckingDepthText) smartDuckingDepthText.innerText = `${Math.round(preset.smartDuckingDepth * 100)}%`;
+  }
+
+  // SFX Volume
+  if (preset.sfxVol !== undefined && sfxVol) {
+    sfxVol.value = preset.sfxVol;
+    if (sfxVolText) sfxVolText.innerText = `${Math.round(preset.sfxVol * 100)}%`;
+    if (soundboardGain && audioCtx) {
+      soundboardGain.gain.setValueAtTime(preset.sfxVol, audioCtx.currentTime);
+    }
+  }
 }
 
 function syncMuteUI(btn1, btn2, isActive) {
@@ -791,6 +853,13 @@ function applyVocalPreset(presetKey) {
 }
 
 function updateAuthUI() {
+  const unameLower = (currentUser.username || '').toLowerCase();
+  if (!['sukky', 'sukky334576', 'tong', 'admin'].includes(unameLower)) {
+    if (currentUser.tier === 'pro' && currentUser.proExpiresAt && currentUser.proExpiresAt < Date.now()) {
+      currentUser.tier = 'free';
+    }
+  }
+
   const songKeysCount = currentUser.songKeys ? Object.keys(currentUser.songKeys).length : 0;
   const isPro = currentUser.tier === 'pro';
   if (profileSongKeysCount) {
@@ -852,6 +921,11 @@ function updateAuthUI() {
     userProfileLabel.innerHTML = 'เข้าสู่ระบบ / สมาชิก';
     if (landingGate) landingGate.classList.remove('hidden');
     if (userProfileModal) userProfileModal.classList.add('hidden');
+  }
+
+  // Instant state synchronization so mobile remotes reflect new host tier
+  if (typeof syncHostStateToRoom === 'function' && typeof hostRoomCode !== 'undefined' && hostRoomCode) {
+    syncHostStateToRoom();
   }
 }
 
@@ -1713,7 +1787,6 @@ async function initAudioEngine() {
     if (soundboardGain) {
       soundboardGain.connect(cableMixGain);
       soundboardGain.connect(headphoneMixGain);
-      soundboardGain.connect(destRecordTest);
     }
 
     // Load Auto-Tune Worklet
@@ -1816,6 +1889,9 @@ function updateReverbImpulse() {
 }
 
 // Initialize Microphone Stream with Vocal Dynamics Chain
+let micStream = null;
+let isVocalChainWired = false;
+
 async function initMicrophoneStream(deviceId) {
   try {
     const constraints = {
@@ -1828,77 +1904,103 @@ async function initMicrophoneStream(deviceId) {
       }
     };
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+    }
 
-    if (micSource) micSource.disconnect();
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    micStream = stream;
+
+    if (micSource) {
+      try { micSource.disconnect(); } catch (e) {}
+    }
 
     micSource = audioCtx.createMediaStreamSource(stream);
     micSource.connect(micAnalyser);
 
-    // 1. Connect through 3-Band Vocal EQ (Low-Cut -> Mid -> High Air)
-    let vocalChainSource = micSource;
+    // Wire downstream static processing chain exactly once
+    if (!isVocalChainWired) {
+      // 1. Connect through 3-Band Vocal EQ (Low-Cut -> Mid -> High Air)
+      let chainTail = micSource;
 
-    if (vocalEqLowCutNode && vocalEqMidNode && vocalEqHighAirNode) {
-      micSource.connect(vocalEqLowCutNode);
-      vocalEqLowCutNode.connect(vocalEqMidNode);
-      vocalEqMidNode.connect(vocalEqHighAirNode);
-      vocalChainSource = vocalEqHighAirNode;
-    }
+      if (vocalEqLowCutNode && vocalEqMidNode && vocalEqHighAirNode) {
+        vocalEqLowCutNode.connect(vocalEqMidNode);
+        vocalEqMidNode.connect(vocalEqHighAirNode);
+        chainTail = vocalEqHighAirNode;
+      }
 
-    // 2. Connect through Vocal Dynamics Chain (Noise Gate -> Compressor)
-    if (noiseGateNode && vocalCompressorNode) {
-      vocalChainSource.connect(noiseGateNode);
-      noiseGateNode.connect(vocalCompressorNode);
-      vocalChainSource = vocalCompressorNode;
-    }
-
-    // 3. Connect through Modular FX Plugin Rack & Safety Brickwall Limiter
-    if (pluginRackInput && safetyLimiterNode) {
-      vocalChainSource.connect(pluginRackInput);
-      vocalChainSource = safetyLimiterNode;
-    }
-
-    // 4. Vocal Doubler & Stereo Harmony tap
-    if (doublerGain && doublerDelayLeft && doublerDelayRight) {
-      try {
-        vocalChainSource.connect(doublerDelayLeft);
-        vocalChainSource.connect(doublerDelayRight);
-        if (doublerPannerLeft && doublerPannerRight) {
-          doublerDelayLeft.connect(doublerPannerLeft);
-          doublerPannerLeft.connect(doublerGain);
-          doublerDelayRight.connect(doublerPannerRight);
-          doublerPannerRight.connect(doublerGain);
-        } else {
-          doublerDelayLeft.connect(doublerGain);
-          doublerDelayRight.connect(doublerGain);
+      // 2. Connect through Vocal Dynamics Chain (Noise Gate -> Compressor)
+      if (noiseGateNode && vocalCompressorNode) {
+        if (vocalEqHighAirNode) {
+          vocalEqHighAirNode.connect(noiseGateNode);
         }
-        doublerGain.connect(cableMixGain);
-        doublerGain.connect(destRecordTest);
-      } catch (e) {}
+        noiseGateNode.connect(vocalCompressorNode);
+        chainTail = vocalCompressorNode;
+      }
+
+      // 3. Connect through Modular FX Plugin Rack & Safety Brickwall Limiter
+      if (pluginRackInput && safetyLimiterNode) {
+        if (chainTail && chainTail !== pluginRackInput) {
+          chainTail.connect(pluginRackInput);
+        }
+        chainTail = safetyLimiterNode;
+      }
+
+      const vocalChainOut = chainTail || safetyLimiterNode || vocalCompressorNode || vocalEqHighAirNode;
+
+      // 4. Vocal Doubler & Stereo Harmony tap
+      if (vocalChainOut && doublerGain && doublerDelayLeft && doublerDelayRight) {
+        try {
+          vocalChainOut.connect(doublerDelayLeft);
+          vocalChainOut.connect(doublerDelayRight);
+          if (doublerPannerLeft && doublerPannerRight) {
+            doublerDelayLeft.connect(doublerPannerLeft);
+            doublerPannerLeft.connect(doublerGain);
+            doublerDelayRight.connect(doublerPannerRight);
+            doublerPannerRight.connect(doublerGain);
+          } else {
+            doublerDelayLeft.connect(doublerGain);
+            doublerDelayRight.connect(doublerGain);
+          }
+          doublerGain.connect(cableMixGain);
+        } catch (e) {}
+      }
+
+      // Direct voice to Headphone Direct Monitor
+      if (vocalChainOut && vocalHpGain) {
+        vocalChainOut.connect(vocalHpGain);
+        vocalHpGain.connect(headphoneMixGain);
+      }
+
+      // Direct voice to Cable Output
+      if (vocalChainOut && vocalCableGain) {
+        vocalChainOut.connect(vocalCableGain);
+        vocalCableGain.connect(cableMixGain);
+      }
+
+      if (vocalChainOut && reverbInputGain) {
+        vocalChainOut.connect(reverbInputGain);
+      }
+
+      if (vocalChainOut && autotuneNode) {
+        vocalChainOut.connect(autotuneNode);
+      }
+
+      if (vocalChainOut && recordMicGain) {
+        vocalChainOut.connect(recordMicGain);
+      }
+
+      isVocalChainWired = true;
     }
 
-    // Direct voice to Headphone Direct Monitor
-    if (vocalHpGain) {
-      vocalChainSource.connect(vocalHpGain);
-      vocalHpGain.connect(headphoneMixGain);
-    }
-
-    // Direct voice to Cable Output
-    if (vocalCableGain) {
-      vocalChainSource.connect(vocalCableGain);
-      vocalCableGain.connect(cableMixGain);
-    }
-
-    if (reverbInputGain) {
-      vocalChainSource.connect(reverbInputGain);
-    }
-
-    if (autotuneNode) {
-      vocalChainSource.connect(autotuneNode);
-    }
-
-    if (recordMicGain) {
-      vocalChainSource.connect(recordMicGain);
+    // Connect newly created mic source to the head of the vocal processing chain
+    if (vocalEqLowCutNode) {
+      micSource.connect(vocalEqLowCutNode);
+    } else if (noiseGateNode) {
+      micSource.connect(noiseGateNode);
+    } else if (vocalHpGain) {
+      micSource.connect(vocalHpGain);
+      if (vocalCableGain) micSource.connect(vocalCableGain);
     }
   } catch (err) {
     console.warn('Microphone access note:', err.message);
@@ -2236,7 +2338,7 @@ function startVuMeters() {
       }
 
       // Smart Voice Auto-Ducking (PRO 49฿)
-      if (isSmartDuckingEnabled && currentUser.tier === 'pro' && duckingGain && audioCtx) {
+      if (isSmartDuckingEnabled && currentUser.tier === 'pro' && duckingGain && audioCtx && !isDucked) {
         const isSpeaking = (percent > 12);
         if (isSpeaking) {
           if (smartDuckingRecoverTimer) {
@@ -2247,13 +2349,31 @@ function startVuMeters() {
             isDuckingCurrentlyActive = true;
             duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
             duckingGain.gain.linearRampToValueAtTime(smartDuckingDepthVal, audioCtx.currentTime + 0.12);
+            if (tabMusicGain) {
+              const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
+              tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              tabMusicGain.gain.linearRampToValueAtTime(baseCableVol * smartDuckingDepthVal, audioCtx.currentTime + 0.12);
+            }
+            if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function') {
+              const baseVol = Math.round((currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9) * 100);
+              ytPlayer.setVolume(Math.round(baseVol * smartDuckingDepthVal));
+            }
           }
         } else if (isDuckingCurrentlyActive && !smartDuckingRecoverTimer) {
           smartDuckingRecoverTimer = setTimeout(() => {
             isDuckingCurrentlyActive = false;
-            if (duckingGain && audioCtx) {
+            if (duckingGain && audioCtx && !isDucked) {
               duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
               duckingGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.8);
+            }
+            if (tabMusicGain && audioCtx && !isDucked) {
+              const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
+              tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              tabMusicGain.gain.linearRampToValueAtTime(baseCableVol, audioCtx.currentTime + 0.8);
+            }
+            if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function' && !isDucked) {
+              const baseVol = Math.round((currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9) * 100);
+              ytPlayer.setVolume(isHpMusicMuted ? 0 : baseVol);
             }
             smartDuckingRecoverTimer = null;
           }, 800);
@@ -3358,6 +3478,27 @@ if (smartDuckingToggle) {
       return;
     }
     isSmartDuckingEnabled = e.target.checked;
+    if (!isSmartDuckingEnabled && isDuckingCurrentlyActive) {
+      if (smartDuckingRecoverTimer) {
+        clearTimeout(smartDuckingRecoverTimer);
+        smartDuckingRecoverTimer = null;
+      }
+      isDuckingCurrentlyActive = false;
+      if (duckingGain && audioCtx && !isDucked) {
+        duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        duckingGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.1);
+      }
+      if (tabMusicGain && audioCtx && !isDucked) {
+        const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
+        tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        tabMusicGain.gain.linearRampToValueAtTime(baseCableVol, audioCtx.currentTime + 0.1);
+      }
+      if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function' && !isDucked) {
+        const baseVol = Math.round((currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9) * 100);
+        ytPlayer.setVolume(isHpMusicMuted ? 0 : baseVol);
+      }
+    }
+    saveUserProfile();
   });
 }
 
@@ -4092,7 +4233,7 @@ function showHostToast(msg, duration = 3500) {
   }
   const pill = document.createElement('div');
   pill.style.cssText = 'background:rgba(20, 23, 34, 0.95); border:1px solid #d8b15d; color:#f4e6c3; padding:10px 18px; border-radius:9999px; font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,0.6); backdrop-filter:blur(8px); transform:translateX(50px); opacity:0; transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);';
-  pill.innerHTML = msg;
+  pill.textContent = msg;
   toastEl.appendChild(pill);
   requestAnimationFrame(() => {
     pill.style.transform = 'translateX(0)';

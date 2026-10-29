@@ -432,7 +432,7 @@ function generateRoomCode() {
   return `${prefix}-${num}`;
 }
 
-function getOrCreateRoom(code, hostName = 'Host', hostTier = 'free') {
+function getOrCreateRoom(code, hostName = null, hostTier = null) {
   const norm = normalizeRoomCode(code) || generateRoomCode();
   let room = rooms.get(norm);
   if (!room) {
@@ -454,7 +454,7 @@ function getOrCreateRoom(code, hostName = 'Host', hostTier = 'free') {
     if (hostName && hostName !== 'Host') {
       room.hostName = sanitizeText(hostName, 32);
     }
-    if (hostTier) {
+    if (hostTier !== null && hostTier !== undefined) {
       room.hostTier = hostTier;
     }
   }
@@ -599,6 +599,13 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
   }
 
+  // Enforce 30-day subscription expiration (except developer lifetime VIP accounts)
+  if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
+    if (!['sukky', 'sukky334576', 'tong', 'admin'].includes(lower)) {
+      user.tier = 'free';
+    }
+  }
+
   user.lastLogin = Date.now();
   persistUserDb();
 
@@ -637,6 +644,14 @@ app.post('/api/auth/save-profile', (req, res) => {
   if (typeof hasCompletedOnboarding === 'boolean') user.hasCompletedOnboarding = hasCompletedOnboarding;
   if (tier) user.tier = tier;
   if (proExpiresAt !== undefined) user.proExpiresAt = proExpiresAt;
+
+  // Enforce 30-day subscription expiration
+  if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
+    if (!['sukky', 'sukky334576', 'tong', 'admin'].includes(lower)) {
+      user.tier = 'free';
+    }
+  }
+
   user.lastActive = Date.now();
   persistUserDb();
 
@@ -759,7 +774,8 @@ app.post('/api/room/:code/queue', (req, res) => {
     addedAt: Date.now()
   };
 
-  const isPriority = !!(req.body && req.body.priority);
+  // Priority Queue insertion requires VIP PRO host room
+  const isPriority = !!(req.body && req.body.priority && room.hostTier === 'pro');
   if (isPriority) {
     room.queue.unshift(queueItem);
   } else {

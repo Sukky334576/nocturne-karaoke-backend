@@ -95,6 +95,9 @@ async function runEdgeCaseTests() {
   console.log('🛡️ NOCTURNE STUDIO • HARDENING & EDGE CASE TEST SUITE');
   console.log('====================================================');
 
+  const userDbPath = path.join(__dirname, 'users.json');
+  const originalUsersJson = fs.existsSync(userDbPath) ? fs.readFileSync(userDbPath, 'utf8') : null;
+
   testProcess = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
     cwd: __dirname,
     env: { ...process.env, PORT: String(testPort) },
@@ -324,7 +327,142 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 10: Auth Tier Gating, Pro Pack Upgrade & Subscription Expiration
+  try {
+    console.log('\n[Edge Case 10] Testing Auth Tier Gating, Pro Pack Upgrade & Expiry...');
+    const testUname = `edge_user_${Date.now()}`;
+    const regRes = await postJson(`http://127.0.0.1:${testPort}/api/auth/register`, {
+      username: testUname,
+      password: 'password123'
+    });
+
+    const loginRes = await postJson(`http://127.0.0.1:${testPort}/api/auth/login`, {
+      username: testUname,
+      password: 'password123'
+    });
+
+    const upRes = await postJson(`http://127.0.0.1:${testPort}/api/auth/upgrade-pro`, {
+      username: testUname
+    });
+
+    // Test expiration enforcement
+    const expRes = await postJson(`http://127.0.0.1:${testPort}/api/auth/save-profile`, {
+      username: testUname,
+      tier: 'pro',
+      proExpiresAt: Date.now() - 5000 // already expired
+    });
+
+    if (
+      regRes.status === 200 && regRes.data.user.tier === 'free' &&
+      loginRes.status === 200 && loginRes.data.user.tier === 'free' &&
+      upRes.status === 200 && upRes.data.tier === 'pro' &&
+      expRes.status === 200 && expRes.data.tier === 'free'
+    ) {
+      console.log('  ✅ Passed: Auth lifecycle, 30-day Pro Pack activation & expiration successfully enforced');
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Auth lifecycle or expiration enforcement failed:', {
+        reg: regRes.data,
+        login: loginRes.data,
+        up: upRes.data,
+        exp: expRes.data
+      });
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 10 Error:', err.message);
+    failed++;
+  }
+
+  // Edge Case 11: Priority Queue Server Security Gating (Enforces hostTier === 'pro')
+  try {
+    console.log('\n[Edge Case 11] Testing Priority Queue gating based on host subscription tier...');
+    // A: Free Room must reject priority insertion (appends to end)
+    await postJson(`http://127.0.0.1:${testPort}/api/room/create`, {
+      roomCode: 'FREE-Q',
+      hostName: 'FreeHost',
+      hostTier: 'free'
+    });
+    await postJson(`http://127.0.0.1:${testPort}/api/room/FREE-Q/queue`, {
+      track: { id: 'dQw4w9WgXcQ', title: 'Song 1' },
+      addedBy: 'User 1'
+    });
+    await postJson(`http://127.0.0.1:${testPort}/api/room/FREE-Q/queue`, {
+      track: { id: 'oJ7cV4LcYQg', title: 'Song 2 (Sneaky Priority)' },
+      addedBy: 'User 2',
+      priority: true // Attacker attempting priority bypass on free room
+    });
+    const freeRoom = await fetchJson(`http://127.0.0.1:${testPort}/api/room/FREE-Q`);
+    const freeBypassPrevented = freeRoom.data.queue[0].id === 'dQw4w9WgXcQ' && freeRoom.data.queue[1].id === 'oJ7cV4LcYQg';
+
+    // B: Pro Room must honor priority insertion (unshifts to top)
+    await postJson(`http://127.0.0.1:${testPort}/api/room/create`, {
+      roomCode: 'PRO-Q',
+      hostName: 'ProHost',
+      hostTier: 'pro'
+    });
+    await postJson(`http://127.0.0.1:${testPort}/api/room/PRO-Q/queue`, {
+      track: { id: 'dQw4w9WgXcQ', title: 'Song 1' },
+      addedBy: 'User 1'
+    });
+    await postJson(`http://127.0.0.1:${testPort}/api/room/PRO-Q/queue`, {
+      track: { id: 'oJ7cV4LcYQg', title: 'Song 2 (VIP Priority)' },
+      addedBy: 'VIP User',
+      priority: true
+    });
+    const proRoom = await fetchJson(`http://127.0.0.1:${testPort}/api/room/PRO-Q`);
+    const proPriorityHonored = proRoom.data.queue[0].id === 'oJ7cV4LcYQg' && proRoom.data.queue[1].id === 'dQw4w9WgXcQ';
+
+    if (freeBypassPrevented && proPriorityHonored) {
+      console.log('  ✅ Passed: Priority queue server security gating verified (Free appends, Pro unshifts)');
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Priority queue server gating broken:', { freeBypassPrevented, proPriorityHonored });
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 11 Error:', err.message);
+    failed++;
+  }
+
+  // Edge Case 12: Web Audio Graph Clean Routing & Anti-Duplication Invariants
+  try {
+    console.log('\n[Edge Case 12] Verifying Web Audio clean routing & anti-duplication invariants...');
+    const appJsContent = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+
+    // Invariant 1: No duplicate destRecordTest connections from soundboard or doubler
+    const noDupSfxRecord = !appJsContent.includes('soundboardGain.connect(destRecordTest)');
+    const noDupDoublerRecord = !appJsContent.includes('doublerGain.connect(destRecordTest)');
+
+    // Invariant 2: Static vocal chain wired once & media stream cleanup on mic switch
+    const hasVocalChainGuard = appJsContent.includes('isVocalChainWired') &&
+                               appJsContent.includes('micStream.getTracks().forEach');
+
+    // Invariant 3: XSS immunity in showHostToast using textContent
+    const hasSecureToast = appJsContent.includes('pill.textContent = msg');
+
+    if (noDupSfxRecord && noDupDoublerRecord && hasVocalChainGuard && hasSecureToast) {
+      console.log('  ✅ Passed: Clean broadcast routing, anti-duplication guards & secure toast verified');
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Audio routing invariants or secure toast check failed', {
+        noDupSfxRecord,
+        noDupDoublerRecord,
+        hasVocalChainGuard,
+        hasSecureToast
+      });
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 12 Error:', err.message);
+    failed++;
+  }
+
   if (testProcess) testProcess.kill();
+
+  if (originalUsersJson) {
+    try { fs.writeFileSync(userDbPath, originalUsersJson, 'utf8'); } catch (e) {}
+  }
 
   console.log('\n====================================================');
   console.log(`📊 EDGE CASE REPORT: ${passed} PASSED, ${failed} FAILED`);
