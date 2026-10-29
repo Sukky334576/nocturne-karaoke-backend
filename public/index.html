@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="mode-karaoke">
   <div class="app-container">
     <!-- Studio Header -->
     <header class="app-header">
@@ -100,6 +100,30 @@
         </button>
       </div>
     </header>
+
+    <!-- 🎛️ Executive Focus-First Workspace Mode Bar -->
+    <div class="workspace-mode-bar">
+      <div class="mode-tabs" role="tablist">
+        <button id="modeKaraokeBtn" class="mode-tab active" data-mode="karaoke" role="tab" aria-selected="true">
+          <span>🎤 เวทีคาราโอเกะ (Karaoke Stage)</span>
+          <span class="mode-badge-hot">หลัก 80%</span>
+        </button>
+        <button id="modePartyBtn" class="mode-tab" data-mode="party" role="tab" aria-selected="false">
+          <span>🎉 ปาร์ตี้ & คิวเพลง (Party Room)</span>
+        </button>
+        <button id="modeStudioBtn" class="mode-tab" data-mode="studio" role="tab" aria-selected="false">
+          <span>🎛️ สตูดิโอจูนไมค์ละเอียด (Studio Rack)</span>
+        </button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button id="toggleStudioDrawerBtn" class="btn-studio-drawer" title="เปิด/ปิด แผงจูนไมค์สตูดิโอด่วน">
+          <span class="status-dot-active"></span>
+          <span>🎛️ แผงจูนไมค์สตูดิโอ</span>
+          <span id="drawerToggleArrow" style="font-size: 10px;">▼</span>
+        </button>
+      </div>
+    </div>
 
     <!-- Main Grid Layout -->
     <main class="main-layout">
@@ -260,10 +284,10 @@
         </div>
 
         <!-- Embedded Record Test & Live Listen Module -->
-        <div id="embeddedRecordSection" class="studio-module record-module">
+        <div id="embeddedRecordSection" class="studio-module record-module collapsible">
           <div class="module-header">
             <div>
-              <h2>Record Test & Playback</h2>
+              <h2>Record Test & Playback <span class="accordion-toggle-icon">▼</span></h2>
               <p class="module-desc">ร้อง 5-10 วินาทีพร้อมดนตรีเพื่อเช็กเสียงจริงที่ส่งเข้า Discord</p>
             </div>
             <div class="rec-status-badge" id="recBadge">
@@ -318,7 +342,85 @@
 
       <!-- Right Column: DSP Effects, Plugin Rack & Hardware Routing -->
       <section class="studio-rack-col">
-        <!-- One-Click Vocal FX Presets Toolbar -->
+
+        <!-- Quick Mic Status & Studio Drawer Trigger (Karaoke Stage Mode) -->
+        <div class="quick-mic-status-card" id="quickMicStatusCard">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="status-dot-active"></span>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: #fff;">🎤 ไมค์สตูดิโอ: พร้อมใช้งาน</div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="quickMicSummaryText">Preset: Studio Pop | Gate: Auto | Reverb: มีมิติ</div>
+            </div>
+          </div>
+          <button id="btnOpenStudioDrawerQuick" class="btn-open-dsp-pill" title="คลิกเพื่อเปิด/ปิด แผงจูนไมค์สตูดิโอ">
+            จูนไมค์ละเอียด ⚙️
+          </button>
+        </div>
+
+        <!-- 6. Song Queue -->
+        <div id="karaokeQueueCard" class="studio-module queue-stage-card">
+          <div class="module-header">
+            <div class="title-with-badge" style="display: flex; align-items: center; gap: 8px;">
+              <h2>Song Queue</h2>
+              <span id="queueBadgeCount" class="badge-count" style="display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9999px; background: var(--gold-primary); color: #08090d; font-weight: 700;">0</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="openRoomModalFromQueueBtn" class="btn-link-gold" title="เปิดรหัสห้องสำหรับมือถือสแกน">📱 รีโมทมือถือ</button>
+              <button id="clearQueueBtn" class="btn-link-gold">ล้างคิว</button>
+            </div>
+          </div>
+          <div id="queueList" class="queue-list">
+            <div class="empty-queue">ไม่มีเพลงในคิว</div>
+          </div>
+        </div>
+
+        <!-- 5.5 DJ Soundboard & Mic SFX (PRO 49฿) -->
+        <div id="soundboardModule" class="studio-module collapsible">
+          <div class="module-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h2>DJ Soundboard & Mic SFX <span class="accordion-toggle-icon">▼</span></h2>
+                <span class="badge-pro-tag">PRO 49฿</span>
+              </div>
+              <p class="module-desc">ส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM & Discord ผ่านสายไมค์ทันที</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="sfxVolText" class="val-text mono-num">80%</span>
+              <input type="range" id="sfxVol" min="0" max="1" step="0.05" value="0.8" style="width: 70px;" title="ระดับเสียง Soundboard">
+            </div>
+          </div>
+
+          <div class="soundboard-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;">
+            <button class="sfx-btn" data-sfx="airhorn" title="เสียงแอร์ฮอร์นเปิดเพลง">
+              <span class="sfx-icon">📢</span>
+              <span class="sfx-name">Airhorn</span>
+            </button>
+            <button class="sfx-btn" data-sfx="applause" title="เสียงปรบมือ & กรี๊ดเชียร์">
+              <span class="sfx-icon">👏</span>
+              <span class="sfx-name">Applause</span>
+            </button>
+            <button class="sfx-btn" data-sfx="rimshot" title="เสียงกลองตึกโป๊ะเล่นมุก">
+              <span class="sfx-icon">🥁</span>
+              <span class="sfx-name">Rimshot</span>
+            </button>
+            <button class="sfx-btn" data-sfx="cricket" title="เสียงจิ้งหรีดเวลาเดดแอร์">
+              <span class="sfx-icon">🦗</span>
+              <span class="sfx-name">Cricket</span>
+            </button>
+            <button class="sfx-btn" data-sfx="ding" title="เสียงกระดิ่งถูกต้อง">
+              <span class="sfx-icon">🔔</span>
+              <span class="sfx-name">Ding!</span>
+            </button>
+            <button class="sfx-btn" data-sfx="laser" title="เสียงเลเซอร์ไซไฟดรอป">
+              <span class="sfx-icon">🚀</span>
+              <span class="sfx-name">Laser Drop</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Collapsible Studio DSP Modules Container (Rack & Plugins) -->
+        <div id="studioDspModulesContainer">
+          <!-- One-Click Vocal FX Presets Toolbar -->
         <div class="vocal-presets-card">
           <div class="presets-header">
             <span class="presets-title">PRO VOCAL PRESETS</span>
@@ -336,10 +438,10 @@
         </div>
 
         <!-- 1. Vocal Dynamics (Noise Gate & Compressor) -->
-        <div class="studio-module">
+        <div class="studio-module collapsible">
           <div class="module-header">
             <div>
-              <h2>Vocal Dynamics & Noise Gate</h2>
+              <h2>Vocal Dynamics & Noise Gate <span class="accordion-toggle-icon">▼</span></h2>
               <p class="module-desc">ตัดเสียงพัดลม/คีย์บอร์ด & บีบเสียงร้องไม่ให้แตกใน Discord (ไม่ตัดเพลง)</p>
             </div>
             <label class="switch" title="เปิด/ปิด Noise Gate & Dynamics">
@@ -373,11 +475,11 @@
         </div>
 
         <!-- 1.5 3-Band Studio Vocal EQ (PRO 49฿) -->
-        <div class="studio-module">
+        <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>3-Band Studio Vocal EQ</h2>
+                <h2>3-Band Studio Vocal EQ <span class="accordion-toggle-icon">▼</span></h2>
                 <span class="badge-pro-tag">PRO 49฿</span>
               </div>
               <p class="module-desc">ตัดเสียงลมปะทะไมค์ & ปรับเนื้อเสียงร้องให้คมชัดใสแบบไมค์แพง</p>
@@ -418,11 +520,11 @@
         </div>
 
         <!-- 1.8 Analog Tube Warmth & Dynamic De-Esser (PRO 49฿) -->
-        <div class="studio-module">
+        <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>Analog Tube Warmth & De-Esser</h2>
+                <h2>Analog Tube Warmth & De-Esser <span class="accordion-toggle-icon">▼</span></h2>
                 <span class="badge-pro-tag">PRO 49฿</span>
               </div>
               <p class="module-desc">ปรีแอมป์หลอดสุญญากาศจำลองเพิ่มความอุ่นหนา & ลดเสียงซี่ฟันบาดหู (ส, ซ, ช)</p>
@@ -461,11 +563,11 @@
         </div>
 
         <!-- 2. Real-Time Vocal Auto-Tune Rack -->
-        <div class="studio-module">
+        <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>Vocal Auto-Tune</h2>
+                <h2>Vocal Auto-Tune <span class="accordion-toggle-icon">▼</span></h2>
                 <span class="badge-pro-tag">PRO 49฿</span>
               </div>
               <p class="module-desc">YIN Pitch Quantization & Scale Snapping</p>
@@ -539,11 +641,11 @@
         </div>
 
         <!-- 2.5 Vocal Harmony & Doubler (PRO 49฿) -->
-        <div class="studio-module">
+        <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>Vocal Doubler & Harmony</h2>
+                <h2>Vocal Doubler & Harmony <span class="accordion-toggle-icon">▼</span></h2>
                 <span class="badge-pro-tag">PRO 49฿</span>
               </div>
               <p class="module-desc">สร้างมิติเสียงร้องคู่และเสียงประสานสเตอริโอ เพิ่มความหนาในท่อนฮุก</p>
@@ -564,10 +666,10 @@
         </div>
 
         <!-- 3. NEW: Modular FX Insert Rack (Plugin Slots) -->
-        <div class="studio-module fx-rack-module">
+        <div class="studio-module fx-rack-module collapsible">
           <div class="module-header">
             <div class="title-with-badge">
-              <h2>Modular FX Insert Rack</h2>
+              <h2>Modular FX Insert Rack <span class="accordion-toggle-icon">▼</span></h2>
               <span class="safe-badge" title="Safety Limiter active (-0.1dB Anti-Clipping)">🔒 Limiter -0.1dB</span>
             </div>
             <button id="openPluginStoreBtn" class="btn btn-outline btn-xs" title="จัดการปลั๊กอินและนำเข้าไฟล์">
@@ -583,10 +685,10 @@
         </div>
 
         <!-- 4. Dual-Channel Signal Dispatcher (Independent Channels) -->
-        <div class="studio-module">
+        <div class="studio-module collapsible">
           <div class="module-header">
             <div>
-              <h2>Signal Dispatcher (แยกชาแนลเสียง)</h2>
+              <h2>Signal Dispatcher (แยกชาแนลเสียง) <span class="accordion-toggle-icon">▼</span></h2>
               <p class="module-desc">ปรับระดับเสียง & เปิด/ปิดเสียงหูฟัง และเสียงเข้าเกม FiveM/Discord แยกอิสระ</p>
             </div>
           </div>
@@ -738,11 +840,11 @@
         </div>
 
         <!-- 5. Vocal FX Rack (Studio Reverb) -->
-        <div class="studio-module">
+        <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>Studio Vocal Reverb</h2>
+                <h2>Studio Vocal Reverb <span class="accordion-toggle-icon">▼</span></h2>
                 <span class="badge-pro-tag">PRO 49฿</span>
               </div>
               <p class="module-desc">Convolution Impulse Response Generator</p>
@@ -789,68 +891,8 @@
             </div>
           </div>
         </div>
-
-        <!-- 5.5 DJ Soundboard & Mic SFX (PRO 49฿) -->
-        <div class="studio-module">
-          <div class="module-header">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>DJ Soundboard & Mic SFX</h2>
-                <span class="badge-pro-tag">PRO 49฿</span>
-              </div>
-              <p class="module-desc">ส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM & Discord ผ่านสายไมค์ทันที</p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span id="sfxVolText" class="val-text mono-num">80%</span>
-              <input type="range" id="sfxVol" min="0" max="1" step="0.05" value="0.8" style="width: 70px;" title="ระดับเสียง Soundboard">
-            </div>
-          </div>
-
-          <div class="soundboard-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;">
-            <button class="sfx-btn" data-sfx="airhorn" title="เสียงแอร์ฮอร์นเปิดเพลง">
-              <span class="sfx-icon">📢</span>
-              <span class="sfx-name">Airhorn</span>
-            </button>
-            <button class="sfx-btn" data-sfx="applause" title="เสียงปรบมือ & กรี๊ดเชียร์">
-              <span class="sfx-icon">👏</span>
-              <span class="sfx-name">Applause</span>
-            </button>
-            <button class="sfx-btn" data-sfx="rimshot" title="เสียงกลองตึกโป๊ะเล่นมุก">
-              <span class="sfx-icon">🥁</span>
-              <span class="sfx-name">Rimshot</span>
-            </button>
-            <button class="sfx-btn" data-sfx="cricket" title="เสียงจิ้งหรีดเวลาเดดแอร์">
-              <span class="sfx-icon">🦗</span>
-              <span class="sfx-name">Cricket</span>
-            </button>
-            <button class="sfx-btn" data-sfx="ding" title="เสียงกระดิ่งถูกต้อง">
-              <span class="sfx-icon">🔔</span>
-              <span class="sfx-name">Ding!</span>
-            </button>
-            <button class="sfx-btn" data-sfx="laser" title="เสียงเลเซอร์ไซไฟดรอป">
-              <span class="sfx-icon">🚀</span>
-              <span class="sfx-name">Laser Drop</span>
-            </button>
-          </div>
         </div>
-
-        <!-- 6. Song Queue -->
-        <div class="studio-module">
-          <div class="module-header">
-            <div class="title-with-badge" style="display: flex; align-items: center; gap: 8px;">
-              <h2>Song Queue</h2>
-              <span id="queueBadgeCount" class="badge-count" style="display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9999px; background: var(--gold-primary); color: #08090d; font-weight: 700;">0</span>
-            </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <button id="openRoomModalFromQueueBtn" class="btn-link-gold" title="เปิดรหัสห้องสำหรับมือถือสแกน">📱 รีโมทมือถือ</button>
-              <button id="clearQueueBtn" class="btn-link-gold">ล้างคิว</button>
-            </div>
-          </div>
-          <div id="queueList" class="queue-list">
-            <div class="empty-queue">ไม่มีเพลงในคิว</div>
-          </div>
-        </div>
-      </section>
+            </section>
     </main>
 
     <!-- Plugin Store & Custom Loader Modal -->

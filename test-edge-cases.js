@@ -590,6 +590,47 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 16: Focus-First Workspace Architecture (Stage, Party, Studio & Collapsible Rack)
+  try {
+    console.log('\n[Edge Case 16] Verifying Focus-First Architecture & Workspace Modes...');
+    const appJs = fs.readFileSync('public/app.js', 'utf8');
+    const indexHtml = fs.readFileSync('public/index.html', 'utf8');
+    const styleCss = fs.readFileSync('public/style.css', 'utf8');
+
+    // 16a. Mode Bar and Buttons in index.html
+    if (!indexHtml.includes('workspace-mode-bar') || !indexHtml.includes('modeKaraokeBtn') || !indexHtml.includes('modePartyBtn') || !indexHtml.includes('modeStudioBtn')) {
+      throw new Error('Workspace mode bar or mode buttons missing in index.html');
+    }
+
+    // 16b. Song Queue elevated before DSP container
+    const queueIdx = indexHtml.indexOf('id="karaokeQueueCard"');
+    const dspIdx = indexHtml.indexOf('id="studioDspModulesContainer"');
+    if (queueIdx === -1 || dspIdx === -1 || queueIdx > dspIdx) {
+      throw new Error('karaokeQueueCard must exist and appear before studioDspModulesContainer in index.html');
+    }
+
+    // 16c. Studio Drawer and Quick Mic Card
+    if (!indexHtml.includes('toggleStudioDrawerBtn') || !indexHtml.includes('quickMicStatusCard')) {
+      throw new Error('toggleStudioDrawerBtn or quickMicStatusCard missing in index.html');
+    }
+
+    // 16d. CSS Mode-based visibility rules
+    if (!styleCss.includes('body.mode-karaoke #studioDspModulesContainer') || !styleCss.includes('.studio-module.collapsible')) {
+      throw new Error('Focus-first mode CSS rules missing in style.css');
+    }
+
+    // 16e. JS Controller in app.js
+    if (!appJs.includes('initWorkspaceController') || !appJs.includes('setWorkspaceMode') || !appJs.includes('toggleStudioDrawer')) {
+      throw new Error('Workspace controller functions missing in app.js');
+    }
+
+    console.log('  ✅ Passed: Stage/Party/Studio Modes, Elevated Queue & Collapsible Studio Rack verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Edge Case 16 Error:', err.message);
+    failed++;
+  }
+
   console.log('\n====================================================');
   console.log(`📊 EDGE CASE REPORT: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');

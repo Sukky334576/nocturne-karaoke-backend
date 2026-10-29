@@ -873,6 +873,13 @@ function applyVocalPreset(presetKey) {
     reverbMix.value = cfg.reverbMix;
     reverbMixText.innerText = Math.round(cfg.reverbMix * 100) + '%';
   }
+
+  const quickMicSummary = document.getElementById('quickMicSummaryText');
+  if (quickMicSummary) {
+    const revPercent = cfg.reverbMix !== undefined ? Math.round(cfg.reverbMix * 100) : 15;
+    const atText = cfg.autotuneEnabled ? 'Auto-Tune' : 'Natural';
+    quickMicSummary.textContent = 'Preset: ' + presetKey.toUpperCase() + ' | ' + atText + ' | Reverb: ' + revPercent + '%';
+  }
   if (cfg.reverbDecay !== undefined) {
     reverbDecay.value = cfg.reverbDecay;
     reverbDecayText.innerText = cfg.reverbDecay.toFixed(1) + 's';
@@ -5656,3 +5663,93 @@ if (playerCardEl) {
     }
   });
 }
+
+
+// ==========================================================================
+// FOCUS-FIRST WORKSPACE CONTROLLER
+// Stage Karaoke Mode (80%), Party Room Mode (15%), Studio Rack Mode (5%)
+// Collapsible Studio Accordions & Studio Drawer
+// ==========================================================================
+(function initWorkspaceController() {
+  const modeKaraokeBtn = document.getElementById('modeKaraokeBtn');
+  const modePartyBtn = document.getElementById('modePartyBtn');
+  const modeStudioBtn = document.getElementById('modeStudioBtn');
+  const toggleStudioDrawerBtn = document.getElementById('toggleStudioDrawerBtn');
+  const btnOpenStudioDrawerQuick = document.getElementById('btnOpenStudioDrawerQuick');
+  const drawerToggleArrow = document.getElementById('drawerToggleArrow');
+
+  function setWorkspaceMode(mode) {
+    document.body.classList.remove('mode-karaoke', 'mode-studio', 'mode-party');
+    document.body.classList.add('mode-' + mode);
+
+    const tabs = [
+      { btn: modeKaraokeBtn, name: 'karaoke' },
+      { btn: modePartyBtn, name: 'party' },
+      { btn: modeStudioBtn, name: 'studio' }
+    ];
+
+    tabs.forEach(({ btn, name }) => {
+      if (btn) {
+        const isActive = name === mode;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      }
+    });
+
+    try {
+      localStorage.setItem('nocturne_workspace_mode', mode);
+    } catch (_) {}
+
+    // When explicitly switching to Studio mode, ensure drawer class doesn't conflict
+    if (mode === 'studio') {
+      document.body.classList.remove('drawer-open');
+    }
+  }
+
+  function toggleStudioDrawer() {
+    const isOpen = document.body.classList.toggle('drawer-open');
+    if (toggleStudioDrawerBtn) {
+      toggleStudioDrawerBtn.classList.toggle('active', isOpen);
+    }
+    if (drawerToggleArrow) {
+      drawerToggleArrow.textContent = isOpen ? '▲' : '▼';
+    }
+    if (isOpen) {
+      if (typeof showHostToast === 'function') {
+        showHostToast('🎛️ เปิดแผงจูนไมค์สตูดิโอแบบด่วน');
+      }
+    }
+  }
+
+  if (modeKaraokeBtn) modeKaraokeBtn.addEventListener('click', () => setWorkspaceMode('karaoke'));
+  if (modePartyBtn) modePartyBtn.addEventListener('click', () => setWorkspaceMode('party'));
+  if (modeStudioBtn) modeStudioBtn.addEventListener('click', () => setWorkspaceMode('studio'));
+  if (toggleStudioDrawerBtn) toggleStudioDrawerBtn.addEventListener('click', toggleStudioDrawer);
+  if (btnOpenStudioDrawerQuick) btnOpenStudioDrawerQuick.addEventListener('click', toggleStudioDrawer);
+
+  // Accordion Expand/Collapse for Collapsible Modules
+  document.querySelectorAll('.studio-module.collapsible .module-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      // Do not collapse if clicked inside interactive controls
+      if (e.target.closest('input, button, select, a, label.switch, .toggle-switch, .sfx-btn')) return;
+      const module = header.closest('.studio-module');
+      if (module) {
+        const isCollapsed = module.classList.toggle('collapsed');
+        const icon = header.querySelector('.accordion-toggle-icon');
+        if (icon) {
+          icon.textContent = isCollapsed ? '▶' : '▼';
+        }
+      }
+    });
+  });
+
+  // Restore saved mode or default to 'karaoke'
+  let savedMode = 'karaoke';
+  try {
+    const stored = localStorage.getItem('nocturne_workspace_mode');
+    if (stored === 'karaoke' || stored === 'party' || stored === 'studio') {
+      savedMode = stored;
+    }
+  } catch (_) {}
+  setWorkspaceMode(savedMode);
+})();
