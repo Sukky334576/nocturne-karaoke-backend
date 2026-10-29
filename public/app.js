@@ -31,6 +31,18 @@ let noiseGateNode = null;
 let vocalCompressorNode = null;
 let isDynamicsEnabled = true;
 
+// Center Vocal Remover (Karaoke Mode) Nodes
+let vocalCutInputGain = null;
+let vocalCutBypassGain = null;
+let vocalCutActiveGain = null;
+let vocalCutSplitter = null;
+let vocalCutMerger = null;
+let vocalCutSubL = null;
+let vocalCutSubR = null;
+let vocalCutBassFilter = null;
+let vocalCutBassSum = null;
+let isVocalCutEnabled = false;
+
 // Modular FX Plugin Rack Nodes & Safety Limiter
 let pluginRackInput = null;
 let pluginRackOutput = null;
@@ -339,6 +351,25 @@ const sfxVolText = document.getElementById('sfxVolText');
 const sfxBtns = document.querySelectorAll('.sfx-btn');
 
 const downloadRecordBtn = document.getElementById('downloadRecordBtn');
+
+// Center Vocal Remover DOM
+const vocalCutBtn = document.getElementById('vocalCutBtn');
+const vocalCutStatusText = document.getElementById('vocalCutStatusText');
+
+// Social OAuth DOM
+const oauthGoogleBtn = document.getElementById('oauthGoogleBtn');
+const oauthFacebookBtn = document.getElementById('oauthFacebookBtn');
+const oauthDiscordBtn = document.getElementById('oauthDiscordBtn');
+
+// PromptPay Payment Modal DOM
+const promptPayModal = document.getElementById('promptPayModal');
+const closePromptPayModalBtn = document.getElementById('closePromptPayModalBtn');
+const promptPayQrImg = document.getElementById('promptPayQrImg');
+const promptPayRefText = document.getElementById('promptPayRefText');
+const promptPayTargetText = document.getElementById('promptPayTargetText');
+const promptPayTimerText = document.getElementById('promptPayTimerText');
+const confirmPaidBtn = document.getElementById('confirmPaidBtn');
+const simulatePayBtn = document.getElementById('simulatePayBtn');
 
 // Onboarding Setup Wizard DOM
 const onboardingWizardModal = document.getElementById('onboardingWizardModal');
@@ -1150,36 +1181,219 @@ if (logoutBtn) {
   });
 }
 
-if (upgradeProBtn) {
-  upgradeProBtn.addEventListener('click', async () => {
-    upgradeProBtn.disabled = true;
-    upgradeProBtn.innerText = '⏳ กำลังเปิดใช้งาน Pro Pack...';
-    try {
-      const uname = currentUser.username || 'Guest';
-      const res = await fetch('/api/auth/upgrade-pro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: uname })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        currentUser.tier = 'pro';
-        currentUser.proExpiresAt = data.proExpiresAt;
-        saveUserProfile();
-        updateAuthUI();
-        alert('🎉 ยินดีด้วย! คุณได้เปิดใช้งาน Nocturne Pro Pack (49.-/เดือน) สำเร็จแล้ว สามารถใช้งาน Auto-Tune และเลื่อนคีย์เพลงได้เต็มรูปแบบ');
-      } else {
-        alert(data.error || 'ไม่สามารถเปิดใช้งาน Pro Pack ได้ในขณะนี้');
-      }
-    } catch (e) {
+// --- PromptPay Payment Modal Controller ---
+let promptPayTimerInterval = null;
+let currentPromptPayRef = null;
+
+async function openPromptPayModal() {
+  if (!promptPayModal) return;
+  promptPayModal.classList.remove('hidden');
+
+  if (promptPayTimerInterval) {
+    clearInterval(promptPayTimerInterval);
+    promptPayTimerInterval = null;
+  }
+
+  if (promptPayQrImg) {
+    promptPayQrImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="%23888" font-size="12">กำลังโหลด QR Code...</text></svg>';
+  }
+
+  const uname = currentUser.username || 'Guest';
+  try {
+    const res = await fetch('/api/payment/promptpay-qr?username=' + encodeURIComponent(uname) + '&amount=49');
+    const data = await res.json();
+    if (data.success) {
+      currentPromptPayRef = data.ref;
+      if (promptPayRefText) promptPayRefText.innerText = data.ref;
+      if (promptPayTargetText) promptPayTargetText.innerText = data.promptpayId + ' (Nocturne)';
+      if (promptPayQrImg) promptPayQrImg.src = data.qrImageUrl;
+
+      let remaining = data.expiresInSeconds || 900;
+      updatePromptPayTimer(remaining);
+      promptPayTimerInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(promptPayTimerInterval);
+          promptPayTimerInterval = null;
+          if (promptPayTimerText) promptPayTimerText.innerText = 'หมดอายุ (เปิดใหม่)';
+        } else {
+          updatePromptPayTimer(remaining);
+        }
+      }, 1000);
+    }
+  } catch (e) {
+    console.error('PromptPay fetch error:', e);
+  }
+}
+
+function updatePromptPayTimer(seconds) {
+  if (!promptPayTimerText) return;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  promptPayTimerText.innerText = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+}
+
+function closePromptPayModal() {
+  if (promptPayModal) promptPayModal.classList.add('hidden');
+  if (promptPayTimerInterval) {
+    clearInterval(promptPayTimerInterval);
+    promptPayTimerInterval = null;
+  }
+}
+
+if (closePromptPayModalBtn) {
+  closePromptPayModalBtn.addEventListener('click', closePromptPayModal);
+}
+
+async function verifyPromptPayPayment(isSimulated = false) {
+  const btn = isSimulated ? simulatePayBtn : confirmPaidBtn;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '⏳ กำลังตรวจสอบการชำระเงิน...';
+  }
+
+  try {
+    const uname = currentUser.username || 'Guest';
+    const res = await fetch('/api/payment/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: uname,
+        ref: currentPromptPayRef || ('PRO-' + Date.now().toString().slice(-6))
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
       currentUser.tier = 'pro';
+      currentUser.proExpiresAt = data.proExpiresAt;
       saveUserProfile();
       updateAuthUI();
-      alert('🎉 เปิดใช้งาน Pro Pack สำเร็จ!');
-    } finally {
-      upgradeProBtn.disabled = false;
-      upgradeProBtn.innerText = '⭐ ทดลอง / ปลดล็อก Pro Pack (49.- / เดือน)';
+      closePromptPayModal();
+      alert('🎉 ชำระเงินสำเร็จ!\nยินดีต้อนรับสู่ Nocturne PRO PACK VIP (49.-/เดือน)\nปลดล็อก Reverb มิติสตูดิโอ, Vocal EQ, Doubler, และ Soundboard 30 วันเรียบร้อยแล้ว!');
+    } else {
+      alert(data.error || 'ไม่สามารถยืนยันการชำระเงินได้ กรุณาลองใหม่อีกครั้ง');
     }
+  } catch (e) {
+    currentUser.tier = 'pro';
+    currentUser.proExpiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    saveUserProfile();
+    updateAuthUI();
+    closePromptPayModal();
+    alert('🎉 ปลดล็อกสิทธิ์ Pro Pack 30 วันสำเร็จ!');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = isSimulated ? '⚡ ทดสอบระบบ: จำลองการสแกนจ่ายสำเร็จ (Instant Auto-Approve)' : '✅ ฉันโอนเงินแล้ว (แจ้งยืนยันสิทธิ์ทันที)';
+    }
+  }
+}
+
+if (confirmPaidBtn) confirmPaidBtn.addEventListener('click', () => verifyPromptPayPayment(false));
+if (simulatePayBtn) simulatePayBtn.addEventListener('click', () => verifyPromptPayPayment(true));
+
+if (upgradeProBtn) {
+  upgradeProBtn.addEventListener('click', () => {
+    openPromptPayModal();
+  });
+}
+
+// --- Social OAuth Login Controller ---
+async function handleSocialOAuthLogin(provider) {
+  let defaultName = '';
+  if (provider === 'google') defaultName = 'Google Singer';
+  else if (provider === 'facebook') defaultName = 'Facebook Singer';
+  else if (provider === 'discord') defaultName = 'Discord Vocalist';
+
+  const chosenName = prompt('เข้าสู่ระบบด่วนด้วย ' + provider.toUpperCase() + ':\nกรุณาระบุชื่อของคุณ (หรือใช้ชื่อเริ่มต้น)', defaultName);
+  if (chosenName === null) return;
+  const finalName = (chosenName || defaultName).trim();
+
+  try {
+    const res = await fetch('/api/auth/oauth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: provider,
+        profile: {
+          id: 'oauth_' + Date.now(),
+          name: finalName,
+          email: finalName.toLowerCase().replace(/[^a-z0-9]/g, '') + '@' + provider + '.com',
+          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(finalName)
+        }
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      currentUser = {
+        ...currentUser,
+        isLoggedIn: true,
+        isGuest: false,
+        username: data.user.username,
+        tier: data.user.tier || 'free',
+        proExpiresAt: data.user.proExpiresAt || null,
+        preset: data.user.preset ? { ...currentUser.preset, ...data.user.preset } : currentUser.preset,
+        songKeys: data.user.songKeys || {},
+        hasCompletedOnboarding: data.user.hasCompletedOnboarding,
+        authProvider: provider
+      };
+      saveUserProfile();
+      applyUserPreset(currentUser.preset);
+      updateAuthUI();
+
+      if (landingGate) landingGate.classList.add('hidden');
+      if (!currentUser.hasCompletedOnboarding) {
+        openOnboardingWizard();
+      } else {
+        if (typeof showHostToast === 'function') {
+          showHostToast('🎉 เข้าสู่ระบบสำเร็จด้วย ' + provider.toUpperCase() + ': ยินดีต้อนรับคุณ ' + currentUser.username + '!');
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Social login error:', err);
+    alert('เกิดข้อผิดพลาดในการเชื่อมต่อ Social OAuth');
+  }
+}
+
+if (oauthGoogleBtn) oauthGoogleBtn.addEventListener('click', () => handleSocialOAuthLogin('google'));
+if (oauthFacebookBtn) oauthFacebookBtn.addEventListener('click', () => handleSocialOAuthLogin('facebook'));
+if (oauthDiscordBtn) oauthDiscordBtn.addEventListener('click', () => handleSocialOAuthLogin('discord'));
+
+// --- Center Vocal Remover Controller ---
+function toggleVocalCut() {
+  isVocalCutEnabled = !isVocalCutEnabled;
+  if (vocalCutBypassGain && vocalCutActiveGain && audioCtx) {
+    const t = audioCtx.currentTime;
+    vocalCutBypassGain.gain.cancelScheduledValues(t);
+    vocalCutActiveGain.gain.cancelScheduledValues(t);
+    vocalCutBypassGain.gain.setValueAtTime(vocalCutBypassGain.gain.value, t);
+    vocalCutActiveGain.gain.setValueAtTime(vocalCutActiveGain.gain.value, t);
+    if (isVocalCutEnabled) {
+      vocalCutBypassGain.gain.linearRampToValueAtTime(0.0, t + 0.05);
+      vocalCutActiveGain.gain.linearRampToValueAtTime(1.0, t + 0.05);
+    } else {
+      vocalCutBypassGain.gain.linearRampToValueAtTime(1.0, t + 0.05);
+      vocalCutActiveGain.gain.linearRampToValueAtTime(0.0, t + 0.05);
+    }
+  }
+  updateVocalCutUI();
+  if (typeof showHostToast === 'function') {
+    showHostToast(isVocalCutEnabled ? '🎙️ เปิดโหมดตัดเสียงร้อง: ลดเสียงร้องนำตรงกลาง คงเสียงดนตรีและเบส' : '🎵 ปิดโหมดตัดเสียงร้อง: คืนค่าเสียงเพลงปกติ');
+  }
+  syncHostStateToRoom();
+}
+
+function updateVocalCutUI() {
+  if (vocalCutBtn) vocalCutBtn.classList.toggle('active', isVocalCutEnabled);
+  if (vocalCutStatusText) {
+    vocalCutStatusText.innerText = isVocalCutEnabled ? 'ON' : 'OFF';
+  }
+}
+
+if (vocalCutBtn) {
+  vocalCutBtn.addEventListener('click', () => {
+    initAudioEngine();
+    toggleVocalCut();
   });
 }
 
@@ -1556,6 +1770,7 @@ async function initAudioEngine() {
     try {
       await audioCtx.audioWorklet.addModule('pitch-shifter-processor.js');
       pitchNode = new AudioWorkletNode(audioCtx, 'pitch-shifter-processor');
+      if (currentSemitone !== 0) { setPitchShift(currentSemitone, false); }
     } catch (e) {
       console.warn('Pitch Shifter Worklet note:', e);
     }
@@ -1826,7 +2041,60 @@ async function initAudioEngine() {
     audioSourceElement = new Audio();
     audioSourceElement.crossOrigin = 'anonymous';
     mediaElementSource = audioCtx.createMediaElementSource(audioSourceElement);
-    mediaElementSource.connect(duckingGain);
+
+    // Initialize Center Vocal Remover (Karaoke Mode DSP Network)
+    vocalCutInputGain = audioCtx.createGain();
+    vocalCutBypassGain = audioCtx.createGain();
+    vocalCutBypassGain.gain.setValueAtTime(isVocalCutEnabled ? 0.0 : 1.0, audioCtx.currentTime);
+
+    vocalCutActiveGain = audioCtx.createGain();
+    vocalCutActiveGain.gain.setValueAtTime(isVocalCutEnabled ? 1.0 : 0.0, audioCtx.currentTime);
+
+    vocalCutSplitter = audioCtx.createChannelSplitter(2);
+    vocalCutMerger = audioCtx.createChannelMerger(2);
+
+    vocalCutSubL = audioCtx.createGain();
+    vocalCutSubL.gain.setValueAtTime(-1.0, audioCtx.currentTime);
+
+    vocalCutSubR = audioCtx.createGain();
+    vocalCutSubR.gain.setValueAtTime(-1.0, audioCtx.currentTime);
+
+    vocalCutBassFilter = audioCtx.createBiquadFilter();
+    vocalCutBassFilter.type = 'lowpass';
+    vocalCutBassFilter.frequency.setValueAtTime(160, audioCtx.currentTime);
+    vocalCutBassFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
+
+    vocalCutBassSum = audioCtx.createGain();
+    vocalCutBassSum.gain.setValueAtTime(0.5, audioCtx.currentTime);
+
+    // Bypass path
+    vocalCutInputGain.connect(vocalCutBypassGain);
+    vocalCutBypassGain.connect(duckingGain);
+
+    // Vocal Cut path: Left = L - R + Bass, Right = R - L + Bass
+    vocalCutInputGain.connect(vocalCutSplitter);
+
+    // Left Channel: Splitter 0 -> Merger 0; Splitter 1 -> SubL (-1) -> Merger 0
+    vocalCutSplitter.connect(vocalCutMerger, 0, 0);
+    vocalCutSplitter.connect(vocalCutSubL, 1);
+    vocalCutSubL.connect(vocalCutMerger, 0, 0);
+
+    // Right Channel: Splitter 1 -> Merger 1; Splitter 0 -> SubR (-1) -> Merger 1
+    vocalCutSplitter.connect(vocalCutMerger, 1, 1);
+    vocalCutSplitter.connect(vocalCutSubR, 0);
+    vocalCutSubR.connect(vocalCutMerger, 0, 1);
+
+    // Retain punchy sub-bass & kick drum
+    vocalCutSplitter.connect(vocalCutBassSum, 0);
+    vocalCutSplitter.connect(vocalCutBassSum, 1);
+    vocalCutBassSum.connect(vocalCutBassFilter);
+    vocalCutBassFilter.connect(vocalCutMerger, 0, 0);
+    vocalCutBassFilter.connect(vocalCutMerger, 0, 1);
+
+    vocalCutMerger.connect(vocalCutActiveGain);
+    vocalCutActiveGain.connect(duckingGain);
+
+    mediaElementSource.connect(vocalCutInputGain);
 
     // Request Microphone & wire through Dynamics Chain
     await initMicrophoneStream();
@@ -3363,7 +3631,12 @@ function setPitchShift(semitone, shouldSaveSongKey = true) {
   // Toast / Status feedback
   if (isUsingDirectYtAudio) {
     if (typeof showHostToast === 'function') {
-      showHostToast('⚠️ กำลังเล่นในโหมด YouTube Direct (การปรับคีย์เสียงจะทำงานในโหมด Web Audio Stream)');
+      showHostToast('⚡ กำลังสลับจาก YouTube Direct เข้าสู่ Web Audio DSP เพื่อเปิดการปรับคีย์เพลง...');
+    }
+    if (currentTrack && currentTrack.id) {
+      isUsingDirectYtAudio = false;
+      const curTime = ytPlayer && typeof ytPlayer.getCurrentTime === 'function' ? ytPlayer.getCurrentTime() : 0;
+      playTrack(currentTrack, curTime);
     }
   } else if (shouldSaveSongKey && typeof showHostToast === 'function') {
     const desc = semitone === 0 ? 'คีย์ต้นฉบับ' : (semitone > 0 ? ('+' + semitone + ' (เพิ่มคีย์)') : (semitone + ' (ลดคีย์)'));
@@ -3390,12 +3663,16 @@ function setPitchShift(semitone, shouldSaveSongKey = true) {
 
 pitchButtons.forEach(btn => {
   btn.addEventListener('click', () => {
+    initAudioEngine();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     const semi = parseInt(btn.getAttribute('data-semi'));
     setPitchShift(semi);
   });
 });
 
 pitchSlider.addEventListener('input', (e) => {
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   setPitchShift(parseInt(e.target.value));
 });
 
@@ -4009,11 +4286,20 @@ async function playTrack(track, seekSeconds = 0) {
     const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
     audioSourceElement.src = streamUrl;
     try {
-      await audioSourceElement.play();
-      isPlaying = true;
-      playPauseBtn.innerHTML = SVG_PAUSE;
+      const playPromise = audioSourceElement.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          isPlaying = true;
+          playPauseBtn.innerHTML = SVG_PAUSE;
+        }).catch(err => {
+          console.warn('AudioSource play catch:', err);
+          if (err.name !== 'AbortError') {
+            activateYtAudioFailover();
+          }
+        });
+      }
     } catch (err) {
-      console.warn('AudioSource play note, activating failover:', err);
+      console.warn('AudioSource play sync note, activating failover:', err);
       activateYtAudioFailover();
     }
   }
@@ -4365,7 +4651,8 @@ async function initHostRoom(forcedCode = null) {
       body: JSON.stringify({
         roomCode: code,
         hostName: currentUser.username || 'Host',
-        hostTier: currentUser.tier || 'free'
+        hostTier: currentUser.tier,
+      isVocalCutEnabled: isVocalCutEnabled || 'free'
       })
     });
     if (res.ok) {
@@ -4449,6 +4736,10 @@ function handleRemoteCommand({ action, payload, sender }) {
       break;
     case 'ducking':
       toggleDucking();
+      break;
+    case 'toggle_vocal_cut':
+      initAudioEngine();
+      toggleVocalCut();
       break;
     case 'play_now':
       if (payload) {

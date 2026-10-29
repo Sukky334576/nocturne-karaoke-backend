@@ -414,6 +414,23 @@
       border-color: var(--garnet-bright);
     }
 
+    .ctrl-btn-vocalcut {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: #b39ddb;
+      padding: 0 12px;
+      width: auto;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .ctrl-btn-vocalcut.active {
+      background: #5e35b1;
+      color: #fff;
+      border-color: #b39ddb;
+      box-shadow: 0 0 12px rgba(179, 157, 219, 0.4);
+    }
+
     /* Search View */
     .search-panel {
       display: flex;
@@ -689,6 +706,7 @@
         <button id="btnPlayPause" class="ctrl-btn ctrl-btn-play" title="เล่น/หยุด">▶</button>
         <button id="btnNext" class="ctrl-btn" title="เพลงถัดไป">⏭</button>
         <button id="btnDucking" class="ctrl-btn ctrl-btn-ducking" title="กดเพื่อเบาเสียงเพลงเวลาคุย">🎙️ Ducking</button>
+        <button id="btnVocalCut" class="ctrl-btn ctrl-btn-vocalcut" title="ตัดเสียงร้องนำตรงกลาง (Karaoke Mode)">✂️ ตัดเสียงร้อง</button>
       </section>
 
       <!-- Tab Navigation -->
@@ -796,6 +814,7 @@
     const btnNext = document.getElementById('btnNext');
     const btnPrev = document.getElementById('btnPrev');
     const btnDucking = document.getElementById('btnDucking');
+    const btnVocalCut = document.getElementById('btnVocalCut');
 
     const tabSearch = document.getElementById('tabSearch');
     const tabQueue = document.getElementById('tabQueue');
@@ -983,6 +1002,11 @@
       // Play/Pause button
       btnPlayPause.innerHTML = state.isPlaying ? '⏸' : '▶';
 
+      // Reflect Vocal Cut state from Host
+      if (btnVocalCut && state.isVocalCutEnabled !== undefined) {
+        btnVocalCut.classList.toggle('active', !!state.isVocalCutEnabled);
+      }
+
       // Reflect allowRemoteControl state
       const isAllowed = (state.allowRemoteControl !== false);
       const ctrlGroup = document.querySelector('.playback-bar') || document.querySelector('.player-ctrl-group');
@@ -1122,6 +1146,16 @@
         showToast(btnDucking.classList.contains('active') ? 'โหมดพูดคุย (Ducked)' : 'โหมดร้องเพลง');
       }
     });
+
+    if (btnVocalCut) {
+      btnVocalCut.addEventListener('click', async () => {
+        const ok = await sendControl('toggle_vocal_cut');
+        if (ok) {
+          btnVocalCut.classList.toggle('active');
+          showToast(btnVocalCut.classList.contains('active') ? '🎙️ เปิดโหมดตัดเสียงร้อง' : '🎵 คืนค่าเสียงเพลงปกติ');
+        }
+      });
+    }
 
     // YouTube Search
     searchBtn.addEventListener('click', performSearch);

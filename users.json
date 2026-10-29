@@ -62,5 +62,36 @@
     "hasCompletedOnboarding": true,
     "createdAt": 1729000000000,
     "lastLogin": 1729000000000
+  },
+  "testsinger": {
+    "username": "TestSinger",
+    "password": "",
+    "tier": "pro",
+    "preset": {},
+    "songKeys": {},
+    "hasCompletedOnboarding": true,
+    "createdAt": 1793289077718,
+    "proExpiresAt": 1795881077718,
+    "lastActive": 1793289077718
+  },
+  "oauth rocker": {
+    "username": "OAuth Rocker",
+    "password": "",
+    "email": "rocker@example.com",
+    "avatar": "https://example.com/avatar.jpg",
+    "authProvider": "google",
+    "providerId": "google-uid-12345",
+    "tier": "free",
+    "proExpiresAt": null,
+    "preset": {
+      "syncOffsetMs": 120,
+      "reverbMix": 0.25,
+      "reverbDecay": 1.8,
+      "roomSize": 2
+    },
+    "songKeys": {},
+    "hasCompletedOnboarding": false,
+    "createdAt": 1793289077720,
+    "lastLogin": 1793289077720
   }
 }

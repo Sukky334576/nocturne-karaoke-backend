@@ -2209,3 +2209,79 @@ kbd {
   color: #f4e6c3;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
+
+
+/* Center Vocal Remover (Karaoke Mode) */
+.btn-vocal-cut {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-vocal-cut:hover {
+  background: rgba(216, 177, 93, 0.1);
+  border-color: rgba(216, 177, 93, 0.4);
+  color: #fff;
+}
+
+.btn-vocal-cut.active {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #fca5a5;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-vocal-cut.active svg {
+  color: #ef4444;
+}
+
+.vocal-cut-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.btn-vocal-cut.active .vocal-cut-badge {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* Social OAuth Buttons */
+.btn-social {
+  transition: all 0.2s ease;
+}
+
+.btn-social:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.2);
+}
+
+.btn-social:active {
+  transform: translateY(0);
+}
+
+/* PromptPay Modal & QR Styling */
+.promptpay-qr-box {
+  animation: pulse-qr 4s ease-in-out infinite;
+}
+
+@keyframes pulse-qr {
+  0%, 100% {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+  }
+  50% {
+    box-shadow: 0 10px 35px rgba(74, 222, 128, 0.3);
+  }
+}

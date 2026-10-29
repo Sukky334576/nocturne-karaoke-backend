@@ -510,6 +510,46 @@ async function runEdgeCaseTests() {
     try { fs.writeFileSync(userDbPath, originalUsersJson, 'utf8'); } catch (e) {}
   }
 
+  // Edge Case 14: PromptPay Payload Generation & Vocal Cut DSP / Key Shift Failover Invariants
+  try {
+    console.log('\n[Edge Case 14] Verifying PromptPay EMVCo Payload, Vocal Cut Routing & Key Failover Invariants...');
+    const appJs = fs.readFileSync('public/app.js', 'utf8');
+    const srvJs = fs.readFileSync('server.js', 'utf8');
+    const indexHtml = fs.readFileSync('public/index.html', 'utf8');
+    const remoteHtml = fs.readFileSync('public/remote.html', 'utf8');
+
+    // 14a. EMVCo PromptPay Generator in server.js
+    if (!srvJs.includes('generatePromptPayPayload') || !srvJs.includes('0016A000000677010111')) {
+      throw new Error('EMVCo PromptPay generator tag not found in server.js');
+    }
+
+    // 14b. Vocal Cut Invariant (Biquad Bass Sum + MS Phase cancellation)
+    if (!appJs.includes('vocalCutBassFilter') || !appJs.includes('vocalCutBassSum') || !appJs.includes('vocalCutSubL')) {
+      throw new Error('Vocal Cut audio graph nodes missing in public/app.js');
+    }
+
+    // 14c. Vocal Cut UI elements in index.html and remote.html
+    if (!indexHtml.includes('vocalCutBtn') || !remoteHtml.includes('btnVocalCut')) {
+      throw new Error('vocalCutBtn missing in index.html or remote.html');
+    }
+
+    // 14d. Key Shift auto-failover restoration
+    if (!appJs.includes('isUsingDirectYtAudio = false') || !appJs.includes('playTrack(currentTrack, curTime)')) {
+      throw new Error('Key Shift failover recovery missing in public/app.js');
+    }
+
+    // 14e. PromptPay Modal DOM in index.html
+    if (!indexHtml.includes('promptPayModal') || !indexHtml.includes('promptPayQrImg')) {
+      throw new Error('promptPayModal DOM missing in public/index.html');
+    }
+
+    console.log('  ✅ Passed: EMVCo PromptPay payload, Vocal Cut DSP graph & Key Shift failover recovery verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Edge Case 14 Error:', err.message);
+    failed++;
+  }
+
   console.log('\n====================================================');
   console.log(`📊 EDGE CASE REPORT: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');

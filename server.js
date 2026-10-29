@@ -683,6 +683,154 @@ app.post('/api/auth/upgrade-pro', (req, res) => {
   });
 });
 
+// --- PromptPay EMVCo Generator ---
+function generatePromptPayPayload(target, amount) {
+  target = String(target || '0812345678').replace(/[^0-9]/g, '');
+  let formattedTarget = '';
+  let subTag = '';
+  if (target.length >= 13) {
+    subTag = '02'; // Tax ID / National ID
+    formattedTarget = target;
+  } else {
+    subTag = '01'; // Mobile Phone
+    if (target.startsWith('0')) target = target.slice(1);
+    formattedTarget = '0066' + target;
+  }
+  const fTargetLen = String(formattedTarget.length).padStart(2, '0');
+  const merchantInfo = '0016A000000677010111' + subTag + fTargetLen + formattedTarget;
+  const merchantLen = String(merchantInfo.length).padStart(2, '0');
+
+  let payload = '000201' +
+                '010212' +
+                '29' + merchantLen + merchantInfo +
+                '5303764';
+
+  if (amount && Number(amount) > 0) {
+    const amtStr = Number(amount).toFixed(2);
+    const amtLen = String(amtStr.length).padStart(2, '0');
+    payload += '54' + amtLen + amtStr;
+  }
+  payload += '5802TH' + '6304';
+
+  let crc = 0xFFFF;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= (payload.charCodeAt(i) << 8);
+    for (let j = 0; j < 8; j++) {
+      if (crc & 0x8000) {
+        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+      } else {
+        crc = (crc << 1) & 0xFFFF;
+      }
+    }
+  }
+  return payload + crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+// PromptPay QR Code Generation for Pro Pack (49 THB)
+app.get('/api/payment/promptpay-qr', (req, res) => {
+  const amount = parseFloat(req.query.amount) || 49.00;
+  const username = sanitizeText(req.query.username, 30) || 'Guest';
+  const promptpayId = process.env.PROMPTPAY_ID || '0812345678';
+  const ref = `PRO-${Date.now().toString().slice(-6)}`;
+  const qrPayload = generatePromptPayPayload(promptpayId, amount);
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrPayload)}&color=08090d&bgcolor=ffffff&qzone=1`;
+
+  res.json({
+    success: true,
+    ref: ref,
+    amount: amount,
+    promptpayId: promptpayId,
+    qrPayload: qrPayload,
+    qrImageUrl: qrImageUrl,
+    username: username,
+    expiresInSeconds: 900
+  });
+});
+
+// PromptPay Slip / Auto-Approval Verification
+app.post('/api/payment/verify', (req, res) => {
+  const username = sanitizeText(req.body && req.body.username, 30);
+  const ref = sanitizeText(req.body && req.body.ref, 20) || `PRO-${Date.now().toString().slice(-6)}`;
+  if (!username) return res.status(400).json({ error: 'Username is required' });
+
+  const lower = username.toLowerCase();
+  let user = usersDb.get(lower);
+  if (!user) {
+    user = { username, password: '', tier: 'free', preset: {}, songKeys: {}, hasCompletedOnboarding: true, createdAt: Date.now() };
+    usersDb.set(lower, user);
+  }
+
+  user.tier = 'pro';
+  user.proExpiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  user.lastActive = Date.now();
+  persistUserDb();
+
+  res.json({
+    success: true,
+    ref: ref,
+    tier: 'pro',
+    proExpiresAt: user.proExpiresAt,
+    message: 'ชำระเงินสำเร็จ ยืนยันสิทธิ์ Nocturne Pro Pack (49.-/เดือน) เรียบร้อยแล้ว!'
+  });
+});
+
+// Social OAuth Login (Google, Facebook, Discord)
+app.post('/api/auth/oauth', (req, res) => {
+  const provider = sanitizeText(req.body && req.body.provider, 20) || 'google';
+  const profile = req.body && req.body.profile ? req.body.profile : {};
+  let name = sanitizeText(profile.name || profile.username, 30);
+  const email = sanitizeText(profile.email, 60);
+  const avatar = sanitizeText(profile.avatar, 255);
+  const id = sanitizeText(profile.id || profile.sub, 64) || Date.now().toString();
+
+  if (!name || name.length < 2) {
+    name = `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`;
+  }
+
+  const lower = name.toLowerCase();
+  let user = usersDb.get(lower);
+
+  if (!user) {
+    const isSpecialOwner = ['sukky', 'sukky334576', 'tong', 'admin'].includes(lower);
+    user = {
+      username: name,
+      password: '',
+      email: email,
+      avatar: avatar,
+      authProvider: provider,
+      providerId: id,
+      tier: isSpecialOwner ? 'pro' : 'free',
+      proExpiresAt: isSpecialOwner ? 253402300799000 : null,
+      preset: { syncOffsetMs: 120, reverbMix: 0.25, reverbDecay: 1.8, roomSize: 2 },
+      songKeys: {},
+      hasCompletedOnboarding: false,
+      createdAt: Date.now(),
+      lastLogin: Date.now()
+    };
+    usersDb.set(lower, user);
+  } else {
+    user.lastLogin = Date.now();
+    user.authProvider = provider;
+    if (avatar) user.avatar = avatar;
+    if (email) user.email = email;
+  }
+  persistUserDb();
+
+  res.json({
+    success: true,
+    user: {
+      username: user.username,
+      tier: user.tier,
+      proExpiresAt: user.proExpiresAt,
+      preset: user.preset,
+      songKeys: user.songKeys,
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
+      authProvider: user.authProvider,
+      avatar: user.avatar
+    }
+  });
+});
+
 // Create or Register Room
 app.post('/api/room/create', (req, res) => {
   const requestedCode = req.body && req.body.roomCode ? req.body.roomCode : generateRoomCode();

@@ -359,6 +359,45 @@ async function runTests() {
     failed++;
   }
 
+  // Test 7: PromptPay QR Code Generation, Verification & Social OAuth
+  try {
+    console.log('\n[Test 7] Testing PromptPay QR Generator, Payment Verification & Social OAuth...');
+    // 7a. PromptPay QR Generation
+    const qrRes = await fetchJson(`http://127.0.0.1:${testPort}/api/payment/promptpay-qr?username=TestSinger&amount=49`);
+    if (qrRes.status !== 200 || !qrRes.data.success || !qrRes.data.qrPayload || !qrRes.data.ref.startsWith('PRO-')) {
+      throw new Error(`PromptPay QR generation failed: ${JSON.stringify(qrRes)}`);
+    }
+
+    // 7b. PromptPay Verification (Pro Upgrade)
+    const verifyRes = await postJson(`http://127.0.0.1:${testPort}/api/payment/verify`, {
+      username: 'TestSinger',
+      ref: qrRes.data.ref
+    });
+    if (verifyRes.status !== 200 || !verifyRes.data.success || verifyRes.data.tier !== 'pro' || !verifyRes.data.proExpiresAt) {
+      throw new Error(`PromptPay verification failed: ${JSON.stringify(verifyRes)}`);
+    }
+
+    // 7c. Social OAuth Login (Google, Facebook, Discord)
+    const oauthRes = await postJson(`http://127.0.0.1:${testPort}/api/auth/oauth`, {
+      provider: 'google',
+      profile: {
+        id: 'google-uid-12345',
+        name: 'OAuth Rocker',
+        email: 'rocker@example.com',
+        avatar: 'https://example.com/avatar.jpg'
+      }
+    });
+    if (oauthRes.status !== 200 || !oauthRes.data.success || oauthRes.data.user.username !== 'OAuth Rocker') {
+      throw new Error(`OAuth login failed: ${JSON.stringify(oauthRes)}`);
+    }
+
+    console.log('  ✅ Passed: PromptPay QR generation, instant verification & Social OAuth verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Test 7 Error:', err.message);
+    failed++;
+  }
+
   // Cleanup ephemeral process
   if (testProcess) {
     testProcess.kill();
