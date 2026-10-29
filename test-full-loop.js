@@ -398,6 +398,41 @@ async function runTests() {
     failed++;
   }
 
+  // Test 8: Synced Lyrics API, Room Live Reactions & Fast-Pass Tips
+  try {
+    console.log('\n[Test 8] Testing Synced Lyrics API, Live Reactions & VIP Tip Superchat...');
+    // 8a. Synced Lyrics API
+    const lyricsRes = await fetchJson(`http://127.0.0.1:${testPort}/api/lyrics?q=LOSO+%E0%B9%83%E0%B8%88%E0%B8%AA%E0%B8%B1%E0%B9%88%E0%B8%87%E0%B8%A1%E0%B8%B2`);
+    if (lyricsRes.status !== 200 || !lyricsRes.data) {
+      throw new Error(`Lyrics query failed: ${JSON.stringify(lyricsRes)}`);
+    }
+
+    // 8b. Room Live Reaction Broadcast
+    const reactionRes = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/reaction`, {
+      emoji: '🔥',
+      sender: 'MobileRocker'
+    });
+    if (reactionRes.status !== 200 || !reactionRes.data.success) {
+      throw new Error(`Reaction broadcast failed: ${JSON.stringify(reactionRes)}`);
+    }
+
+    // 8c. VIP Fast-Pass Tip & Superchat
+    const tipRes = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/tip`, {
+      sender: 'VIP Fan',
+      amount: 50,
+      message: 'ขอเพลงร็อคหน่อยค้าบ!'
+    });
+    if (tipRes.status !== 200 || !tipRes.data.success || tipRes.data.amount !== 50) {
+      throw new Error(`Tip broadcast failed: ${JSON.stringify(tipRes)}`);
+    }
+
+    console.log('  ✅ Passed: Synced Lyrics, Live Emoji Reactions & Fast-Pass VIP Superchats verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Test 8 Error:', err.message);
+    failed++;
+  }
+
   // Cleanup ephemeral process
   if (testProcess) {
     testProcess.kill();

@@ -121,6 +121,8 @@
                 </span>
                 <input type="text" id="searchInput" placeholder="ค้นหาเพลง หรือวางลิงก์ YouTube..." autocomplete="off">
                 <button id="searchBtn" class="btn-search-compact">ค้นหา</button>
+                <button id="btnLocalAudio" type="button" class="btn-search-compact" style="background: rgba(255,255,255,0.08); margin-left: 4px;" title="เปิดไฟล์เสียงจากเครื่องคอมพิวเตอร์ (MP3, WAV, FLAC)">📂 เล่นไฟล์</button>
+                <input type="file" id="localAudioInput" accept="audio/*" style="display: none;">
               </div>
               <div id="searchResults" class="search-results-dropdown hidden"></div>
             </div>
@@ -140,6 +142,22 @@
               </div>
             </div>
             <div id="ytPlayerDiv" class="video-iframe hidden"></div>
+            <!-- Canvas for Floating Live Emoji Reactions -->
+            <canvas id="reactionCanvas" class="reaction-canvas"></canvas>
+
+            <!-- Real-Time Synced Lyrics Teleprompter Overlay -->
+            <div id="lyricsOverlay" class="lyrics-overlay-container hidden">
+              <div class="lyrics-header">
+                <div class="lyrics-title-group">
+                  <span class="lyrics-badge-live">LIVE SYNC</span>
+                  <span id="lyricsSongTitle" style="font-size: 13px; font-weight: 600; color: #fff;">-</span>
+                </div>
+                <button id="closeLyricsBtn" style="color: #fff; background: transparent; border: none; font-size: 16px; cursor: pointer; padding: 4px;" title="ปิดหน้าต่างเนื้อเพลง">✕</button>
+              </div>
+              <div id="lyricsScrollBox" class="lyrics-scroll-box">
+                <div class="lyrics-line active">กำลังโหลดเนื้อเพลงสด...</div>
+              </div>
+            </div>
           </div>
 
           <!-- Track Info, Quick Dual Music Volume & Controls -->
@@ -178,6 +196,18 @@
                 <span>ตัดเสียงร้อง:</span>
                 <span id="vocalCutStatusText" class="vocal-cut-badge mono-num">OFF</span>
               </button>
+
+              <!-- Synced Lyrics Toggle Button -->
+              <button id="btnLyricsToggle" type="button" class="btn-lyrics-toggle" title="เปิด/ปิด เนื้อเพลงวิ่งคาราโอเกะ (Synced Teleprompter)">
+                <span>📜 เนื้อเพลง</span>
+              </button>
+
+              <!-- Karaoke Live Pitch & Score Badge -->
+              <div id="karaokeScorePill" class="karaoke-score-pill" title="คะแนนความแม่นยำของพิทช์เสียงร้องสด">
+                <span class="score-star-anim">⭐</span>
+                <span>ร้องสด:</span>
+                <span id="karaokeLiveScoreText" class="mono-num">--</span>
+              </div>
             </div>
 
             <div class="playback-controls">
@@ -383,6 +413,49 @@
                 <span id="eqHighAirText" class="val-text mono-num">+0 dB</span>
               </div>
               <input type="range" id="eqHighAirSlider" min="-6" max="6" step="0.5" value="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- 1.8 Analog Tube Warmth & Dynamic De-Esser (PRO 49฿) -->
+        <div class="studio-module">
+          <div class="module-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h2>Analog Tube Warmth & De-Esser</h2>
+                <span class="badge-pro-tag">PRO 49฿</span>
+              </div>
+              <p class="module-desc">ปรีแอมป์หลอดสุญญากาศจำลองเพิ่มความอุ่นหนา & ลดเสียงซี่ฟันบาดหู (ส, ซ, ช)</p>
+            </div>
+          </div>
+
+          <div class="control-grid-2">
+            <div class="control-group">
+              <div class="group-header">
+                <label for="tubeWarmthToggle">Tube Saturation</label>
+                <label class="switch" style="transform: scale(0.85);" title="เปิด/ปิด ความอุ่นของปรีแอมป์หลอด">
+                  <input type="checkbox" id="tubeWarmthToggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+                <span style="font-size: 10px; color: var(--text-muted);">Drive ความอุ่น</span>
+                <span id="tubeWarmthText" class="val-text mono-num">40%</span>
+              </div>
+              <input type="range" id="tubeWarmthSlider" min="0" max="1" step="0.05" value="0.4" aria-label="ระดับความอุ่นของเสียงร้อง">
+            </div>
+
+            <div class="control-group">
+              <div class="group-header">
+                <label for="deEsserToggle">Dynamic De-Esser</label>
+                <label class="switch" style="transform: scale(0.85);" title="เปิด/ปิด ตัวลดเสียงซี่ฟันบาดหู">
+                  <input type="checkbox" id="deEsserToggle" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">
+                กดลดความถี่แหลมแสบหู 6.5kHz อัตโนมัติ ป้องกันเสียงซี่ฟันรบกวนเพื่อนใน FiveM
+              </div>
             </div>
           </div>
         </div>
@@ -1375,6 +1448,22 @@
             <button id="finishRoomModalBtn" class="btn btn-primary btn-full">เรียบร้อย</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Karaoke Score Celebration Modal -->
+    <div id="karaokeScoreModal" class="score-celebration-modal hidden">
+      <div class="score-celebration-card">
+        <span style="font-size: 36px; display: block; margin-bottom: 8px;">🎉🎤</span>
+        <h3 style="font-family: 'Cinzel', serif; color: #fff; font-size: 22px; margin: 0;">ผลคะแนนการร้องสด</h3>
+        <p id="scoreSongTitle" style="font-size: 13px; color: var(--text-secondary); margin: 4px 0 16px 0;">-</p>
+        <div class="score-big-circle">
+          <span id="scoreModalNum" class="score-big-number">94</span>
+          <span style="font-size: 10px; color: #d8b15d; font-weight: 700; letter-spacing: 1px;">POINTS</span>
+        </div>
+        <div id="scoreRankTitle" class="score-rank-title">🏆 เทพคอทองคำ</div>
+        <p id="scoreComment" style="font-size: 12px; color: var(--text-muted); margin: 0 0 20px 0;">ลูกคอแน่น พิทช์แม่นยำ พร้อมเดบิวต์ได้เลย!</p>
+        <button id="closeScoreModalBtn" class="btn btn-primary" style="width: 100%; padding: 10px; font-weight: 700; cursor: pointer;">ร้องเพลงถัดไป ⏭</button>
       </div>
     </div>
 

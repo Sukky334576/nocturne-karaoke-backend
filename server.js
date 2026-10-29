@@ -922,8 +922,13 @@ app.post('/api/room/:code/queue', (req, res) => {
     addedAt: Date.now()
   };
 
-  // Priority Queue insertion requires VIP PRO host room
-  const isPriority = !!(req.body && req.body.priority && room.hostTier === 'pro');
+  // Priority Queue insertion requires VIP PRO host room or FastPass
+  const isFastPass = !!(req.body && req.body.isFastPass);
+  const isPriority = isFastPass || !!(req.body && req.body.priority && room.hostTier === 'pro');
+  if (req.body && req.body.tipAmount) {
+    queueItem.tipAmount = parseFloat(req.body.tipAmount);
+    queueItem.tipMessage = sanitizeText(req.body.tipMessage, 100);
+  }
   if (isPriority) {
     room.queue.unshift(queueItem);
   } else {
@@ -1061,6 +1066,142 @@ app.post('/api/room/:code/control', (req, res) => {
   });
 
   res.json({ success: true, action });
+});
+
+// In-Memory Synced Lyrics Cache (Max 200 items, TTL: 24h)
+const lyricsCache = new Map();
+
+function parseLrc(lrcText) {
+  if (!lrcText || typeof lrcText !== 'string') return [];
+  const lines = lrcText.split('\n');
+  const result = [];
+  const timeRegex = /\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](.*)/;
+
+  for (const line of lines) {
+    const match = timeRegex.exec(line.trim());
+    if (match) {
+      const mins = parseInt(match[1], 10);
+      const secs = parseFloat(match[2]);
+      const time = mins * 60 + secs;
+      const text = match[3].trim();
+      if (text) {
+        result.push({ time, text });
+      }
+    }
+  }
+  return result.sort((a, b) => a.time - b.time);
+}
+
+// Synced Lyrics API (LRCLIB Integration with Fast Cache)
+app.get('/api/lyrics', async (req, res) => {
+  const q = sanitizeText(req.query.q || req.query.title, 120);
+  const artist = sanitizeText(req.query.artist, 60) || '';
+  if (!q) return res.status(400).json({ error: 'Search query or title required' });
+
+  // Clean title: remove suffixes like [Karaoke], (Official Video), Cover, etc.
+  const cleanQ = q.replace(/[\(\[][^\)\]]*(?:official|video|karaoke|cover|audio|mv|คีย์|ผู้ชาย|ผู้หญิง)[^\)\]]*[\)\]]/gi, '')
+                  .replace(/[-|]/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+
+  const cacheKey = `${cleanQ}__${artist}`.toLowerCase();
+  if (lyricsCache.has(cacheKey)) {
+    const cached = lyricsCache.get(cacheKey);
+    if (Date.now() - cached.time < 24 * 60 * 60 * 1000) {
+      return res.json(cached.data);
+    }
+  }
+
+  try {
+    const encoded = encodeURIComponent(cleanQ + (artist ? ' ' + artist : ''));
+    const lrclibUrl = `https://lrclib.net/api/search?q=${encoded}`;
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    
+    const fetchRes = await fetch(lrclibUrl, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'NocturneStudio/2.0 (KaraokePlayer)' }
+    });
+    clearTimeout(timeout);
+
+    if (fetchRes.ok) {
+      const items = await fetchRes.json();
+      if (Array.isArray(items) && items.length > 0) {
+        // Find best match with syncedLyrics
+        const syncedItem = items.find(it => it.syncedLyrics && it.syncedLyrics.length > 20) || items[0];
+        if (syncedItem) {
+          const parsed = syncedItem.syncedLyrics ? parseLrc(syncedItem.syncedLyrics) : [];
+          const responseData = {
+            success: true,
+            title: syncedItem.name || cleanQ,
+            artist: syncedItem.artistName || artist,
+            isSynced: parsed.length > 0,
+            lyrics: parsed.length > 0 ? parsed : (syncedItem.plainLyrics ? syncedItem.plainLyrics.split('\n').filter(Boolean).map((t, idx) => ({ time: idx * 4, text: t.trim() })) : []),
+            rawPlain: syncedItem.plainLyrics || ''
+          };
+          setBoundedCache(lyricsCache, cacheKey, { data: responseData, time: Date.now() }, 200);
+          return res.json(responseData);
+        }
+      }
+    }
+  } catch (err) {
+    // Network or timeout note
+  }
+
+  const fallbackData = {
+    success: false,
+    title: cleanQ,
+    artist: artist,
+    isSynced: false,
+    lyrics: [],
+    message: 'ไม่พบเนื้อเพลงซิงค์สำหรับเพลงนี้'
+  };
+  res.json(fallbackData);
+});
+
+// Room Live Reaction Broadcast (Emoji / SFX from Remote to Host screen)
+app.post('/api/room/:code/reaction', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = rooms.get(norm);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  const emoji = sanitizeText(req.body && req.body.emoji, 10);
+  const sfx = sanitizeText(req.body && req.body.sfx, 30);
+  const sender = sanitizeText(req.body && req.body.sender, 32) || 'เพื่อนในห้อง';
+
+  if (!emoji && !sfx) {
+    return res.status(400).json({ error: 'Emoji or SFX required' });
+  }
+
+  broadcastRoomEvent(room, 'reaction', {
+    emoji,
+    sfx,
+    sender,
+    time: Date.now()
+  });
+
+  res.json({ success: true });
+});
+
+// Fast-Pass VIP Tip & Superchat Broadcast
+app.post('/api/room/:code/tip', (req, res) => {
+  const norm = normalizeRoomCode(req.params.code);
+  const room = rooms.get(norm);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  const sender = sanitizeText(req.body && req.body.sender, 32) || 'VIP Fan';
+  const amount = parseFloat(req.body && req.body.amount) || 20.00;
+  const message = sanitizeText(req.body && req.body.message, 140) || 'ขอเพลงเพราะๆ หน่อยค้าบ!';
+
+  broadcastRoomEvent(room, 'tip_received', {
+    sender,
+    amount,
+    message,
+    time: Date.now()
+  });
+
+  res.json({ success: true, sender, amount, message });
 });
 
 // Periodic LRU & Stale Room Garbage Collection (every 15 mins)

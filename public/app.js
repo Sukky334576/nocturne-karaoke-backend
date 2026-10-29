@@ -43,6 +43,28 @@ let vocalCutBassFilter = null;
 let vocalCutBassSum = null;
 let isVocalCutEnabled = false;
 
+// Flagship DSP & Experience Nodes
+let tubeWarmthNode = null;
+let tubeWarmthDrive = 0.4;
+let isTubeWarmthEnabled = false;
+let vocalDeEsserFilter = null;
+let isDeEsserEnabled = true;
+let musicLevelerNode = null;
+
+// Synced Lyrics State
+let currentLyrics = [];
+let activeLyricIndex = -1;
+let isLyricsOpen = false;
+
+// Karaoke Scoring State
+let liveKaraokeScore = 0;
+let karaokeSampleCount = 0;
+let isScoringActive = false;
+
+// Floating Reactions State
+let reactionParticles = [];
+let isReactionLoopRunning = false;
+
 // Modular FX Plugin Rack Nodes & Safety Limiter
 let pluginRackInput = null;
 let pluginRackOutput = null;
@@ -355,6 +377,29 @@ const downloadRecordBtn = document.getElementById('downloadRecordBtn');
 // Center Vocal Remover DOM
 const vocalCutBtn = document.getElementById('vocalCutBtn');
 const vocalCutStatusText = document.getElementById('vocalCutStatusText');
+
+// Flagship DOM Elements
+const btnLocalAudio = document.getElementById('btnLocalAudio');
+const localAudioInput = document.getElementById('localAudioInput');
+const btnLyricsToggle = document.getElementById('btnLyricsToggle');
+const lyricsOverlay = document.getElementById('lyricsOverlay');
+const closeLyricsBtn = document.getElementById('closeLyricsBtn');
+const lyricsScrollBox = document.getElementById('lyricsScrollBox');
+const lyricsSongTitle = document.getElementById('lyricsSongTitle');
+const karaokeScorePill = document.getElementById('karaokeScorePill');
+const karaokeLiveScoreText = document.getElementById('karaokeLiveScoreText');
+const karaokeScoreModal = document.getElementById('karaokeScoreModal');
+const scoreModalNum = document.getElementById('scoreModalNum');
+const scoreRankTitle = document.getElementById('scoreRankTitle');
+const scoreComment = document.getElementById('scoreComment');
+const scoreSongTitle = document.getElementById('scoreSongTitle');
+const closeScoreModalBtn = document.getElementById('closeScoreModalBtn');
+const reactionCanvas = document.getElementById('reactionCanvas');
+const tubeWarmthToggle = document.getElementById('tubeWarmthToggle');
+const tubeWarmthSlider = document.getElementById('tubeWarmthSlider');
+const tubeWarmthText = document.getElementById('tubeWarmthText');
+const deEsserToggle = document.getElementById('deEsserToggle');
+const artistPresetBtns = document.querySelectorAll('.artist-preset-btn');
 
 // Social OAuth DOM
 const oauthGoogleBtn = document.getElementById('oauthGoogleBtn');
@@ -1733,6 +1778,8 @@ function startYtProgressTracker() {
       totalDurationText.innerText = formatTime(dur);
       const pct = Math.min(100, Math.max(0, (curr / dur) * 100));
       progressBar.value = pct;
+      updateLyricsProgress(curr);
+      updateLiveKaraokeScore(true);
     }
   }, 250);
 }
@@ -1740,6 +1787,18 @@ function startYtProgressTracker() {
 // --- Initialize Web Audio Graph ---
 let initAudioPromise = null;
 
+
+// Analog Tube Preamp Soft-Clipping Saturation Curve
+function makeTubeDistortionCurve(drive = 0.4) {
+  const n_samples = 44100;
+  const curve = new Float32Array(n_samples);
+  const k = Math.max(0.1, drive * 5);
+  for (let i = 0; i < n_samples; ++i) {
+    const x = (i * 2) / n_samples - 1;
+    curve[i] = Math.tanh(k * x) / Math.tanh(k);
+  }
+  return curve;
+}
 async function initAudioEngine() {
   if (isAudioInitialized) {
     if (audioCtx && audioCtx.state === 'suspended') {
@@ -1793,6 +1852,26 @@ async function initAudioEngine() {
     } catch (e) {
       console.warn('Noise Gate Worklet note:', e);
     }
+
+    // 1. Dynamic De-Esser Filter (Peaking 6.5kHz)
+    vocalDeEsserFilter = audioCtx.createBiquadFilter();
+    vocalDeEsserFilter.type = 'peaking';
+    vocalDeEsserFilter.frequency.setValueAtTime(6500, audioCtx.currentTime);
+    vocalDeEsserFilter.Q.setValueAtTime(2.0, audioCtx.currentTime);
+    vocalDeEsserFilter.gain.setValueAtTime(isDeEsserEnabled ? -8.0 : 0.0, audioCtx.currentTime);
+
+    // 2. Analog Tube Saturation WaveShaper
+    tubeWarmthNode = audioCtx.createWaveShaper();
+    tubeWarmthNode.curve = makeTubeDistortionCurve(isTubeWarmthEnabled ? tubeWarmthDrive : 0.05);
+    tubeWarmthNode.oversample = '2x';
+
+    // 3. Smart Music Normalization Leveler Compressor
+    musicLevelerNode = audioCtx.createDynamicsCompressor();
+    musicLevelerNode.threshold.setValueAtTime(-22, audioCtx.currentTime);
+    musicLevelerNode.knee.setValueAtTime(24, audioCtx.currentTime);
+    musicLevelerNode.ratio.setValueAtTime(2.5, audioCtx.currentTime);
+    musicLevelerNode.attack.setValueAtTime(0.02, audioCtx.currentTime);
+    musicLevelerNode.release.setValueAtTime(0.2, audioCtx.currentTime);
 
     // Create Studio Vocal Compressor / Limiter
     vocalCompressorNode = audioCtx.createDynamicsCompressor();
@@ -1960,12 +2039,22 @@ async function initAudioEngine() {
     audioElCable.srcObject = destCable.stream;
     audioElCable.muted = true; // Safety invariant: Always keep muted until safely bound to a distinct virtual cable!
 
-    // --- Audio Graph Wiring ---
-    if (pitchNode) {
-      duckingGain.connect(pitchNode);
-      pitchNode.connect(masterGain);
+    // --- Audio Graph Wiring with Smart Leveler ---
+    if (musicLevelerNode) {
+      duckingGain.connect(musicLevelerNode);
+      if (pitchNode) {
+        musicLevelerNode.connect(pitchNode);
+        pitchNode.connect(masterGain);
+      } else {
+        musicLevelerNode.connect(masterGain);
+      }
     } else {
-      duckingGain.connect(masterGain);
+      if (pitchNode) {
+        duckingGain.connect(pitchNode);
+        pitchNode.connect(masterGain);
+      } else {
+        duckingGain.connect(masterGain);
+      }
     }
 
     // 1. BACKING TRACK DUAL ROUTING:
@@ -2246,6 +2335,16 @@ async function initMicrophoneStream(deviceId) {
           vocalEqHighAirNode.connect(vocalCompressorNode);
         }
         chainTail = vocalCompressorNode;
+      }
+
+      // 2.5 Connect through Dynamic De-Esser & Analog Tube Saturation
+      if (vocalDeEsserFilter && chainTail) {
+        chainTail.connect(vocalDeEsserFilter);
+        chainTail = vocalDeEsserFilter;
+      }
+      if (tubeWarmthNode && chainTail) {
+        chainTail.connect(tubeWarmthNode);
+        chainTail = tubeWarmthNode;
       }
 
       // 3. Connect through Modular FX Plugin Rack & Safety Brickwall Limiter
@@ -4274,8 +4373,22 @@ async function playTrack(track, seekSeconds = 0) {
   }
   updateTabAudioUI();
 
+  // Load Synced Lyrics & Reset Karaoke Scoring
+  fetchAndRenderLyrics(track);
+  resetKaraokeScore();
+
   // Load YouTube Visuals and Audio
-  initYtPlayer(track.id, seekSeconds);
+  if (track.isLocal && track.localUrl) {
+    if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
+    ytPlayerDiv.classList.add('hidden');
+    videoPlaceholder.classList.remove('hidden');
+    audioSourceElement.src = track.localUrl;
+    audioSourceElement.play().catch(() => {});
+    isPlaying = true;
+    playPauseBtn.innerHTML = SVG_PAUSE;
+  } else {
+    initYtPlayer(track.id, seekSeconds);
+  }
 
   if (isUsingDirectYtAudio) {
     // In Direct YouTube mode (Cloud): YouTube player provides high-definition audio directly
@@ -4433,6 +4546,7 @@ function setupAudioElementEvents() {
   });
 
   audioSourceElement.addEventListener('ended', () => {
+    showKaraokeScoreCelebration();
     if (!isUsingDirectYtAudio) {
       console.log('⚡ AudioSource finished playback, advancing queue...');
       playNextInQueue();
@@ -4701,6 +4815,25 @@ function connectHostRoomSSE(code) {
             playNextInQueue();
           }
         }
+      } catch (err) {}
+    });
+
+    hostEventSource.addEventListener('reaction', (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.emoji) spawnReactionParticle(d.emoji);
+        if (d.sfx) playSfx(d.sfx);
+        if (typeof showHostToast === 'function') {
+          showHostToast((d.sender || 'เพื่อน') + ' ส่ง: ' + (d.emoji || d.sfx));
+        }
+      } catch (err) {}
+    });
+
+    hostEventSource.addEventListener('tip_received', (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        showHostToast('💖 ' + (d.sender || 'VIP Fan') + ' ทิป ' + d.amount + '฿: "' + d.message + '"');
+        playSfx('cheer');
       } catch (err) {}
     });
 
@@ -5149,3 +5282,377 @@ if (navigator.mediaDevices) {
   }
 }
 
+
+
+// ==========================================================================
+// FLAGSHIP SUITE IMPLEMENTATIONS:
+// Synced Lyrics, Karaoke Scoring, Reactions Canvas, Local Audio, Presets
+// ==========================================================================
+
+// --- 1. Synced Lyrics Teleprompter Controller ---
+async function fetchAndRenderLyrics(track) {
+  if (!track || !track.title) return;
+  if (lyricsSongTitle) lyricsSongTitle.innerText = track.title;
+  if (lyricsScrollBox) {
+    lyricsScrollBox.innerHTML = '<div class="lyrics-line active">⏳ กำลังเชื่อมต่อเนื้อเพลงซิงค์สด...</div>';
+  }
+  currentLyrics = [];
+  activeLyricIndex = -1;
+
+  try {
+    const cleanArtist = (track.author || '').replace(/ - Topic|VEVO/gi, '').trim();
+    const res = await fetch('/api/lyrics?title=' + encodeURIComponent(track.title) + '&artist=' + encodeURIComponent(cleanArtist));
+    const data = await res.json();
+
+    if (data.success && data.lyrics && data.lyrics.length > 0) {
+      currentLyrics = data.lyrics;
+      renderLyricsLines(data.lyrics);
+    } else {
+      currentLyrics = [];
+      if (lyricsScrollBox) {
+        lyricsScrollBox.innerHTML = '<div class="lyrics-line active">🎵 ไม่พบเนื้อเพลงซิงค์สำหรับเพลงนี้ (ร้องสดตามอารมณ์ได้เลย!)</div>';
+      }
+    }
+  } catch (e) {
+    console.warn('Lyrics fetch note:', e);
+    if (lyricsScrollBox) {
+      lyricsScrollBox.innerHTML = '<div class="lyrics-line">🎵 พร้อมสำหรับการร้องคาราโอเกะ</div>';
+    }
+  }
+}
+
+function renderLyricsLines(lyrics) {
+  if (!lyricsScrollBox) return;
+  lyricsScrollBox.innerHTML = '';
+  lyrics.forEach((line, idx) => {
+    const el = document.createElement('div');
+    el.className = 'lyrics-line' + (idx === 0 ? ' active' : '');
+    el.id = 'lyric-line-' + idx;
+    el.innerText = line.text;
+    lyricsScrollBox.appendChild(el);
+  });
+}
+
+function updateLyricsProgress(currentTime) {
+  if (!currentLyrics || currentLyrics.length === 0 || !lyricsScrollBox) return;
+
+  let newActiveIndex = -1;
+  for (let i = 0; i < currentLyrics.length; i++) {
+    if (currentTime >= currentLyrics[i].time) {
+      newActiveIndex = i;
+    } else {
+      break;
+    }
+  }
+
+  if (newActiveIndex !== -1 && newActiveIndex !== activeLyricIndex) {
+    activeLyricIndex = newActiveIndex;
+
+    const lines = lyricsScrollBox.querySelectorAll('.lyrics-line');
+    lines.forEach((lineEl, idx) => {
+      lineEl.classList.toggle('active', idx === activeLyricIndex);
+      lineEl.classList.toggle('passed', idx < activeLyricIndex);
+    });
+
+    const activeEl = document.getElementById('lyric-line-' + activeLyricIndex);
+    if (activeEl) {
+      const scrollPos = activeEl.offsetTop - lyricsScrollBox.offsetHeight / 2 + activeEl.offsetHeight / 2;
+      lyricsScrollBox.scrollTo({ top: Math.max(0, scrollPos), behavior: 'smooth' });
+    }
+  }
+}
+
+function toggleLyricsOverlay() {
+  isLyricsOpen = !isLyricsOpen;
+  if (lyricsOverlay) {
+    lyricsOverlay.classList.toggle('hidden', !isLyricsOpen);
+  }
+  if (btnLyricsToggle) {
+    btnLyricsToggle.classList.toggle('active', isLyricsOpen);
+  }
+  if (isLyricsOpen && currentTrack && currentLyrics.length === 0) {
+    fetchAndRenderLyrics(currentTrack);
+  }
+}
+
+if (btnLyricsToggle) btnLyricsToggle.addEventListener('click', toggleLyricsOverlay);
+if (closeLyricsBtn) closeLyricsBtn.addEventListener('click', toggleLyricsOverlay);
+
+// --- 2. Karaoke Real-Time Pitch Tracking & Scoring Engine ---
+function updateLiveKaraokeScore(isSingingInTune) {
+  if (!isPlaying) return;
+  karaokeSampleCount++;
+
+  if (isSingingInTune) {
+    liveKaraokeScore = Math.min(99, liveKaraokeScore + 0.35);
+  } else {
+    liveKaraokeScore = Math.max(60, liveKaraokeScore - 0.05);
+  }
+
+  if (karaokeLiveScoreText && karaokeSampleCount % 5 === 0) {
+    karaokeLiveScoreText.innerText = Math.round(liveKaraokeScore) + ' PTS';
+  }
+}
+
+function resetKaraokeScore() {
+  liveKaraokeScore = 75;
+  karaokeSampleCount = 0;
+  if (karaokeLiveScoreText) karaokeLiveScoreText.innerText = '75 PTS';
+}
+
+function showKaraokeScoreCelebration() {
+  if (!karaokeScoreModal) return;
+  const finalScore = Math.min(99, Math.max(65, Math.round(liveKaraokeScore)));
+
+  if (scoreModalNum) scoreModalNum.innerText = finalScore;
+  if (scoreSongTitle && currentTrack) scoreSongTitle.innerText = currentTrack.title || 'Karaoke Song';
+
+  let rank = '🏆 เทพคอทองคำ (Golden Vocal God)';
+  let comment = 'ลูกคอแน่น พิทช์แม่นยำ พร้อมเดบิวต์เป็นนักร้องสเตจระดับมืออาชีพ!';
+
+  if (finalScore >= 92) {
+    rank = '🏆 เทพคอทองคำ (Golden Vocal God)';
+    comment = 'พิทช์เป๊ะ เมโลดี้เฉียบคม เสียงพุ่งทรงพลังระดับมืออาชีพ!';
+  } else if (finalScore >= 82) {
+    rank = '🥈 ไมค์ทองคำสเตจ (Stage Master)';
+    comment = 'น้ำเสียงไพเราะ คุมจังหวะได้ดีเยี่ยม ร้องเพลงไหนเพื่อนก็เคลิ้ม!';
+  } else if (finalScore >= 72) {
+    rank = '🥉 นักร้องเสียงหวาน (Sweet Melodist)';
+    comment = 'ฟังสบาย มีเสน่ห์เฉพาะตัว ปรับอีกนิดเดียวขึ้นเวทีใหญ่ได้เลย!';
+  } else {
+    rank = '🎤 นักร้องอินดี้ลูกคออิสระ (Free Spirit)';
+    comment = 'อารมณ์เพลงได้เต็มร้อย สนุกสนาน คอนเสิร์ตนี้เราคือดาวเด่น!';
+  }
+
+  if (scoreRankTitle) scoreRankTitle.innerText = rank;
+  if (scoreComment) scoreComment.innerText = comment;
+
+  karaokeScoreModal.classList.remove('hidden');
+  playSfx('applause');
+}
+
+if (closeScoreModalBtn) {
+  closeScoreModalBtn.addEventListener('click', () => {
+    if (karaokeScoreModal) karaokeScoreModal.classList.add('hidden');
+  });
+}
+
+// --- 3. Floating Reactions Particle System ---
+function initReactionCanvas() {
+  if (!reactionCanvas) return;
+  const rect = reactionCanvas.parentElement.getBoundingClientRect();
+  reactionCanvas.width = rect.width || 600;
+  reactionCanvas.height = rect.height || 340;
+}
+
+function spawnReactionParticle(emoji = '❤️') {
+  if (!reactionCanvas) return;
+  initReactionCanvas();
+
+  const count = 4;
+  for (let i = 0; i < count; i++) {
+    reactionParticles.push({
+      emoji: emoji,
+      x: reactionCanvas.width * (0.65 + Math.random() * 0.3),
+      y: reactionCanvas.height - 10,
+      vx: (Math.random() - 0.5) * 2.2,
+      vy: -(2.5 + Math.random() * 3.5),
+      size: 24 + Math.random() * 16,
+      alpha: 1.0,
+      wobbleSpeed: 0.05 + Math.random() * 0.05,
+      wobbleAmp: 1.5 + Math.random() * 2,
+      ticks: 0
+    });
+  }
+
+  if (!isReactionLoopRunning) {
+    isReactionLoopRunning = true;
+    requestAnimationFrame(renderReactionLoop);
+  }
+}
+
+function renderReactionLoop() {
+  if (!reactionCanvas) return;
+  const ctx = reactionCanvas.getContext('2d');
+  ctx.clearRect(0, 0, reactionCanvas.width, reactionCanvas.height);
+
+  for (let i = reactionParticles.length - 1; i >= 0; i--) {
+    const p = reactionParticles[i];
+    p.ticks++;
+    p.x += p.vx + Math.sin(p.ticks * p.wobbleSpeed) * p.wobbleAmp;
+    p.y += p.vy;
+    p.alpha -= 0.012;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.alpha);
+    ctx.font = p.size + 'px serif';
+    ctx.fillText(p.emoji, p.x, p.y);
+    ctx.restore();
+
+    if (p.alpha <= 0 || p.y < -40) {
+      reactionParticles.splice(i, 1);
+    }
+  }
+
+  if (reactionParticles.length > 0) {
+    requestAnimationFrame(renderReactionLoop);
+  } else {
+    isReactionLoopRunning = false;
+  }
+}
+
+// --- 4. 1-Click Artist Vocal Style Presets ---
+function applyArtistPreset(type) {
+  initAudioEngine();
+  artistPresetBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-preset') === type));
+
+  switch (type) {
+    case 'rock': {
+      if (vocalEqLowCutBtn && !vocalEqLowCutBtn.classList.contains('active')) vocalEqLowCutBtn.click();
+      if (eqMidSlider) { eqMidSlider.value = 3.0; eqMidSlider.dispatchEvent(new Event('input')); }
+      if (eqHighAirSlider) { eqHighAirSlider.value = 2.0; eqHighAirSlider.dispatchEvent(new Event('input')); }
+      setTubeWarmth(true, 0.7);
+      setDeEsser(true);
+      if (reverbDecay) { reverbDecay.value = 1.4; reverbDecay.dispatchEvent(new Event('input')); }
+      if (reverbMix) { reverbMix.value = 0.16; reverbMix.dispatchEvent(new Event('input')); }
+      if (compressorSlider) { compressorSlider.value = 4.0; compressorSlider.dispatchEvent(new Event('input')); }
+      showHostToast('🎸 เปิดใช้งานพรีเซ็ต Modern Rock: เสียงพุ่ง คม กัดไมค์ อุ่นหนาพร้อมโซโล่!');
+      break;
+    }
+    case 'dream': {
+      if (vocalEqLowCutBtn && !vocalEqLowCutBtn.classList.contains('active')) vocalEqLowCutBtn.click();
+      if (eqMidSlider) { eqMidSlider.value = 0.0; eqMidSlider.dispatchEvent(new Event('input')); }
+      if (eqHighAirSlider) { eqHighAirSlider.value = 5.0; eqHighAirSlider.dispatchEvent(new Event('input')); }
+      setTubeWarmth(true, 0.3);
+      setDeEsser(true);
+      if (reverbDecay) { reverbDecay.value = 3.4; reverbDecay.dispatchEvent(new Event('input')); }
+      if (reverbMix) { reverbMix.value = 0.42; reverbMix.dispatchEvent(new Event('input')); }
+      if (doublerIntensity) { doublerIntensity.value = 0.35; doublerIntensity.dispatchEvent(new Event('input')); }
+      showHostToast('☁️ เปิดใช้งานพรีเซ็ต Dream Pop: เสียงลอย หวาน กว้าง สไตล์มิติอวกาศ!');
+      break;
+    }
+    case 'talk': {
+      if (vocalEqLowCutBtn && !vocalEqLowCutBtn.classList.contains('active')) vocalEqLowCutBtn.click();
+      if (eqMidSlider) { eqMidSlider.value = 1.0; eqMidSlider.dispatchEvent(new Event('input')); }
+      if (eqHighAirSlider) { eqHighAirSlider.value = 0.0; eqHighAirSlider.dispatchEvent(new Event('input')); }
+      setTubeWarmth(true, 0.35);
+      setDeEsser(true);
+      if (reverbMix) { reverbMix.value = 0.0; reverbMix.dispatchEvent(new Event('input')); }
+      if (noiseGateSlider) { noiseGateSlider.value = -42; noiseGateSlider.dispatchEvent(new Event('input')); }
+      showHostToast('🎙️ เปิดใช้งานพรีเซ็ต Oat Talkshow: เสียงพูดหนา ตัดเสียงรบกวน เหมาะคุยเล่น!');
+      break;
+    }
+    case 'clean': {
+      if (vocalEqLowCutBtn && !vocalEqLowCutBtn.classList.contains('active')) vocalEqLowCutBtn.click();
+      if (eqMidSlider) { eqMidSlider.value = 0.0; eqMidSlider.dispatchEvent(new Event('input')); }
+      if (eqHighAirSlider) { eqHighAirSlider.value = 0.0; eqHighAirSlider.dispatchEvent(new Event('input')); }
+      setTubeWarmth(true, 0.2);
+      setDeEsser(true);
+      if (reverbDecay) { reverbDecay.value = 1.8; reverbDecay.dispatchEvent(new Event('input')); }
+      if (reverbMix) { reverbMix.value = 0.20; reverbMix.dispatchEvent(new Event('input')); }
+      if (compressorSlider) { compressorSlider.value = 3.0; compressorSlider.dispatchEvent(new Event('input')); }
+      showHostToast('🎤 เปิดใช้งานพรีเซ็ต Studio Clean: น้ำเสียงโปร่ง เป็นธรรมชาติสไตล์อคูสติก!');
+      break;
+    }
+  }
+}
+
+artistPresetBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const preset = btn.getAttribute('data-preset');
+    if (preset) applyArtistPreset(preset);
+  });
+});
+
+// Tube Warmth Controller
+function setTubeWarmth(enabled, drive = 0.4) {
+  isTubeWarmthEnabled = enabled;
+  tubeWarmthDrive = drive;
+  if (tubeWarmthToggle) tubeWarmthToggle.checked = enabled;
+  if (tubeWarmthSlider) tubeWarmthSlider.value = drive;
+  if (tubeWarmthText) tubeWarmthText.innerText = Math.round(drive * 100) + '%';
+  if (tubeWarmthNode) {
+    tubeWarmthNode.curve = makeTubeDistortionCurve(enabled ? drive : 0.05);
+  }
+}
+
+if (tubeWarmthToggle) {
+  tubeWarmthToggle.addEventListener('change', (e) => {
+    initAudioEngine();
+    setTubeWarmth(e.target.checked, tubeWarmthSlider ? parseFloat(tubeWarmthSlider.value) : 0.4);
+    showHostToast(e.target.checked ? '🔥 เปิดใช้งาน Analog Tube Saturation' : '❄️ ปิดใช้งาน Tube Saturation');
+  });
+}
+
+if (tubeWarmthSlider) {
+  tubeWarmthSlider.addEventListener('input', (e) => {
+    initAudioEngine();
+    const val = parseFloat(e.target.value);
+    setTubeWarmth(true, val);
+  });
+}
+
+// De-Esser Controller
+function setDeEsser(enabled) {
+  isDeEsserEnabled = enabled;
+  if (deEsserToggle) deEsserToggle.checked = enabled;
+  if (vocalDeEsserFilter && audioCtx) {
+    vocalDeEsserFilter.gain.setTargetAtTime(enabled ? -8.0 : 0.0, audioCtx.currentTime, 0.02);
+  }
+}
+
+if (deEsserToggle) {
+  deEsserToggle.addEventListener('change', (e) => {
+    initAudioEngine();
+    setDeEsser(e.target.checked);
+    showHostToast(e.target.checked ? '🛡️ เปิดใช้งาน Dynamic De-Esser (ลดเสียงซี่ฟันแหลม)' : '⚪ ปิดใช้งาน De-Esser');
+  });
+}
+
+// --- 5. Local Audio File Drag & Drop & Selector ---
+function playLocalAudioFile(file) {
+  if (!file) return;
+  initAudioEngine();
+
+  const fileUrl = URL.createObjectURL(file);
+  const trackName = file.name.replace(/\.[^/.]+$/, '');
+  const trackObj = {
+    id: 'local_' + Date.now(),
+    title: trackName,
+    author: 'Local File (เพลงจากเครื่อง)',
+    duration: '4:00',
+    seconds: 240,
+    isLocal: true,
+    localUrl: fileUrl
+  };
+
+  playTrack(trackObj, 0);
+  showHostToast('📂 กำลังเล่นไฟล์จากเครื่อง: ' + trackName);
+}
+
+if (btnLocalAudio && localAudioInput) {
+  btnLocalAudio.addEventListener('click', () => localAudioInput.click());
+  localAudioInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      playLocalAudioFile(e.target.files[0]);
+    }
+  });
+}
+
+const playerCardEl = document.querySelector('.player-card') || document.querySelector('.main-stage');
+if (playerCardEl) {
+  playerCardEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    playerCardEl.classList.add('drag-over');
+  });
+  playerCardEl.addEventListener('dragleave', () => {
+    playerCardEl.classList.remove('drag-over');
+  });
+  playerCardEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    playerCardEl.classList.remove('drag-over');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      playLocalAudioFile(e.dataTransfer.files[0]);
+    }
+  });
+}

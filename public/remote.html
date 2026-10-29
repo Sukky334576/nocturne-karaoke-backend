@@ -431,6 +431,90 @@
       box-shadow: 0 0 12px rgba(179, 157, 219, 0.4);
     }
 
+    /* Floating Reaction Dock at bottom */
+    .remote-reaction-dock {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      background: rgba(18, 20, 28, 0.95);
+      border: 1px solid rgba(216, 177, 93, 0.25);
+      border-radius: 30px;
+      padding: 6px 14px;
+      margin: 12px 0 6px 0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .reaction-emoji-btn {
+      background: transparent;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      padding: 4px;
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .reaction-emoji-btn:active {
+      transform: scale(1.4);
+    }
+
+    /* Remote Lyrics Panel */
+    .remote-lyrics-box {
+      max-height: 55vh;
+      overflow-y: auto;
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    .remote-lyrics-line {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+      transition: all 0.2s ease;
+      padding: 4px 8px;
+    }
+
+    .remote-lyrics-line.active {
+      font-size: 19px;
+      font-weight: 700;
+      color: #fbbf24;
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+      transform: scale(1.05);
+    }
+
+    /* Soundboard Grid */
+    .remote-sfx-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .remote-sfx-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .remote-sfx-btn:active {
+      background: rgba(216, 177, 93, 0.25);
+      border-color: #d8b15d;
+      transform: scale(0.96);
+    }
+
     /* Search View */
     .search-panel {
       display: flex;
@@ -709,6 +793,16 @@
         <button id="btnVocalCut" class="ctrl-btn ctrl-btn-vocalcut" title="ตัดเสียงร้องนำตรงกลาง (Karaoke Mode)">✂️ ตัดเสียงร้อง</button>
       </section>
 
+      <!-- Floating Reaction Dock -->
+      <div class="remote-reaction-dock" title="กดส่งอีโมจิลอยขึ้นหน้าจอหลัก">
+        <button class="reaction-emoji-btn" data-emoji="❤️">❤️</button>
+        <button class="reaction-emoji-btn" data-emoji="🔥">🔥</button>
+        <button class="reaction-emoji-btn" data-emoji="👏">👏</button>
+        <button class="reaction-emoji-btn" data-emoji="🎉">🎉</button>
+        <button class="reaction-emoji-btn" data-emoji="😂">😂</button>
+        <button class="reaction-emoji-btn" data-emoji="🎤">🎤</button>
+      </div>
+
       <!-- Tab Navigation -->
       <nav class="tab-bar">
         <button id="tabSearch" class="tab-btn active">
@@ -717,6 +811,12 @@
         <button id="tabQueue" class="tab-btn">
           <span>🎵 คิวเพลง</span>
           <span id="queueCountBadge" class="badge-count">0</span>
+        </button>
+        <button id="tabLyrics" class="tab-btn">
+          <span>📜 เนื้อเพลง</span>
+        </button>
+        <button id="tabReactions" class="tab-btn">
+          <span>🎉 เอฟเฟกต์ & ซาวด์</span>
         </button>
         <button id="tabSettings" class="tab-btn">
           <span>⚙️ ข้อมูลห้อง</span>
@@ -755,6 +855,35 @@
 
         <div id="queueList" class="queue-items-list">
           <div class="empty-state">ยังไม่มีเพลงในคิว กดค้นหาเพื่อเพิ่มเพลง</div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Synced Lyrics Section -->
+      <section id="panelLyrics" class="queue-panel hidden">
+        <div class="panel-header" style="text-align: center; margin-bottom: 8px;">
+          <h2 style="font-size: 15px; color: #fff; margin: 0;">📜 เนื้อเพลงวิ่งสด (Live Synced Lyrics)</h2>
+          <p id="remoteLyricsTrackTitle" style="font-size: 12px; color: var(--text-gold); margin: 3px 0 0 0;">กำลังซิงค์กับหน้าจอหลัก...</p>
+        </div>
+        <div id="remoteLyricsBox" class="remote-lyrics-box">
+          <div class="remote-lyrics-line active">พร้อมแสดงเนื้อเพลงอัตโนมัติเมื่อเริ่มร้อง</div>
+        </div>
+      </section>
+
+      <!-- TAB 5: Reaction & Mobile Soundboard Section -->
+      <section id="panelReactions" class="queue-panel hidden">
+        <div class="panel-header">
+          <h2 style="font-size: 15px; color: #fff; margin: 0;">🎉 ส่ง Reaction & ซาวด์เอฟเฟกต์ขึ้นจอ</h2>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0 0;">กดเพื่อให้เสียงและเอฟเฟกต์ดังออกลำโพงโฮสต์สดๆ</p>
+        </div>
+
+        <div style="margin-top: 12px;">
+          <span style="font-size: 12px; font-weight: 700; color: #fbbf24;">📢 Soundboard สด:</span>
+          <div class="remote-sfx-grid">
+            <button class="remote-sfx-btn" data-sfx="applause">👏 ปรบมือ</button>
+            <button class="remote-sfx-btn" data-sfx="airhorn">📢 แอร์ฮอร์น</button>
+            <button class="remote-sfx-btn" data-sfx="cheer">🎉 ไชโยโห่ร้อง</button>
+            <button class="remote-sfx-btn" data-sfx="rimshot">🥁 รัวกลอง / ตึ่งโป๊ะ</button>
+          </div>
         </div>
       </section>
 
@@ -818,10 +947,16 @@
 
     const tabSearch = document.getElementById('tabSearch');
     const tabQueue = document.getElementById('tabQueue');
+    const tabLyrics = document.getElementById('tabLyrics');
+    const tabReactions = document.getElementById('tabReactions');
     const tabSettings = document.getElementById('tabSettings');
     const panelSearch = document.getElementById('panelSearch');
     const panelQueue = document.getElementById('panelQueue');
+    const panelLyrics = document.getElementById('panelLyrics');
+    const panelReactions = document.getElementById('panelReactions');
     const panelSettings = document.getElementById('panelSettings');
+    const remoteLyricsBox = document.getElementById('remoteLyricsBox');
+    const remoteLyricsTrackTitle = document.getElementById('remoteLyricsTrackTitle');
 
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
@@ -863,16 +998,79 @@
       activeTab = tab;
       tabSearch.classList.toggle('active', tab === 'search');
       tabQueue.classList.toggle('active', tab === 'queue');
+      if (tabLyrics) tabLyrics.classList.toggle('active', tab === 'lyrics');
+      if (tabReactions) tabReactions.classList.toggle('active', tab === 'reactions');
       tabSettings.classList.toggle('active', tab === 'settings');
 
       panelSearch.classList.toggle('hidden', tab !== 'search');
       panelQueue.classList.toggle('hidden', tab !== 'queue');
+      if (panelLyrics) panelLyrics.classList.toggle('hidden', tab !== 'lyrics');
+      if (panelReactions) panelReactions.classList.toggle('hidden', tab !== 'reactions');
       panelSettings.classList.toggle('hidden', tab !== 'settings');
     }
 
     tabSearch.addEventListener('click', () => switchTab('search'));
     tabQueue.addEventListener('click', () => switchTab('queue'));
+    if (tabLyrics) tabLyrics.addEventListener('click', () => switchTab('lyrics'));
+    if (tabReactions) tabReactions.addEventListener('click', () => switchTab('reactions'));
     tabSettings.addEventListener('click', () => switchTab('settings'));
+
+    // Send Emoji or SFX Reaction
+    async function sendRemoteReaction(emoji, sfx) {
+      if (!currentRoomCode) return;
+      try {
+        await fetch('/api/room/' + encodeURIComponent(currentRoomCode) + '/reaction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emoji, sfx, sender: (userNicknameInput ? userNicknameInput.value : 'Mobile Singer') })
+        });
+        showToast(emoji ? (emoji + ' ส่งไปยังจอหลักแล้ว!') : '🔊 ส่งซาวด์เอฟเฟกต์แล้ว!');
+      } catch (e) {}
+    }
+
+    document.querySelectorAll('.reaction-emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const em = btn.getAttribute('data-emoji');
+        sendRemoteReaction(em, null);
+      });
+    });
+
+    document.querySelectorAll('.remote-sfx-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sfx = btn.getAttribute('data-sfx');
+        sendRemoteReaction(null, sfx);
+      });
+    });
+
+    // Remote Synced Lyrics Sync
+    let remoteCurrentLyrics = [];
+    async function fetchRemoteLyrics(track) {
+      if (!track || !track.title) return;
+      if (remoteLyricsTrackTitle) remoteLyricsTrackTitle.innerText = track.title;
+      try {
+        const res = await fetch('/api/lyrics?title=' + encodeURIComponent(track.title) + '&artist=' + encodeURIComponent(track.author || ''));
+        const data = await res.json();
+        if (data.success && data.lyrics && data.lyrics.length > 0) {
+          remoteCurrentLyrics = data.lyrics;
+          renderRemoteLyrics(data.lyrics);
+        } else {
+          remoteCurrentLyrics = [];
+          if (remoteLyricsBox) remoteLyricsBox.innerHTML = '<div class="remote-lyrics-line">ไม่พบเนื้อเพลงซิงค์สำหรับเพลงนี้</div>';
+        }
+      } catch (e) {}
+    }
+
+    function renderRemoteLyrics(lyrics) {
+      if (!remoteLyricsBox) return;
+      remoteLyricsBox.innerHTML = '';
+      lyrics.forEach((line, idx) => {
+        const div = document.createElement('div');
+        div.className = 'remote-lyrics-line' + (idx === 0 ? ' active' : '');
+        div.id = 'rline-' + idx;
+        div.innerText = line.text;
+        remoteLyricsBox.appendChild(div);
+      });
+    }
 
     // Join Room
     async function joinRoom(code, nick) {

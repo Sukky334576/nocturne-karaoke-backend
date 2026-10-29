@@ -550,6 +550,46 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 15: Flagship Suite Invariants (Tube Warmth, De-Esser, Teleprompter, Scoring & Reactions)
+  try {
+    console.log('\n[Edge Case 15] Verifying Flagship Invariants: Tube Warmth, De-Esser, Teleprompter & Scoring...');
+    const appJs = fs.readFileSync('public/app.js', 'utf8');
+    const srvJs = fs.readFileSync('server.js', 'utf8');
+    const indexHtml = fs.readFileSync('public/index.html', 'utf8');
+    const remoteHtml = fs.readFileSync('public/remote.html', 'utf8');
+
+    // 15a. Tube Warmth WaveShaper & Curve Generator
+    if (!appJs.includes('makeTubeDistortionCurve') || !appJs.includes('tubeWarmthNode = audioCtx.createWaveShaper()')) {
+      throw new Error('Tube Warmth WaveShaper node missing in app.js');
+    }
+
+    // 15b. Dynamic De-Esser peaking filter
+    if (!appJs.includes('vocalDeEsserFilter = audioCtx.createBiquadFilter()') || !appJs.includes('isDeEsserEnabled')) {
+      throw new Error('Dynamic De-Esser filter missing in app.js');
+    }
+
+    // 15c. Synced Lyrics Teleprompter & Karaoke Score Modal in index.html
+    if (!indexHtml.includes('lyricsOverlay') || !indexHtml.includes('karaokeScoreModal') || !indexHtml.includes('reactionCanvas')) {
+      throw new Error('Lyrics overlay, Karaoke Score modal or Reaction Canvas missing in index.html');
+    }
+
+    // 15d. Mobile Remote Reaction Dock & Lyrics in remote.html
+    if (!remoteHtml.includes('remote-reaction-dock') || !remoteHtml.includes('panelLyrics') || !remoteHtml.includes('sendRemoteReaction')) {
+      throw new Error('Reaction dock or remote lyrics missing in remote.html');
+    }
+
+    // 15e. Server Synced Lyrics & Reaction endpoints
+    if (!srvJs.includes('/api/lyrics') || !srvJs.includes('/api/room/:code/reaction') || !srvJs.includes('/api/room/:code/tip')) {
+      throw new Error('Flagship server routes missing in server.js');
+    }
+
+    console.log('  ✅ Passed: Tube Warmth, De-Esser, Synced Lyrics Teleprompter, Scoring & Reactions verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Edge Case 15 Error:', err.message);
+    failed++;
+  }
+
   console.log('\n====================================================');
   console.log(`📊 EDGE CASE REPORT: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');
