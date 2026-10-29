@@ -458,6 +458,52 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 13: Concurrency Locks, Hardware Mic Switching Guards & Mobile Remote Perm Selector
+  try {
+    console.log('\n[Edge Case 13] Verifying Concurrency Locks, Hardware Mic Switch Guards & Remote Sync...');
+    const appJsContent = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const remoteHtmlContent = fs.readFileSync(path.join(__dirname, 'public', 'remote.html'), 'utf8');
+
+    // Invariant 1: initAudioPromise mutex to prevent concurrent AudioContext creation
+    const hasAudioMutex = appJsContent.includes('initAudioPromise') &&
+                          appJsContent.includes('if (initAudioPromise) {') &&
+                          appJsContent.includes('return initAudioPromise;');
+
+    // Invariant 2: currentMicRequestId to cancel stale getUserMedia streams on rapid device switching
+    const hasMicSwitchGuard = appJsContent.includes('currentMicRequestId') &&
+                              appJsContent.includes('requestId !== currentMicRequestId') &&
+                              appJsContent.includes('stream.getTracks().forEach(t => t.stop())');
+
+    // Invariant 3: Pro Pack settings change listeners for persistent rehydration
+    const hasProPersistence = appJsContent.includes("sfxVol.addEventListener('change'") &&
+                              appJsContent.includes("eqMidSlider.addEventListener('change'") &&
+                              appJsContent.includes("doublerMix.addEventListener('change'");
+
+    // Invariant 4: Correct playback controls selector in remote.html for allowRemoteControl
+    const hasRemoteSelector = remoteHtmlContent.includes("querySelector('.playback-bar')");
+
+    // Invariant 5: Desktop queue bounds (max 100 tracks & removeFromQueue bounds check)
+    const hasQueueBounds = appJsContent.includes('queue.length >= 100') &&
+                           appJsContent.includes('idx >= 0 && idx < queue.length');
+
+    if (hasAudioMutex && hasMicSwitchGuard && hasProPersistence && hasRemoteSelector && hasQueueBounds) {
+      console.log('  ✅ Passed: Concurrency locks, mic switch guards, Pro persistence & remote sync verified');
+      passed++;
+    } else {
+      console.error('  ❌ Failed: Edge Case 13 invariant check failed:', {
+        hasAudioMutex,
+        hasMicSwitchGuard,
+        hasProPersistence,
+        hasRemoteSelector,
+        hasQueueBounds
+      });
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 13 Error:', err.message);
+    failed++;
+  }
+
   if (testProcess) testProcess.kill();
 
   if (originalUsersJson) {

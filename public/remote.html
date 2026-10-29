@@ -933,7 +933,7 @@
             renderQueueUI(data.queue);
           }
           if (data.addedTrack) {
-            showToast(`+ เพิ่ม "${data.addedTrack.title.slice(0, 22)}..." เข้าคิวแล้ว!`);
+            showToast(`+ เพิ่ม "${(data.addedTrack.title || 'เพลงใหม่').slice(0, 22)}..." เข้าคิวแล้ว!`);
           }
         } catch (err) {}
       });
@@ -985,11 +985,15 @@
 
       // Reflect allowRemoteControl state
       const isAllowed = (state.allowRemoteControl !== false);
-      const ctrlGroup = document.querySelector('.player-ctrl-group');
+      const ctrlGroup = document.querySelector('.playback-bar') || document.querySelector('.player-ctrl-group');
       if (ctrlGroup) {
         ctrlGroup.style.opacity = isAllowed ? '1' : '0.45';
         ctrlGroup.style.pointerEvents = isAllowed ? 'auto' : 'none';
       }
+      document.querySelectorAll('.btn-play-now').forEach(btn => {
+        btn.style.opacity = isAllowed ? '1' : '0.45';
+        btn.style.pointerEvents = isAllowed ? 'auto' : 'none';
+      });
 
       // Queue List
       renderQueueUI(state.queue || []);

@@ -619,6 +619,8 @@ function saveUserProfile() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: currentUser.username,
+        tier: currentUser.tier || 'free',
+        proExpiresAt: currentUser.proExpiresAt || null,
         preset: currentUser.preset,
         songKeys: currentUser.songKeys,
         hasCompletedOnboarding: currentUser.hasCompletedOnboarding
@@ -854,10 +856,15 @@ function applyVocalPreset(presetKey) {
 
 function updateAuthUI() {
   const unameLower = (currentUser.username || '').toLowerCase();
+  let tierExpired = false;
   if (!['sukky', 'sukky334576', 'tong', 'admin'].includes(unameLower)) {
     if (currentUser.tier === 'pro' && currentUser.proExpiresAt && currentUser.proExpiresAt < Date.now()) {
       currentUser.tier = 'free';
+      tierExpired = true;
     }
+  }
+  if (tierExpired) {
+    saveUserProfile();
   }
 
   const songKeysCount = currentUser.songKeys ? Object.keys(currentUser.songKeys).length : 0;
@@ -1517,20 +1524,26 @@ function startYtProgressTracker() {
 }
 
 // --- Initialize Web Audio Graph ---
+let initAudioPromise = null;
+
 async function initAudioEngine() {
   if (isAudioInitialized) {
     if (audioCtx && audioCtx.state === 'suspended') {
-      await audioCtx.resume();
+      try { await audioCtx.resume(); } catch (e) {}
     }
     return;
   }
+  if (initAudioPromise) {
+    return initAudioPromise;
+  }
 
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
-    if (audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-    }
+  initAudioPromise = (async () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+      if (audioCtx.state === 'suspended') {
+        try { await audioCtx.resume(); } catch (e) {}
+      }
 
     try {
       const initialStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1835,7 +1848,11 @@ async function initAudioEngine() {
     playEngineStartupChime();
   } catch (err) {
     console.error('Audio engine init error:', err);
+  } finally {
+    initAudioPromise = null;
   }
+  })();
+  return initAudioPromise;
 }
 
 // Startup Acoustic Tone (Verifies headphone output immediately on click)
@@ -1891,12 +1908,14 @@ function updateReverbImpulse() {
 // Initialize Microphone Stream with Vocal Dynamics Chain
 let micStream = null;
 let isVocalChainWired = false;
+let currentMicRequestId = 0;
 
 async function initMicrophoneStream(deviceId) {
+  const requestId = ++currentMicRequestId;
   try {
     const constraints = {
       audio: {
-        deviceId: deviceId ? { exact: deviceId } : undefined,
+        deviceId: deviceId && deviceId !== 'default' ? { exact: deviceId } : undefined,
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
@@ -1904,11 +1923,29 @@ async function initMicrophoneStream(deviceId) {
       }
     };
 
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (devErr) {
+      if (deviceId && deviceId !== 'default') {
+        console.warn('Selected device failed, falling back to default mic:', devErr.message);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
+      } else {
+        throw devErr;
+      }
+    }
+
+    // Stale request guard: if a newer device switch occurred while awaiting, stop this stream immediately
+    if (requestId !== currentMicRequestId) {
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+
     if (micStream) {
       micStream.getTracks().forEach(t => t.stop());
     }
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
     micStream = stream;
 
     if (micSource) {
@@ -1935,6 +1972,11 @@ async function initMicrophoneStream(deviceId) {
           vocalEqHighAirNode.connect(noiseGateNode);
         }
         noiseGateNode.connect(vocalCompressorNode);
+        chainTail = vocalCompressorNode;
+      } else if (vocalCompressorNode) {
+        if (vocalEqHighAirNode) {
+          vocalEqHighAirNode.connect(vocalCompressorNode);
+        }
         chainTail = vocalCompressorNode;
       }
 
@@ -1998,6 +2040,8 @@ async function initMicrophoneStream(deviceId) {
       micSource.connect(vocalEqLowCutNode);
     } else if (noiseGateNode) {
       micSource.connect(noiseGateNode);
+    } else if (vocalCompressorNode) {
+      micSource.connect(vocalCompressorNode);
     } else if (vocalHpGain) {
       micSource.connect(vocalHpGain);
       if (vocalCableGain) micSource.connect(vocalCableGain);
@@ -2348,10 +2392,12 @@ function startVuMeters() {
           if (!isDuckingCurrentlyActive) {
             isDuckingCurrentlyActive = true;
             duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
+            duckingGain.gain.setValueAtTime(duckingGain.gain.value, audioCtx.currentTime);
             duckingGain.gain.linearRampToValueAtTime(smartDuckingDepthVal, audioCtx.currentTime + 0.12);
             if (tabMusicGain) {
               const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
               tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              tabMusicGain.gain.setValueAtTime(tabMusicGain.gain.value, audioCtx.currentTime);
               tabMusicGain.gain.linearRampToValueAtTime(baseCableVol * smartDuckingDepthVal, audioCtx.currentTime + 0.12);
             }
             if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function') {
@@ -2364,11 +2410,13 @@ function startVuMeters() {
             isDuckingCurrentlyActive = false;
             if (duckingGain && audioCtx && !isDucked) {
               duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              duckingGain.gain.setValueAtTime(duckingGain.gain.value, audioCtx.currentTime);
               duckingGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.8);
             }
             if (tabMusicGain && audioCtx && !isDucked) {
               const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
               tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              tabMusicGain.gain.setValueAtTime(tabMusicGain.gain.value, audioCtx.currentTime);
               tabMusicGain.gain.linearRampToValueAtTime(baseCableVol, audioCtx.currentTime + 0.8);
             }
             if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function' && !isDucked) {
@@ -3333,6 +3381,14 @@ pitchSlider.addEventListener('input', (e) => {
 // Ducking Toggle
 function toggleDucking() {
   isDucked = !isDucked;
+  if (!isDucked) {
+    isDuckingCurrentlyActive = false;
+    if (smartDuckingRecoverTimer) {
+      clearTimeout(smartDuckingRecoverTimer);
+      smartDuckingRecoverTimer = null;
+    }
+  }
+
   if (duckingGain && audioCtx) {
     if (isDucked) {
       duckingGain.gain.setTargetAtTime(0.2, audioCtx.currentTime, 0.08);
@@ -3405,6 +3461,7 @@ if (vocalEqToggle) {
     }
     isVocalEqEnabled = e.target.checked;
     updateVocalEqParams();
+    saveUserProfile();
   });
 }
 
@@ -3416,6 +3473,7 @@ if (eqLowCutBtn) {
     }
     isEqLowCutActive = !isEqLowCutActive;
     updateVocalEqParams();
+    saveUserProfile();
   });
 }
 
@@ -3425,6 +3483,9 @@ if (eqMidSlider) {
     if (eqMidText) eqMidText.innerText = `${val > 0 ? '+' : ''}${val} dB`;
     updateVocalEqParams();
   });
+  eqMidSlider.addEventListener('change', () => {
+    saveUserProfile();
+  });
 }
 
 if (eqHighAirSlider) {
@@ -3432,6 +3493,9 @@ if (eqHighAirSlider) {
     const val = parseFloat(e.target.value);
     if (eqHighAirText) eqHighAirText.innerText = `${val > 0 ? '+' : ''}${val} dB`;
     updateVocalEqParams();
+  });
+  eqHighAirSlider.addEventListener('change', () => {
+    saveUserProfile();
   });
 }
 
@@ -3457,6 +3521,7 @@ if (doublerToggle) {
     }
     isDoublerEnabled = e.target.checked;
     updateDoublerParams();
+    saveUserProfile();
   });
 }
 
@@ -3465,6 +3530,9 @@ if (doublerMix) {
     const val = parseFloat(e.target.value);
     if (doublerMixText) doublerMixText.innerText = `${Math.round(val * 100)}%`;
     updateDoublerParams();
+  });
+  doublerMix.addEventListener('change', () => {
+    saveUserProfile();
   });
 }
 
@@ -3486,11 +3554,13 @@ if (smartDuckingToggle) {
       isDuckingCurrentlyActive = false;
       if (duckingGain && audioCtx && !isDucked) {
         duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        duckingGain.gain.setValueAtTime(duckingGain.gain.value, audioCtx.currentTime);
         duckingGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.1);
       }
       if (tabMusicGain && audioCtx && !isDucked) {
         const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
         tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        tabMusicGain.gain.setValueAtTime(tabMusicGain.gain.value, audioCtx.currentTime);
         tabMusicGain.gain.linearRampToValueAtTime(baseCableVol, audioCtx.currentTime + 0.1);
       }
       if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function' && !isDucked) {
@@ -3506,6 +3576,9 @@ if (smartDuckingDepth) {
   smartDuckingDepth.addEventListener('input', (e) => {
     smartDuckingDepthVal = parseFloat(e.target.value);
     if (smartDuckingDepthText) smartDuckingDepthText.innerText = `${Math.round(smartDuckingDepthVal * 100)}%`;
+  });
+  smartDuckingDepth.addEventListener('change', () => {
+    saveUserProfile();
   });
 }
 
@@ -3684,6 +3757,9 @@ if (sfxVol) {
       soundboardGain.gain.setValueAtTime(val, audioCtx.currentTime);
     }
   });
+  sfxVol.addEventListener('change', () => {
+    saveUserProfile();
+  });
 }
 
 // Global Hotkeys (F8, Numpad -, `)
@@ -3804,9 +3880,16 @@ function renderSearchResults(videos) {
           alert('👑 ฟังก์ชันแทรกเพลงเป็นคิวถัดไป (Priority Queue) สงวนสิทธิ์สำหรับสมาชิกระดับ PRO PACK (49.- / เดือน)\nกรุณากดไอคอนโปรไฟล์เพื่อทดลองใช้งาน Pro');
           return;
         }
+        if (queue.length >= 100) {
+          showHostToast('⚠️ คิวเพลงเต็มแล้ว (สูงสุด 100 เพลง)');
+          return;
+        }
         queue.unshift(v);
         renderQueue(true);
         showHostToast(`⚡ [PRO] แทรก "${v.title}" เป็นคิวถัดไปแล้ว!`);
+        if (!isPlaying && !currentTrack) {
+          playNextInQueue();
+        }
       } else {
         playTrack(v);
         searchResults.classList.add('hidden');
@@ -4099,6 +4182,10 @@ if (prevBtn) prevBtn.addEventListener('click', playPreviousTrack);
 
 // Queue Management
 function addToQueue(track, shouldSync = true) {
+  if (queue.length >= 100) {
+    showHostToast('⚠️ คิวเพลงเต็มแล้ว (สูงสุด 100 เพลง)');
+    return;
+  }
   queue.push(track);
   renderQueue(shouldSync);
   if (!isPlaying && !currentTrack) {
@@ -4156,8 +4243,10 @@ window.jumpToTopQueue = function(idx) {
 };
 
 window.removeFromQueue = function(idx) {
-  queue.splice(idx, 1);
-  renderQueue(true);
+  if (idx >= 0 && idx < queue.length) {
+    queue.splice(idx, 1);
+    renderQueue(true);
+  }
 };
 
 window.playNowFromQueue = function(idx) {
@@ -4299,7 +4388,7 @@ function connectHostRoomSSE(code) {
           renderQueue(false);
         }
         if (data.addedTrack) {
-          showHostToast(`📱 ${escapeHtml(data.addedBy || 'รีโมทมือถือ')} เพิ่มเพลง "${escapeHtml(data.addedTrack.title)}" เข้าคิว`);
+          showHostToast(`📱 ${data.addedBy || 'รีโมทมือถือ'} เพิ่มเพลง "${data.addedTrack.title || 'เพลง'}" เข้าคิว`);
           if (!isPlaying && !currentTrack) {
             playNextInQueue();
           }
@@ -4320,7 +4409,7 @@ function connectHostRoomSSE(code) {
 }
 
 function handleRemoteCommand({ action, payload, sender }) {
-  showHostToast(`📱 คำสั่งจาก ${escapeHtml(sender || 'รีโมท')}: ${escapeHtml(action)}`);
+  showHostToast(`📱 คำสั่งจาก ${sender || 'รีโมท'}: ${action}`);
   switch (action) {
     case 'toggle':
       togglePlayPause();
