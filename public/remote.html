@@ -631,6 +631,15 @@
 
     <!-- 2. Main Remote Interface (When joined) -->
     <main id="remoteMain" class="hidden" style="display: flex; flex-direction: column; gap: 14px;">
+      <!-- VIP Pro Room Banner -->
+      <div id="vipRoomBanner" class="vip-room-banner hidden">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">👑</span>
+          <span><b>VIP PRO ROOM</b> • โฮสต์สมาชิกระดับโปร</span>
+        </div>
+        <span style="font-size: 10px; background: rgba(216,177,93,0.25); border: 1px solid #d8b15d; padding: 2px 8px; border-radius: 9999px; color: #f4e6c3; font-weight: 700;">PRO ⭐</span>
+      </div>
+
       <!-- Now Playing Card -->
       <section class="now-playing-card">
         <div class="track-thumb-box">
@@ -926,6 +935,15 @@
       infoMyNick.innerText = myNickname || 'Guest';
       if (state.clientCount !== undefined) infoClientsCount.innerText = `${state.clientCount} เครื่อง`;
 
+      const vipBanner = document.getElementById('vipRoomBanner');
+      if (vipBanner) {
+        if (state.hostTier === 'pro') {
+          vipBanner.classList.remove('hidden');
+        } else {
+          vipBanner.classList.add('hidden');
+        }
+      }
+
       // Now Playing
       if (state.currentTrack) {
         npTitle.innerText = state.currentTrack.title;
@@ -1113,14 +1131,23 @@
           </div>
           <div class="song-actions">
             <button class="btn btn-gold btn-xs btn-add-q">+ คิว</button>
+            ${roomState && roomState.hostTier === 'pro' ? '<button class="btn btn-outline btn-xs btn-priority" style="border-color:var(--gold-primary); color:var(--gold-primary);" title="แทรกเป็นคิวแรก (VIP PRO)">⚡ คิวแรก</button>' : ''}
             <button class="btn btn-outline btn-xs btn-play-now" title="เล่นทันที">▶ เล่น</button>
           </div>
         `;
 
         card.querySelector('.btn-add-q').addEventListener('click', (e) => {
           e.stopPropagation();
-          addSongToQueue(v);
+          addSongToQueue(v, false);
         });
+
+        const btnPriority = card.querySelector('.btn-priority');
+        if (btnPriority) {
+          btnPriority.addEventListener('click', (e) => {
+            e.stopPropagation();
+            addSongToQueue(v, true);
+          });
+        }
 
         card.querySelector('.btn-play-now').addEventListener('click', (e) => {
           e.stopPropagation();
@@ -1132,7 +1159,7 @@
     }
 
     // Add Song into Room Queue
-    async function addSongToQueue(track) {
+    async function addSongToQueue(track, isPriority = false) {
       if (!currentRoomCode) {
         showToast('กรุณาเข้าห้องก่อนเพิ่มเพลง');
         return;
@@ -1141,11 +1168,11 @@
         const res = await fetch(`/api/room/${currentRoomCode}/queue`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ track, addedBy: myNickname })
+          body: JSON.stringify({ track, addedBy: myNickname, priority: isPriority })
         });
         const data = await res.json();
         if (data.success) {
-          showToast(`เพิ่ม "${track.title.slice(0, 20)}..." เข้าคิวแล้ว! (#${data.position})`);
+          showToast(isPriority ? `⚡ แทรก "${track.title.slice(0, 18)}..." เป็นคิวแรกแล้ว!` : `เพิ่ม "${track.title.slice(0, 20)}..." เข้าคิวแล้ว! (#${data.position})`);
         } else {
           showToast(data.error || 'เพิ่มเพลงไม่สำเร็จ');
         }

@@ -261,6 +261,12 @@
             </div>
             <audio id="recordedAudioPlayer" controls class="luxury-audio-player"></audio>
             
+            <div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;">
+              <button id="downloadRecordBtn" type="button" class="btn btn-outline" style="flex: 1; padding: 7px 10px; font-size: 11px; font-weight: 700; border-color: #d8b15d; color: #f4e6c3; background: rgba(216,177,93,0.1); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                ⬇️ ดาวน์โหลดเพลงที่อัด (HQ Audio WebM/WAV)
+              </button>
+            </div>
+            
             <div class="sync-offset-sub-row">
               <label for="modalSyncOffset">Sync Offset Calibration:</label>
               <div class="sync-slider-wrap">
@@ -283,7 +289,9 @@
           </div>
           <div class="preset-pill-group">
             <button class="preset-pill active" data-preset="pop" title="เสียงร้องคมชัดใสธรรมชาติ มี Reverb พอดีๆ">Studio Pop</button>
+            <button class="preset-pill" data-preset="ballad" title="สไตล์นักร้องเสียงทรงพลัง รีเวิร์บกว้างละมุน">Diva Ballad</button>
             <button class="preset-pill" data-preset="tpain" title="Auto-Tune ดึงโน้ตเร็วสไตล์ T-Pain / Trap">T-Pain Trap</button>
+            <button class="preset-pill" data-preset="police" title="เสียงวิทยุสื่อสารตำรวจ FiveM / Megaphone">FiveM Radio</button>
             <button class="preset-pill" data-preset="rock" title="เสียงก้องสเตเดียม ทรงพลัง">Rock Arena</button>
             <button class="preset-pill" data-preset="lofi" title="เสียงร้องอุ่นนุ่มนวล สไตล์ Lo-Fi">Lo-Fi Warm</button>
             <button class="preset-pill" data-preset="talk" title="ปิดเอฟเฟกต์ทั้งหมดเพื่อคุยปกติ">Clean Talk</button>
@@ -323,6 +331,51 @@
                 <span id="compressorText" class="val-text val-green mono-num">4:1 Ratio</span>
               </div>
               <input type="range" id="compressorSlider" min="1" max="8" step="0.5" value="4" aria-label="ระดับการบีบอัดเสียงร้อง">
+            </div>
+          </div>
+        </div>
+
+        <!-- 1.5 3-Band Studio Vocal EQ (PRO 49฿) -->
+        <div class="studio-module">
+          <div class="module-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h2>3-Band Studio Vocal EQ</h2>
+                <span class="badge-pro-tag">PRO 49฿</span>
+              </div>
+              <p class="module-desc">ตัดเสียงลมปะทะไมค์ & ปรับเนื้อเสียงร้องให้คมชัดใสแบบไมค์แพง</p>
+            </div>
+            <label class="switch" title="เปิด/ปิด 3-Band EQ">
+              <input type="checkbox" id="vocalEqToggle">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="control-grid-3">
+            <div class="control-group">
+              <div class="group-header">
+                <label for="eqLowCutBtn">Low-Cut (80Hz)</label>
+                <span id="eqLowCutText" class="val-text mono-num">OFF</span>
+              </div>
+              <button id="eqLowCutBtn" type="button" class="btn btn-outline" style="width: 100%; padding: 6px 4px; font-size: 11px; font-weight: 600; border-color: rgba(255,255,255,0.15);">
+                🛡️ ตัดเสียงลม
+              </button>
+            </div>
+
+            <div class="control-group">
+              <div class="group-header">
+                <label for="eqMidSlider">Mid Clarity (2.5kHz)</label>
+                <span id="eqMidText" class="val-text mono-num">+0 dB</span>
+              </div>
+              <input type="range" id="eqMidSlider" min="-6" max="6" step="0.5" value="0">
+            </div>
+
+            <div class="control-group">
+              <div class="group-header">
+                <label for="eqHighAirSlider">High Air (10kHz)</label>
+                <span id="eqHighAirText" class="val-text mono-num">+0 dB</span>
+              </div>
+              <input type="range" id="eqHighAirSlider" min="-6" max="6" step="0.5" value="0">
             </div>
           </div>
         </div>
@@ -402,6 +455,31 @@
               </div>
               <input type="range" id="atAmount" min="0.0" max="1.0" step="0.05" value="1.0">
             </div>
+          </div>
+        </div>
+
+        <!-- 2.5 Vocal Harmony & Doubler (PRO 49฿) -->
+        <div class="studio-module">
+          <div class="module-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h2>Vocal Doubler & Harmony</h2>
+                <span class="badge-pro-tag">PRO 49฿</span>
+              </div>
+              <p class="module-desc">สร้างมิติเสียงร้องคู่และเสียงประสานสเตอริโอ เพิ่มความหนาในท่อนฮุก</p>
+            </div>
+            <label class="switch" title="เปิด/ปิด Vocal Doubler">
+              <input type="checkbox" id="doublerToggle">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="control-group">
+            <div class="group-header">
+              <label for="doublerMix">Doubler Intensity (ความหนาเสียงร้องคู่)</label>
+              <span id="doublerMixText" class="val-text mono-num">0%</span>
+            </div>
+            <input type="range" id="doublerMix" min="0" max="1" step="0.05" value="0">
           </div>
         </div>
 
@@ -543,6 +621,28 @@
               <input type="range" id="cableSyncOffset" min="0" max="300" step="10" value="120" aria-label="ปรับชดเชยดีเลย์">
             </div>
 
+            <!-- Smart Voice Ducking (PRO 49฿) -->
+            <div class="control-group" style="padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 6px; margin-top: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 12px; color: #f4e6c3;">Smart Voice Ducking</strong>
+                  <span class="badge-pro-tag">PRO 49฿</span>
+                </div>
+                <label class="switch" title="เปิด/ปิด ดนตรีหลบเสียงพูดอัตโนมัติ">
+                  <input type="checkbox" id="smartDuckingToggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                ดนตรีจะลดระดับลงอัตโนมัติเมื่อเริ่มพูดหรือ MC ใน FiveM/Discord และค่อยๆ ดังขึ้นเองเมื่อหยุดพูด
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 11px; color: var(--text-secondary); white-space: nowrap;">ระดับดนตรีตอนหลบ:</span>
+                <input type="range" id="smartDuckingDepth" min="0.1" max="0.6" step="0.05" value="0.30" style="flex: 1;">
+                <span id="smartDuckingDepthText" class="val-text mono-num" style="min-width: 40px; text-align: right;">30%</span>
+              </div>
+            </div>
+
             <!-- Zero Latency Hardware Monitoring Notice -->
             <div class="anti-echo-box" style="margin-top: 12px; padding: 10px; background: rgba(216, 177, 93, 0.08); border: 1px solid rgba(216, 177, 93, 0.25); border-radius: 8px; font-size: 11px; line-height: 1.5; color: #cfd3dc;">
               <div style="font-weight: 600; color: #d8b15d; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
@@ -607,6 +707,50 @@
               </div>
               <input type="range" id="roomSize" min="1" max="4" step="1" value="2">
             </div>
+          </div>
+        </div>
+
+        <!-- 5.5 DJ Soundboard & Mic SFX (PRO 49฿) -->
+        <div class="studio-module">
+          <div class="module-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h2>DJ Soundboard & Mic SFX</h2>
+                <span class="badge-pro-tag">PRO 49฿</span>
+              </div>
+              <p class="module-desc">ส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM & Discord ผ่านสายไมค์ทันที</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="sfxVolText" class="val-text mono-num">80%</span>
+              <input type="range" id="sfxVol" min="0" max="1" step="0.05" value="0.8" style="width: 70px;" title="ระดับเสียง Soundboard">
+            </div>
+          </div>
+
+          <div class="soundboard-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;">
+            <button class="sfx-btn" data-sfx="airhorn" title="เสียงแอร์ฮอร์นเปิดเพลง">
+              <span class="sfx-icon">📢</span>
+              <span class="sfx-name">Airhorn</span>
+            </button>
+            <button class="sfx-btn" data-sfx="applause" title="เสียงปรบมือ & กรี๊ดเชียร์">
+              <span class="sfx-icon">👏</span>
+              <span class="sfx-name">Applause</span>
+            </button>
+            <button class="sfx-btn" data-sfx="rimshot" title="เสียงกลองตึกโป๊ะเล่นมุก">
+              <span class="sfx-icon">🥁</span>
+              <span class="sfx-name">Rimshot</span>
+            </button>
+            <button class="sfx-btn" data-sfx="cricket" title="เสียงจิ้งหรีดเวลาเดดแอร์">
+              <span class="sfx-icon">🦗</span>
+              <span class="sfx-name">Cricket</span>
+            </button>
+            <button class="sfx-btn" data-sfx="ding" title="เสียงกระดิ่งถูกต้อง">
+              <span class="sfx-icon">🔔</span>
+              <span class="sfx-name">Ding!</span>
+            </button>
+            <button class="sfx-btn" data-sfx="laser" title="เสียงเลเซอร์ไซไฟดรอป">
+              <span class="sfx-icon">🚀</span>
+              <span class="sfx-name">Laser Drop</span>
+            </button>
           </div>
         </div>
 

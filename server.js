@@ -432,13 +432,14 @@ function generateRoomCode() {
   return `${prefix}-${num}`;
 }
 
-function getOrCreateRoom(code, hostName = 'Host') {
+function getOrCreateRoom(code, hostName = 'Host', hostTier = 'free') {
   const norm = normalizeRoomCode(code) || generateRoomCode();
   let room = rooms.get(norm);
   if (!room) {
     room = {
       code: norm,
       hostName: sanitizeText(hostName, 32) || 'Host',
+      hostTier: hostTier || 'free',
       createdAt: Date.now(),
       lastActive: Date.now(),
       currentTrack: null,
@@ -452,6 +453,9 @@ function getOrCreateRoom(code, hostName = 'Host') {
     room.lastActive = Date.now();
     if (hostName && hostName !== 'Host') {
       room.hostName = sanitizeText(hostName, 32);
+    }
+    if (hostTier) {
+      room.hostTier = hostTier;
     }
   }
   return room;
@@ -473,6 +477,7 @@ function getRoomSnapshot(room) {
   return {
     code: room.code,
     hostName: room.hostName,
+    hostTier: room.hostTier || 'free',
     currentTrack: room.currentTrack,
     isPlaying: room.isPlaying,
     queue: room.queue,
@@ -667,10 +672,13 @@ app.post('/api/auth/upgrade-pro', (req, res) => {
 app.post('/api/room/create', (req, res) => {
   const requestedCode = req.body && req.body.roomCode ? req.body.roomCode : generateRoomCode();
   const hostName = (req.body && req.body.hostName) ? req.body.hostName : 'Host';
-  const room = getOrCreateRoom(requestedCode, hostName);
+  const hostTier = (req.body && req.body.hostTier) ? req.body.hostTier : 'free';
+  const room = getOrCreateRoom(requestedCode, hostName, hostTier);
+  room.hostTier = hostTier;
   res.json({
     roomCode: room.code,
     hostName: room.hostName,
+    hostTier: room.hostTier,
     localIps: getLocalIpAddresses(),
     port: PORT,
     renderUrl: 'https://nocturne-karaoke-backend.onrender.com'
@@ -751,13 +759,19 @@ app.post('/api/room/:code/queue', (req, res) => {
     addedAt: Date.now()
   };
 
-  room.queue.push(queueItem);
+  const isPriority = !!(req.body && req.body.priority);
+  if (isPriority) {
+    room.queue.unshift(queueItem);
+  } else {
+    room.queue.push(queueItem);
+  }
   room.lastActive = Date.now();
 
   broadcastRoomEvent(room, 'queue_updated', {
     queue: room.queue,
     addedTrack: queueItem,
-    addedBy: addedBy
+    addedBy: addedBy,
+    isPriority: isPriority
   });
 
   res.json({
@@ -829,13 +843,14 @@ app.post('/api/room/:code/queue/clear', (req, res) => {
 app.post('/api/room/:code/sync', (req, res) => {
   const norm = normalizeRoomCode(req.params.code);
   const room = getOrCreateRoom(norm);
-  const { currentTrack, isPlaying, queue, allowRemoteControl, hostName } = req.body || {};
+  const { currentTrack, isPlaying, queue, allowRemoteControl, hostName, hostTier } = req.body || {};
 
   if (currentTrack !== undefined) room.currentTrack = currentTrack;
   if (isPlaying !== undefined) room.isPlaying = Boolean(isPlaying);
   if (Array.isArray(queue)) room.queue = queue.slice(0, 100);
   if (allowRemoteControl !== undefined) room.allowRemoteControl = Boolean(allowRemoteControl);
   if (hostName) room.hostName = sanitizeText(hostName, 32);
+  if (hostTier) room.hostTier = hostTier;
 
   room.lastActive = Date.now();
 

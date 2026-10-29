@@ -2129,3 +2129,83 @@ kbd {
   visibility: hidden;
   pointer-events: none;
 }
+
+/* DJ Soundboard & Mic SFX */
+.soundboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.sfx-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.sfx-btn:hover {
+  background: rgba(216, 177, 93, 0.12);
+  border-color: var(--gold-primary);
+  transform: translateY(-1px);
+}
+
+.sfx-btn:active, .sfx-btn.playing {
+  transform: scale(0.95);
+  background: rgba(216, 177, 93, 0.25);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 12px rgba(216, 177, 93, 0.4);
+}
+
+.sfx-icon {
+  font-size: 20px;
+}
+
+.sfx-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Priority Queue Button */
+.btn-priority-queue {
+  background: rgba(216, 177, 93, 0.15);
+  border: 1px solid var(--gold-primary);
+  color: #f4e6c3;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-priority-queue:hover {
+  background: var(--gold-primary);
+  color: #08090d;
+}
+
+/* VIP Mobile Remote Banner */
+.vip-room-banner {
+  background: linear-gradient(135deg, rgba(216, 177, 93, 0.2), rgba(216, 177, 93, 0.05));
+  border: 1px solid rgba(216, 177, 93, 0.4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #f4e6c3;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}

@@ -41,6 +41,30 @@ let reverbInputGain = null;
 let reverbGain = null;
 let headphoneReverbGain = null;
 
+// 3-Band Studio Vocal EQ Nodes
+let vocalEqLowCutNode = null;
+let vocalEqMidNode = null;
+let vocalEqHighAirNode = null;
+let isVocalEqEnabled = false;
+let isEqLowCutActive = false;
+
+// Vocal Doubler & Stereo Harmony Nodes
+let doublerGain = null;
+let doublerDelayLeft = null;
+let doublerDelayRight = null;
+let doublerPannerLeft = null;
+let doublerPannerRight = null;
+let isDoublerEnabled = false;
+
+// DJ Soundboard & SFX Nodes
+let soundboardGain = null;
+
+// Smart Voice Ducking State
+let isSmartDuckingEnabled = false;
+let smartDuckingDepthVal = 0.30;
+let smartDuckingRecoverTimer = null;
+let isDuckingCurrentlyActive = false;
+
 let micSource = null;
 let micAnalyser = null;
 
@@ -293,6 +317,29 @@ const upgradeProBtn = document.getElementById('upgradeProBtn');
 const profileWizardBtn = document.getElementById('profileWizardBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 
+// New Pro Features DOM Elements
+const vocalEqToggle = document.getElementById('vocalEqToggle');
+const eqLowCutBtn = document.getElementById('eqLowCutBtn');
+const eqLowCutText = document.getElementById('eqLowCutText');
+const eqMidSlider = document.getElementById('eqMidSlider');
+const eqMidText = document.getElementById('eqMidText');
+const eqHighAirSlider = document.getElementById('eqHighAirSlider');
+const eqHighAirText = document.getElementById('eqHighAirText');
+
+const doublerToggle = document.getElementById('doublerToggle');
+const doublerMix = document.getElementById('doublerMix');
+const doublerMixText = document.getElementById('doublerMixText');
+
+const smartDuckingToggle = document.getElementById('smartDuckingToggle');
+const smartDuckingDepth = document.getElementById('smartDuckingDepth');
+const smartDuckingDepthText = document.getElementById('smartDuckingDepthText');
+
+const sfxVol = document.getElementById('sfxVol');
+const sfxVolText = document.getElementById('sfxVolText');
+const sfxBtns = document.querySelectorAll('.sfx-btn');
+
+const downloadRecordBtn = document.getElementById('downloadRecordBtn');
+
 // Onboarding Setup Wizard DOM
 const onboardingWizardModal = document.getElementById('onboardingWizardModal');
 const closeWizardModalBtn = document.getElementById('closeWizardModalBtn');
@@ -372,7 +419,33 @@ const VOCAL_PRESETS = {
     roomSize: 2,
     noiseGateThreshold: -45,
     compressorRatio: 4,
-    dynamicsEnabled: true
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: 1.0,
+    eqHigh: 2.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
+  },
+  ballad: {
+    autotuneEnabled: true,
+    autotuneKey: 0,
+    autotuneScale: 0,
+    autotuneSpeed: 0.20,
+    autotuneAmount: 0.70,
+    reverbEnabled: true,
+    reverbMix: 0.40,
+    reverbDecay: 2.6,
+    roomSize: 3,
+    noiseGateThreshold: -45,
+    compressorRatio: 4.5,
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: 1.5,
+    eqHigh: 3.5,
+    doublerEnabled: true,
+    doublerMix: 0.35
   },
   tpain: {
     autotuneEnabled: true,
@@ -386,7 +459,29 @@ const VOCAL_PRESETS = {
     roomSize: 3,
     noiseGateThreshold: -40,
     compressorRatio: 6,
-    dynamicsEnabled: true
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: 2.0,
+    eqHigh: 3.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
+  },
+  police: {
+    autotuneEnabled: false,
+    reverbEnabled: false,
+    reverbMix: 0.0,
+    reverbDecay: 1.0,
+    roomSize: 1,
+    noiseGateThreshold: -35,
+    compressorRatio: 7,
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: 4.5,
+    eqHigh: -5.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
   },
   rock: {
     autotuneEnabled: false,
@@ -396,7 +491,13 @@ const VOCAL_PRESETS = {
     roomSize: 4,
     noiseGateThreshold: -45,
     compressorRatio: 5,
-    dynamicsEnabled: true
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: 2.5,
+    eqHigh: 1.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
   },
   lofi: {
     autotuneEnabled: false,
@@ -406,7 +507,13 @@ const VOCAL_PRESETS = {
     roomSize: 1,
     noiseGateThreshold: -50,
     compressorRatio: 2.5,
-    dynamicsEnabled: true
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: -1.0,
+    eqHigh: -3.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
   },
   talk: {
     autotuneEnabled: false,
@@ -416,7 +523,13 @@ const VOCAL_PRESETS = {
     roomSize: 1,
     noiseGateThreshold: -40,
     compressorRatio: 3,
-    dynamicsEnabled: true
+    dynamicsEnabled: true,
+    eqEnabled: false,
+    eqLowCut: true,
+    eqMid: 0.0,
+    eqHigh: 0.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
   }
 };
 
@@ -642,6 +755,35 @@ function applyVocalPreset(presetKey) {
     isDynamicsEnabled = cfg.dynamicsEnabled;
   }
 
+  // 3-Band Vocal EQ update from preset
+  if (cfg.eqEnabled !== undefined && vocalEqToggle) {
+    isVocalEqEnabled = isProTier ? cfg.eqEnabled : false;
+    vocalEqToggle.checked = isVocalEqEnabled;
+  }
+  if (cfg.eqLowCut !== undefined) {
+    isEqLowCutActive = cfg.eqLowCut;
+  }
+  if (cfg.eqMid !== undefined && eqMidSlider) {
+    eqMidSlider.value = cfg.eqMid;
+    if (eqMidText) eqMidText.innerText = `${cfg.eqMid > 0 ? '+' : ''}${cfg.eqMid} dB`;
+  }
+  if (cfg.eqHigh !== undefined && eqHighAirSlider) {
+    eqHighAirSlider.value = cfg.eqHigh;
+    if (eqHighAirText) eqHighAirText.innerText = `${cfg.eqHigh > 0 ? '+' : ''}${cfg.eqHigh} dB`;
+  }
+  if (typeof updateVocalEqParams === 'function') updateVocalEqParams();
+
+  // Vocal Doubler update from preset
+  if (cfg.doublerEnabled !== undefined && doublerToggle) {
+    isDoublerEnabled = isProTier ? cfg.doublerEnabled : false;
+    doublerToggle.checked = isDoublerEnabled;
+  }
+  if (cfg.doublerMix !== undefined && doublerMix) {
+    doublerMix.value = cfg.doublerMix;
+    if (doublerMixText) doublerMixText.innerText = `${Math.round(cfg.doublerMix * 100)}%`;
+  }
+  if (typeof updateDoublerParams === 'function') updateDoublerParams();
+
   updateAutotuneParams();
   updateReverbImpulse();
   updateDynamicsParams();
@@ -650,10 +792,11 @@ function applyVocalPreset(presetKey) {
 
 function updateAuthUI() {
   const songKeysCount = currentUser.songKeys ? Object.keys(currentUser.songKeys).length : 0;
-  if (profileSongKeysCount) profileSongKeysCount.innerText = songKeysCount;
-  if (profileSyncOffsetText) profileSyncOffsetText.innerText = `${cableSyncOffsetMs}ms`;
-
   const isPro = currentUser.tier === 'pro';
+  if (profileSongKeysCount) {
+    profileSongKeysCount.innerText = isPro ? `${songKeysCount} เพลง (PRO ไม่จำกัด)` : `${songKeysCount}/3 เพลง (Free)`;
+  }
+  if (profileSyncOffsetText) profileSyncOffsetText.innerText = `${cableSyncOffsetMs}ms`;
 
   if (currentUser && currentUser.isLoggedIn) {
     const displayName = currentUser.username || (currentUser.isGuest ? 'Guest' : 'User');
@@ -696,6 +839,14 @@ function updateAuthUI() {
       if (reverbGain && audioCtx) {
         reverbGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
       }
+      if (vocalEqToggle) vocalEqToggle.checked = false;
+      isVocalEqEnabled = false;
+      updateVocalEqParams();
+      if (doublerToggle) doublerToggle.checked = false;
+      isDoublerEnabled = false;
+      updateDoublerParams();
+      if (smartDuckingToggle) smartDuckingToggle.checked = false;
+      isSmartDuckingEnabled = false;
     }
   } else {
     userProfileLabel.innerHTML = 'เข้าสู่ระบบ / สมาชิก';
@@ -1443,6 +1594,46 @@ async function initAudioEngine() {
 
     updateReverbImpulse();
 
+    // 3-Band Studio Vocal EQ System
+    vocalEqLowCutNode = audioCtx.createBiquadFilter();
+    vocalEqLowCutNode.type = 'highpass';
+    vocalEqLowCutNode.frequency.setValueAtTime((isVocalEqEnabled && isEqLowCutActive) ? 80 : 10, audioCtx.currentTime);
+
+    vocalEqMidNode = audioCtx.createBiquadFilter();
+    vocalEqMidNode.type = 'peaking';
+    vocalEqMidNode.frequency.setValueAtTime(2500, audioCtx.currentTime);
+    vocalEqMidNode.Q.setValueAtTime(1.0, audioCtx.currentTime);
+    vocalEqMidNode.gain.setValueAtTime((isVocalEqEnabled && eqMidSlider) ? parseFloat(eqMidSlider.value) : 0, audioCtx.currentTime);
+
+    vocalEqHighAirNode = audioCtx.createBiquadFilter();
+    vocalEqHighAirNode.type = 'highshelf';
+    vocalEqHighAirNode.frequency.setValueAtTime(10000, audioCtx.currentTime);
+    vocalEqHighAirNode.gain.setValueAtTime((isVocalEqEnabled && eqHighAirSlider) ? parseFloat(eqHighAirSlider.value) : 0, audioCtx.currentTime);
+
+    // Vocal Doubler & Stereo Harmony System
+    doublerGain = audioCtx.createGain();
+    const activeDoubler = (currentUser.tier === 'pro' && isDoublerEnabled);
+    doublerGain.gain.setValueAtTime(activeDoubler && doublerMix ? parseFloat(doublerMix.value) : 0.0, audioCtx.currentTime);
+
+    doublerDelayLeft = audioCtx.createDelay(0.1);
+    doublerDelayLeft.delayTime.setValueAtTime(0.018, audioCtx.currentTime);
+    doublerDelayRight = audioCtx.createDelay(0.1);
+    doublerDelayRight.delayTime.setValueAtTime(0.028, audioCtx.currentTime);
+
+    try {
+      doublerPannerLeft = audioCtx.createStereoPanner();
+      doublerPannerLeft.pan.setValueAtTime(-0.6, audioCtx.currentTime);
+      doublerPannerRight = audioCtx.createStereoPanner();
+      doublerPannerRight.pan.setValueAtTime(0.6, audioCtx.currentTime);
+    } catch (e) {
+      doublerPannerLeft = null;
+      doublerPannerRight = null;
+    }
+
+    // DJ Soundboard Master Gain
+    soundboardGain = audioCtx.createGain();
+    soundboardGain.gain.setValueAtTime(sfxVol ? parseFloat(sfxVol.value) : 0.8, audioCtx.currentTime);
+
     // Analysers
     micAnalyser = audioCtx.createAnalyser();
     micAnalyser.fftSize = 64;
@@ -1517,6 +1708,13 @@ async function initAudioEngine() {
     // Captures the exact broadcast stream sent into Discord & FiveM (Backing Track + Vocal + Reverb)
     // cableGain already contains cableMixGain (musicCableGain + vocalCableGain/autotuneCableGain + reverbGain)
     cableGain.connect(destRecordTest);
+
+    // 7. DJ SOUNDBOARD ROUTING:
+    if (soundboardGain) {
+      soundboardGain.connect(cableMixGain);
+      soundboardGain.connect(headphoneMixGain);
+      soundboardGain.connect(destRecordTest);
+    }
 
     // Load Auto-Tune Worklet
     try {
@@ -1637,19 +1835,46 @@ async function initMicrophoneStream(deviceId) {
     micSource = audioCtx.createMediaStreamSource(stream);
     micSource.connect(micAnalyser);
 
-    // Connect through Vocal Dynamics Chain (Noise Gate -> Compressor -> Plugin Rack -> Safety Limiter)
+    // 1. Connect through 3-Band Vocal EQ (Low-Cut -> Mid -> High Air)
     let vocalChainSource = micSource;
 
+    if (vocalEqLowCutNode && vocalEqMidNode && vocalEqHighAirNode) {
+      micSource.connect(vocalEqLowCutNode);
+      vocalEqLowCutNode.connect(vocalEqMidNode);
+      vocalEqMidNode.connect(vocalEqHighAirNode);
+      vocalChainSource = vocalEqHighAirNode;
+    }
+
+    // 2. Connect through Vocal Dynamics Chain (Noise Gate -> Compressor)
     if (noiseGateNode && vocalCompressorNode) {
-      micSource.connect(noiseGateNode);
+      vocalChainSource.connect(noiseGateNode);
       noiseGateNode.connect(vocalCompressorNode);
       vocalChainSource = vocalCompressorNode;
     }
 
-    // Connect through Modular FX Plugin Rack & Safety Brickwall Limiter
+    // 3. Connect through Modular FX Plugin Rack & Safety Brickwall Limiter
     if (pluginRackInput && safetyLimiterNode) {
       vocalChainSource.connect(pluginRackInput);
       vocalChainSource = safetyLimiterNode;
+    }
+
+    // 4. Vocal Doubler & Stereo Harmony tap
+    if (doublerGain && doublerDelayLeft && doublerDelayRight) {
+      try {
+        vocalChainSource.connect(doublerDelayLeft);
+        vocalChainSource.connect(doublerDelayRight);
+        if (doublerPannerLeft && doublerPannerRight) {
+          doublerDelayLeft.connect(doublerPannerLeft);
+          doublerPannerLeft.connect(doublerGain);
+          doublerDelayRight.connect(doublerPannerRight);
+          doublerPannerRight.connect(doublerGain);
+        } else {
+          doublerDelayLeft.connect(doublerGain);
+          doublerDelayRight.connect(doublerGain);
+        }
+        doublerGain.connect(cableMixGain);
+        doublerGain.connect(destRecordTest);
+      } catch (e) {}
     }
 
     // Direct voice to Headphone Direct Monitor
@@ -2010,6 +2235,31 @@ function startVuMeters() {
         trafficMicDot.classList.toggle('active', isAudioInitialized && percent > 2);
       }
 
+      // Smart Voice Auto-Ducking (PRO 49฿)
+      if (isSmartDuckingEnabled && currentUser.tier === 'pro' && duckingGain && audioCtx) {
+        const isSpeaking = (percent > 12);
+        if (isSpeaking) {
+          if (smartDuckingRecoverTimer) {
+            clearTimeout(smartDuckingRecoverTimer);
+            smartDuckingRecoverTimer = null;
+          }
+          if (!isDuckingCurrentlyActive) {
+            isDuckingCurrentlyActive = true;
+            duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
+            duckingGain.gain.linearRampToValueAtTime(smartDuckingDepthVal, audioCtx.currentTime + 0.12);
+          }
+        } else if (isDuckingCurrentlyActive && !smartDuckingRecoverTimer) {
+          smartDuckingRecoverTimer = setTimeout(() => {
+            isDuckingCurrentlyActive = false;
+            if (duckingGain && audioCtx) {
+              duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              duckingGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.8);
+            }
+            smartDuckingRecoverTimer = null;
+          }, 800);
+        }
+      }
+
       if (isMetronomeRunning && maxVal > 140 && (performance.now() - lastClapTime > 350)) {
         lastClapTime = performance.now();
         const nowSec = audioCtx ? audioCtx.currentTime : 0;
@@ -2145,10 +2395,28 @@ async function startRecordingTest() {
     const s = recordSeconds % 60;
     recTimerText.innerText = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
 
-    if (recordSeconds >= 30) {
+    const maxRec = (currentUser.tier === 'pro') ? 300 : 30;
+    if (recordSeconds >= maxRec) {
       stopRecordingTest();
     }
   }, 1000);
+}
+
+if (downloadRecordBtn) {
+  downloadRecordBtn.addEventListener('click', () => {
+    if (!window._currentRecordBlobUrl) {
+      alert('ยังไม่มีไฟล์เสียงที่อัด กรุณากด "เริ่มอัดเสียงทดสอบ" ก่อนครับ');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = window._currentRecordBlobUrl;
+    const nowStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const trackName = (currentTrack && currentTrack.title) ? currentTrack.title.replace(/[^a-zA-Z0-9_\u0E00-\u0E7F]/g, '_').slice(0, 30) : 'Live_Vocal';
+    a.download = `Nocturne_${trackName}_${nowStr}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
 }
 
 function stopRecordingTest() {
@@ -2916,8 +3184,18 @@ function setPitchShift(semitone, shouldSaveSongKey = true) {
   // Personal Song Key Memory: Save user's preference for this track!
   if (shouldSaveSongKey && currentTrack && currentTrack.id) {
     currentUser.songKeys = currentUser.songKeys || {};
-    currentUser.songKeys[currentTrack.id] = semitone;
-    saveUserProfile();
+    const existingKeys = Object.keys(currentUser.songKeys);
+    const isPro = currentUser.tier === 'pro';
+    if (!isPro && !currentUser.songKeys[currentTrack.id] && existingKeys.length >= 3) {
+      console.log('⚠️ [Song Key Memory] Free tier limited to 3 saved song keys.');
+      if (typeof showHostToast === 'function') {
+        showHostToast('⚠️ บันทึกคีย์เพลงครบ 3 เพลงแล้ว (Free) • อัปเกรด PRO เพื่อบันทึกไม่จำกัด');
+      }
+    } else {
+      currentUser.songKeys[currentTrack.id] = semitone;
+      saveUserProfile();
+      updateAuthUI();
+    }
   }
 }
 
@@ -2967,7 +3245,305 @@ function toggleDucking() {
   }
 }
 
-duckingBtn.addEventListener('click', toggleDucking);
+if (duckingBtn) duckingBtn.addEventListener('click', toggleDucking);
+
+// --- 3-Band Vocal EQ Controller ---
+function updateVocalEqParams() {
+  if (!audioCtx) return;
+  const isPro = currentUser.tier === 'pro';
+  const activeEq = isPro && isVocalEqEnabled;
+
+  if (vocalEqLowCutNode) {
+    const f = (activeEq && isEqLowCutActive) ? 80 : 10;
+    vocalEqLowCutNode.frequency.setValueAtTime(f, audioCtx.currentTime);
+  }
+  if (vocalEqMidNode && eqMidSlider) {
+    const g = activeEq ? parseFloat(eqMidSlider.value) : 0;
+    vocalEqMidNode.gain.setValueAtTime(g, audioCtx.currentTime);
+  }
+  if (vocalEqHighAirNode && eqHighAirSlider) {
+    const g = activeEq ? parseFloat(eqHighAirSlider.value) : 0;
+    vocalEqHighAirNode.gain.setValueAtTime(g, audioCtx.currentTime);
+  }
+  if (eqLowCutText) {
+    eqLowCutText.innerText = (activeEq && isEqLowCutActive) ? '80Hz ON' : 'OFF';
+    eqLowCutText.style.color = (activeEq && isEqLowCutActive) ? '#4ade80' : 'var(--text-muted)';
+  }
+  if (eqLowCutBtn) {
+    eqLowCutBtn.classList.toggle('active', isEqLowCutActive && activeEq);
+  }
+}
+
+if (vocalEqToggle) {
+  vocalEqToggle.addEventListener('change', (e) => {
+    if (e.target.checked && currentUser.tier !== 'pro') {
+      e.target.checked = false;
+      isVocalEqEnabled = false;
+      updateVocalEqParams();
+      alert('✨ 3-Band Studio Vocal EQ เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nปลดล็อกเพื่อเกลี่ยเนื้อเสียงร้องให้คมชัดใสแบบไมค์หมื่น!');
+      return;
+    }
+    isVocalEqEnabled = e.target.checked;
+    updateVocalEqParams();
+  });
+}
+
+if (eqLowCutBtn) {
+  eqLowCutBtn.addEventListener('click', () => {
+    if (currentUser.tier !== 'pro') {
+      alert('✨ Low-Cut Filter เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)');
+      return;
+    }
+    isEqLowCutActive = !isEqLowCutActive;
+    updateVocalEqParams();
+  });
+}
+
+if (eqMidSlider) {
+  eqMidSlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    if (eqMidText) eqMidText.innerText = `${val > 0 ? '+' : ''}${val} dB`;
+    updateVocalEqParams();
+  });
+}
+
+if (eqHighAirSlider) {
+  eqHighAirSlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    if (eqHighAirText) eqHighAirText.innerText = `${val > 0 ? '+' : ''}${val} dB`;
+    updateVocalEqParams();
+  });
+}
+
+// --- Vocal Doubler & Stereo Width Controller ---
+function updateDoublerParams() {
+  if (!audioCtx) return;
+  const isPro = currentUser.tier === 'pro';
+  const activeDoubler = isPro && isDoublerEnabled;
+  if (doublerGain && doublerMix) {
+    const val = activeDoubler ? parseFloat(doublerMix.value) : 0.0;
+    doublerGain.gain.setValueAtTime(val, audioCtx.currentTime);
+  }
+}
+
+if (doublerToggle) {
+  doublerToggle.addEventListener('change', (e) => {
+    if (e.target.checked && currentUser.tier !== 'pro') {
+      e.target.checked = false;
+      isDoublerEnabled = false;
+      updateDoublerParams();
+      alert('✨ Vocal Doubler & Harmony เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nสร้างมิติเสียงร้องคู่และเสียงประสานสเตอริโอ เพิ่มความหนาในท่อนฮุก!');
+      return;
+    }
+    isDoublerEnabled = e.target.checked;
+    updateDoublerParams();
+  });
+}
+
+if (doublerMix) {
+  doublerMix.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    if (doublerMixText) doublerMixText.innerText = `${Math.round(val * 100)}%`;
+    updateDoublerParams();
+  });
+}
+
+// --- Smart Voice Auto-Ducking Controller ---
+if (smartDuckingToggle) {
+  smartDuckingToggle.addEventListener('change', (e) => {
+    if (e.target.checked && currentUser.tier !== 'pro') {
+      e.target.checked = false;
+      isSmartDuckingEnabled = false;
+      alert('✨ Smart Voice Ducking เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nลดเสียงดนตรีอัตโนมัติเมื่อเริ่มพูดหรือ MC ใน FiveM/Discord!');
+      return;
+    }
+    isSmartDuckingEnabled = e.target.checked;
+  });
+}
+
+if (smartDuckingDepth) {
+  smartDuckingDepth.addEventListener('input', (e) => {
+    smartDuckingDepthVal = parseFloat(e.target.value);
+    if (smartDuckingDepthText) smartDuckingDepthText.innerText = `${Math.round(smartDuckingDepthVal * 100)}%`;
+  });
+}
+
+// --- DJ Soundboard & Mic SFX Synthesizer ---
+function playSfx(sfxType) {
+  if (!audioCtx) {
+    initAudioEngine().then(() => playSfx(sfxType));
+    return;
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  // Free tier can preview airhorn and rimshot, others require PRO
+  if (currentUser.tier !== 'pro' && !['airhorn', 'rimshot'].includes(sfxType)) {
+    alert('✨ DJ Soundboard ครบทุกเสียงเป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nปลดล็อกเพื่อส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM / Discord ได้ไม่จำกัด!');
+    return;
+  }
+
+  const now = audioCtx.currentTime;
+  const out = soundboardGain || cableMixGain || audioCtx.destination;
+
+  const btn = document.querySelector(`.sfx-btn[data-sfx="${sfxType}"]`);
+  if (btn) {
+    btn.classList.add('playing');
+    setTimeout(() => btn.classList.remove('playing'), 600);
+  }
+
+  try {
+    switch (sfxType) {
+      case 'airhorn': {
+        const notes = [466.16, 698.46, 932.33];
+        [0, 0.12, 0.26].forEach((startOffset) => {
+          notes.forEach(f => {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(f, now + startOffset);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.96, now + startOffset + 0.18);
+            g.gain.setValueAtTime(0.09, now + startOffset);
+            g.gain.exponentialRampToValueAtTime(0.001, now + startOffset + 0.20);
+            osc.connect(g);
+            g.connect(out);
+            osc.start(now + startOffset);
+            osc.stop(now + startOffset + 0.21);
+          });
+        });
+        break;
+      }
+      case 'applause': {
+        const bufferSize = audioCtx.sampleRate * 2.5;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+        const whiteNoise = audioCtx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1400, now);
+        filter.Q.setValueAtTime(1.5, now);
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+        whiteNoise.connect(filter);
+        filter.connect(gain);
+        gain.connect(out);
+        whiteNoise.start(now);
+        whiteNoise.stop(now + 2.5);
+        break;
+      }
+      case 'rimshot': {
+        const snareOsc = audioCtx.createOscillator();
+        const snareGain = audioCtx.createGain();
+        snareOsc.frequency.setValueAtTime(220, now);
+        snareOsc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+        snareGain.gain.setValueAtTime(0.4, now);
+        snareGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        snareOsc.connect(snareGain);
+        snareGain.connect(out);
+        snareOsc.start(now);
+        snareOsc.stop(now + 0.12);
+
+        const tomOsc = audioCtx.createOscillator();
+        const tomGain = audioCtx.createGain();
+        tomOsc.frequency.setValueAtTime(160, now + 0.15);
+        tomOsc.frequency.exponentialRampToValueAtTime(60, now + 0.28);
+        tomGain.gain.setValueAtTime(0.45, now + 0.15);
+        tomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
+        tomOsc.connect(tomGain);
+        tomGain.connect(out);
+        tomOsc.start(now + 0.15);
+        tomOsc.stop(now + 0.30);
+
+        const cymbalLen = audioCtx.sampleRate * 0.8;
+        const cymBuf = audioCtx.createBuffer(1, cymbalLen, audioCtx.sampleRate);
+        const cymData = cymBuf.getChannelData(0);
+        for (let i = 0; i < cymbalLen; i++) cymData[i] = (Math.random() * 2 - 1);
+        const cymSrc = audioCtx.createBufferSource();
+        cymSrc.buffer = cymBuf;
+        const cymFilt = audioCtx.createBiquadFilter();
+        cymFilt.type = 'highpass';
+        cymFilt.frequency.setValueAtTime(4500, now + 0.35);
+        const cymGain = audioCtx.createGain();
+        cymGain.gain.setValueAtTime(0.3, now + 0.35);
+        cymGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+        cymSrc.connect(cymFilt);
+        cymFilt.connect(cymGain);
+        cymGain.connect(out);
+        cymSrc.start(now + 0.35);
+        cymSrc.stop(now + 1.1);
+        break;
+      }
+      case 'cricket': {
+        [0, 0.08, 0.35, 0.43].forEach(offset => {
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(4600, now + offset);
+          g.gain.setValueAtTime(0.12, now + offset);
+          g.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.045);
+          osc.connect(g);
+          g.connect(out);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.05);
+        });
+        break;
+      }
+      case 'ding': {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2093, now);
+        g.gain.setValueAtTime(0.35, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+        osc.connect(g);
+        g.connect(out);
+        osc.start(now);
+        osc.stop(now + 1.2);
+        break;
+      }
+      case 'laser': {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2400, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.45);
+        g.gain.setValueAtTime(0.4, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc.connect(g);
+        g.connect(out);
+        osc.start(now);
+        osc.stop(now + 0.46);
+        break;
+      }
+    }
+  } catch (e) {
+    console.warn('SFX note:', e);
+  }
+}
+
+if (sfxBtns && sfxBtns.length > 0) {
+  sfxBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sfx = btn.getAttribute('data-sfx');
+      if (sfx) playSfx(sfx);
+    });
+  });
+}
+
+if (sfxVol) {
+  sfxVol.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    if (sfxVolText) sfxVolText.innerText = `${Math.round(val * 100)}%`;
+    if (soundboardGain && audioCtx) {
+      soundboardGain.gain.setValueAtTime(val, audioCtx.currentTime);
+    }
+  });
+}
 
 // Global Hotkeys (F8, Numpad -, `)
 window.addEventListener('keydown', (e) => {
@@ -3070,13 +3646,26 @@ function renderSearchResults(videos) {
         <div class="search-item-title">${escapeHtml(v.title)}</div>
         <div class="search-item-meta">${escapeHtml(v.author)} • ${escapeHtml(v.duration)}</div>
       </div>
-      <button class="btn btn-gold add-q-btn" style="padding: 3px 8px; font-size: 0.72rem;">+ คิว</button>
+      <div style="display:flex; gap:5px; align-items:center;">
+        <button class="btn btn-gold add-q-btn" style="padding: 3px 8px; font-size: 0.72rem;" title="ต่อท้ายคิว">+ คิว</button>
+        <button class="btn btn-priority-queue priority-q-btn" style="padding: 3px 6px; font-size: 0.70rem;" title="แทรกเป็นคิวถัดไปทันที (VIP PRO)">⚡ ต่อคิวแรก</button>
+      </div>
     `;
 
     item.addEventListener('click', (e) => {
       if (e.target.classList.contains('add-q-btn')) {
         e.stopPropagation();
         addToQueue(v);
+        showHostToast(`➕ เพิ่ม "${v.title}" เข้าคิวเพลง`);
+      } else if (e.target.classList.contains('priority-q-btn') || e.target.closest('.priority-q-btn')) {
+        e.stopPropagation();
+        if (currentUser.tier !== 'pro') {
+          alert('👑 ฟังก์ชันแทรกเพลงเป็นคิวถัดไป (Priority Queue) สงวนสิทธิ์สำหรับสมาชิกระดับ PRO PACK (49.- / เดือน)\nกรุณากดไอคอนโปรไฟล์เพื่อทดลองใช้งาน Pro');
+          return;
+        }
+        queue.unshift(v);
+        renderQueue(true);
+        showHostToast(`⚡ [PRO] แทรก "${v.title}" เป็นคิวถัดไปแล้ว!`);
       } else {
         playTrack(v);
         searchResults.classList.add('hidden');
@@ -3398,8 +3987,9 @@ function renderQueue(shouldSync = true) {
         <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; font-size:13px;">${escapeHtml(track.title)}</div>
         <div style="font-size:11px; color:var(--text-secondary);">${escapeHtml(track.author || '')} • ${escapeHtml(track.duration || '')} ${track.addedBy ? `• 👤 ${escapeHtml(track.addedBy)}` : ''}</div>
       </div>
-      <div style="display:flex; gap:4px;">
+      <div style="display:flex; gap:4px; align-items:center;">
         <button class="btn btn-outline btn-xs" onclick="playNowFromQueue(${idx})" title="เล่นเพลงนี้ทันที">▶</button>
+        ${idx > 0 ? `<button class="btn btn-outline btn-xs btn-priority-queue" onclick="jumpToTopQueue(${idx})" title="⚡ [PRO] แซงขึ้นเป็นคิวแรก">⚡</button>` : ''}
         ${idx > 0 ? `<button class="btn btn-outline btn-xs" onclick="moveQueueItem(${idx}, ${idx - 1})" title="เลื่อนขึ้น">▲</button>` : ''}
         ${idx < queue.length - 1 ? `<button class="btn btn-outline btn-xs" onclick="moveQueueItem(${idx}, ${idx + 1})" title="เลื่อนลง">▼</button>` : ''}
         <button class="btn-link-danger" onclick="removeFromQueue(${idx})" title="ลบออก" style="margin-left:4px;">✕</button>
@@ -3410,6 +4000,19 @@ function renderQueue(shouldSync = true) {
 
   if (shouldSync) syncHostStateToRoom();
 }
+
+window.jumpToTopQueue = function(idx) {
+  if (currentUser.tier !== 'pro') {
+    alert('👑 ฟังก์ชันลัดคิวเพลง (VIP Priority Queue) สงวนสิทธิ์สำหรับสมาชิกระดับ PRO PACK (49.- / เดือน)');
+    return;
+  }
+  if (idx > 0 && idx < queue.length) {
+    const item = queue.splice(idx, 1)[0];
+    queue.unshift(item);
+    renderQueue(true);
+    showHostToast(`⚡ [PRO] ย้ายเพลง "${item.title}" ขึ้นเป็นคิวแรกแล้ว!`);
+  }
+};
 
 window.removeFromQueue = function(idx) {
   queue.splice(idx, 1);
@@ -3510,7 +4113,8 @@ async function initHostRoom(forcedCode = null) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         roomCode: code,
-        hostName: currentUser.username || 'Host'
+        hostName: currentUser.username || 'Host',
+        hostTier: currentUser.tier || 'free'
       })
     });
     if (res.ok) {
@@ -3613,7 +4217,8 @@ function syncHostStateToRoom() {
       isPlaying,
       queue,
       allowRemoteControl: isAllowRemoteControl,
-      hostName: currentUser.username || 'Host'
+      hostName: currentUser.username || 'Host',
+      hostTier: currentUser.tier || 'free'
     })
   }).catch(() => {});
 }
