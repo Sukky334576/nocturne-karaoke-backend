@@ -3342,11 +3342,32 @@ function setPitchShift(semitone, shouldSaveSongKey = true) {
     btn.classList.toggle('active', semi === semitone);
   });
 
+  const ratio = Math.pow(2, semitone / 12);
+
   if (pitchNode && audioCtx) {
-    const param = pitchNode.parameters.get('semitones');
-    if (param) {
-      param.setValueAtTime(semitone, audioCtx.currentTime);
+    const paramRatio = pitchNode.parameters.get('pitchRatio');
+    if (paramRatio) {
+      paramRatio.cancelScheduledValues(audioCtx.currentTime);
+      paramRatio.setValueAtTime(ratio, audioCtx.currentTime);
     }
+    const paramSemi = pitchNode.parameters.get('semitones');
+    if (paramSemi) {
+      paramSemi.cancelScheduledValues(audioCtx.currentTime);
+      paramSemi.setValueAtTime(semitone, audioCtx.currentTime);
+    }
+    try {
+      pitchNode.port.postMessage({ type: 'setPitch', semitones: semitone, pitchRatio: ratio });
+    } catch (e) {}
+  }
+
+  // Toast / Status feedback
+  if (isUsingDirectYtAudio) {
+    if (typeof showHostToast === 'function') {
+      showHostToast('⚠️ กำลังเล่นในโหมด YouTube Direct (การปรับคีย์เสียงจะทำงานในโหมด Web Audio Stream)');
+    }
+  } else if (shouldSaveSongKey && typeof showHostToast === 'function') {
+    const desc = semitone === 0 ? 'คีย์ต้นฉบับ' : (semitone > 0 ? ('+' + semitone + ' (เพิ่มคีย์)') : (semitone + ' (ลดคีย์)'));
+    showHostToast('🎵 ปรับคีย์เพลง: ' + desc);
   }
 
   // Personal Song Key Memory: Save user's preference for this track!
@@ -3969,7 +3990,7 @@ async function playTrack(track, seekSeconds = 0) {
   ytPlayerDiv.classList.remove('hidden');
 
   // When Tab Audio is active or running on Cloud, YouTube Iframe provides direct unmuted audio without waiting for DSP stream
-  if (isTabAudioActive || isCloudHost) {
+  if (isTabAudioActive) {
     isUsingDirectYtAudio = true;
   } else {
     isUsingDirectYtAudio = false;

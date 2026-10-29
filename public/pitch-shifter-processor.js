@@ -7,20 +7,39 @@ class PitchShifterProcessor extends AudioWorkletProcessor {
         defaultValue: 1.0,
         minValue: 0.5, // -12 semitones
         maxValue: 2.0  // +12 semitones
+      },
+      {
+        name: 'semitones',
+        defaultValue: 0.0,
+        minValue: -12.0,
+        maxValue: 12.0
       }
     ];
   }
 
   constructor() {
     super();
-    // 0.2s ring buffer size (~9600 samples at 48kHz)
-    this.bufferSize = 9600;
+    // 0.25s ring buffer size (~12000 samples at 48kHz)
+    this.bufferSize = 12000;
     this.bufferL = new Float32Array(this.bufferSize);
     this.bufferR = new Float32Array(this.bufferSize);
     this.writeIndex = 0;
     this.phase0 = 0.0;
     this.phase1 = 0.5; // 180 degrees phase offset
     this.windowSize = 2048;
+    this.manualRatio = null;
+
+    if (this.port) {
+      this.port.onmessage = (e) => {
+        if (e.data) {
+          if (typeof e.data.semitones === 'number') {
+            this.manualRatio = Math.pow(2, e.data.semitones / 12);
+          } else if (typeof e.data.pitchRatio === 'number') {
+            this.manualRatio = e.data.pitchRatio;
+          }
+        }
+      };
+    }
   }
 
   // Linear interpolation for smooth non-integer ring buffer reads
@@ -45,10 +64,24 @@ class PitchShifterProcessor extends AudioWorkletProcessor {
     const outputR = output[1] || output[0];
 
     const pitchRatioParam = parameters.pitchRatio;
-    const isParamArray = pitchRatioParam.length > 1;
+    const semitonesParam = parameters.semitones;
+    const isRatioArray = pitchRatioParam && pitchRatioParam.length > 1;
+    const isSemiArray = semitonesParam && semitonesParam.length > 1;
 
     for (let i = 0; i < inputL.length; i++) {
-      const ratio = isParamArray ? pitchRatioParam[i] : pitchRatioParam[0];
+      let ratio = 1.0;
+      if (this.manualRatio !== null) {
+        ratio = this.manualRatio;
+      } else if (semitonesParam && (Math.abs(semitonesParam[0]) > 0.001 || (isSemiArray && Math.abs(semitonesParam[i]) > 0.001))) {
+        const semi = isSemiArray ? semitonesParam[i] : semitonesParam[0];
+        ratio = Math.pow(2, semi / 12);
+      } else if (pitchRatioParam) {
+        ratio = isRatioArray ? pitchRatioParam[i] : pitchRatioParam[0];
+      }
+
+      // Clamp ratio to safe range (0.5 to 2.0 -> -12 to +12 semitones)
+      if (ratio < 0.5) ratio = 0.5;
+      if (ratio > 2.0) ratio = 2.0;
 
       // Write sample into ring buffer
       this.bufferL[this.writeIndex] = inputL[i];
