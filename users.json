@@ -81,8 +81,8 @@
     "avatar": "https://example.com/avatar.jpg",
     "authProvider": "google",
     "providerId": "google-uid-12345",
-    "tier": "free",
-    "proExpiresAt": null,
+    "tier": "pro",
+    "proExpiresAt": 253402300799000,
     "preset": {
       "syncOffsetMs": 120,
       "reverbMix": 0.25,
@@ -93,5 +93,21 @@
     "hasCompletedOnboarding": false,
     "createdAt": 1793289077720,
     "lastLogin": 1793341516039
+  },
+  "jaychomporn": {
+    "username": "JayChomporn",
+    "password": "",
+    "tier": "pro",
+    "proExpiresAt": 253402300799000,
+    "preset": {
+      "syncOffsetMs": 120,
+      "reverbMix": 0.25,
+      "reverbDecay": 1.8,
+      "roomSize": 2
+    },
+    "songKeys": {},
+    "hasCompletedOnboarding": true,
+    "createdAt": 1793378959193,
+    "lastLogin": 1793378959193
   }
 }

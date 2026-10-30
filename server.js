@@ -651,7 +651,7 @@ app.post('/api/auth/login', (req, res) => {
 
   // Enforce 30-day subscription expiration (except developer lifetime VIP accounts)
   if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
-    if (!['sukky', 'sukky334576', 'tong', 'admin'].includes(lower)) {
+    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower)) {
       user.tier = 'free';
     }
   }
@@ -697,7 +697,7 @@ app.post('/api/auth/save-profile', (req, res) => {
 
   // Enforce 30-day subscription expiration
   if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
-    if (!['sukky', 'sukky334576', 'tong', 'admin'].includes(lower)) {
+    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower)) {
       user.tier = 'free';
     }
   }
@@ -841,7 +841,7 @@ app.post('/api/auth/oauth', (req, res) => {
   let user = usersDb.get(lower);
 
   if (!user) {
-    const isSpecialOwner = ['sukky', 'sukky334576', 'tong', 'admin'].includes(lower);
+    const isSpecialOwner = ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower);
     user = {
       username: name,
       password: '',
