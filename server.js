@@ -171,6 +171,11 @@ const checkCandidate = (candidate) => new Promise((resolve, reject) => {
           reject(new Error('Redirect candidate failed: bad location header'));
         }
       } else if (checkRes.statusCode === 200 || checkRes.statusCode === 206) {
+        const cType = (checkRes.headers['content-type'] || '').toLowerCase();
+        // Reject bot-check / HTML challenge / error pages
+        if (cType.includes('text/html') || cType.includes('application/json') || cType.includes('text/plain')) {
+          return reject(new Error('Redirect candidate failed: non-audio content-type ' + cType));
+        }
         resolve(target);
       } else {
         reject(new Error('Redirect candidate failed: ' + checkRes.statusCode));
@@ -182,6 +187,67 @@ const checkCandidate = (candidate) => new Promise((resolve, reject) => {
 
   probe(candidate);
 });
+
+async function fetchCobaltApiStream(videoId) {
+  const cobaltEndpoints = [
+    process.env.COBALT_API_URL,
+    'https://api.cobalt.tools',
+    'https://cobalt-api.kwiatekm.tokyo',
+    'https://cobalt.canine.tools'
+  ].filter(Boolean);
+
+  const payload = JSON.stringify({
+    url: `https://www.youtube.com/watch?v=${videoId}`,
+    downloadMode: 'audio',
+    audioFormat: 'mp3'
+  });
+
+  for (const base of cobaltEndpoints) {
+    try {
+      const streamUrl = await new Promise((resolve, reject) => {
+        let parsed;
+        try { parsed = new URL(base); } catch (e) { return reject(e); }
+        const client = parsed.protocol === 'http:' ? http : https;
+        const req = client.request({
+          hostname: parsed.hostname,
+          port: parsed.port || (parsed.protocol === 'http:' ? 80 : 443),
+          path: parsed.pathname === '/' ? '/' : parsed.pathname,
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Content-Length': Buffer.byteLength(payload)
+          },
+          timeout: 4500
+        }, (res) => {
+          let body = '';
+          res.on('data', c => body += c);
+          res.on('end', () => {
+            try {
+              if (res.statusCode !== 200) return reject(new Error('Cobalt status ' + res.statusCode));
+              const data = JSON.parse(body);
+              const url = data.url || data.audio || (data.stream && data.stream.url);
+              if (url && typeof url === 'string' && url.startsWith('http')) {
+                return resolve(url);
+              }
+              reject(new Error('No valid cobalt stream url'));
+            } catch (e) { reject(e); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Cobalt timeout')); });
+        req.write(payload);
+        req.end();
+      });
+      if (streamUrl) {
+        const validated = await checkCandidate(streamUrl);
+        if (validated) return validated;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
 
 async function fetchInvidiousApiStream(videoId) {
   const apiInstances = [
@@ -278,7 +344,8 @@ async function fetchUpstreamFallbackStream(videoId) {
     const streamUrl = await Promise.any([
       Promise.any(upstreamInstances.map(checkCandidate)),
       fetchInvidiousApiStream(videoId),
-      fetchPipedApiStream(videoId)
+      fetchPipedApiStream(videoId),
+      fetchCobaltApiStream(videoId)
     ]);
     if (streamUrl && streamUrl.startsWith('http')) {
       return streamUrl;
@@ -295,6 +362,8 @@ async function fetchUpstreamFallbackStream(videoId) {
     if (apiStream) return apiStream;
     const pipedStream = await fetchPipedApiStream(videoId);
     if (pipedStream) return pipedStream;
+    const cobaltStream = await fetchCobaltApiStream(videoId);
+    if (cobaltStream) return cobaltStream;
   }
   return null;
 }
@@ -467,12 +536,27 @@ function pipeDirectAudioStream(url, res) {
         const redirected = new URL(resp.headers.location, url).href;
         return pipeDirectAudioStream(redirected, res);
       }
-      if (resp.statusCode !== 200) {
-        if (!res.headersSent) res.status(resp.statusCode).send('Audio stream returned ' + resp.statusCode);
+      if (resp.statusCode !== 200 && resp.statusCode !== 206) {
+        if (!res.headersSent) {
+          res.status(503).json({
+            error: 'Upstream returned unexpected status: ' + resp.statusCode,
+            fallback: 'direct_iframe'
+          });
+        }
+        return;
+      }
+      const cType = (resp.headers['content-type'] || '').toLowerCase();
+      if (cType.includes('text/html') || cType.includes('application/json')) {
+        if (!res.headersSent) {
+          res.status(503).json({
+            error: 'Upstream returned invalid content type: ' + cType,
+            fallback: 'direct_iframe'
+          });
+        }
         return;
       }
       if (!res.headersSent) {
-        res.writeHead(200, {
+        res.writeHead(resp.statusCode === 206 ? 200 : resp.statusCode, {
           'Content-Type': resp.headers['content-type'] || 'audio/mpeg',
           'Access-Control-Allow-Origin': '*',
           'Accept-Ranges': 'none'
@@ -487,10 +571,20 @@ function pipeDirectAudioStream(url, res) {
 
     reqAudio.on('error', (err) => {
       console.error('Direct audio pipe error:', err);
-      if (!res.headersSent) res.status(500).send('Direct audio pipe failed: ' + err.message);
+      if (!res.headersSent) {
+        res.status(503).json({
+          error: 'Direct audio pipe network error: ' + err.message,
+          fallback: 'direct_iframe'
+        });
+      }
     });
   } catch (e) {
-    if (!res.headersSent) res.status(500).send('Direct audio pipe failed: ' + e.message);
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: 'Direct audio pipe setup error: ' + e.message,
+        fallback: 'direct_iframe'
+      });
+    }
   }
 }
 
@@ -508,9 +602,6 @@ app.get('/api/audio', async (req, res) => {
 
   try {
     const directUrl = await extractStreamUrl(targetUrl);
-
-    res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Accept-Ranges', 'none');
 
     const ffmpegArgs = [
       '-fflags', 'nobuffer',
@@ -540,11 +631,18 @@ app.get('/api/audio', async (req, res) => {
     });
 
     let hasReceivedData = false;
-    ffmpegProcess.stdout.on('data', () => {
+    ffmpegProcess.stdout.once('data', (firstChunk) => {
       hasReceivedData = true;
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'audio/mpeg',
+          'Access-Control-Allow-Origin': '*',
+          'Accept-Ranges': 'none'
+        });
+      }
+      res.write(firstChunk);
+      ffmpegProcess.stdout.pipe(res);
     });
-
-    ffmpegProcess.stdout.pipe(res);
 
     req.on('close', () => {
       if (ffmpegProcess && !ffmpegProcess.killed) {

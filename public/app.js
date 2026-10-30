@@ -4610,9 +4610,9 @@ async function getBestSearchUrl(query) {
 async function getBestAudioStreamUrl(videoId, startSeconds = 0) {
   const isLocalActive = await checkLocalBridge();
   if (isLocalActive && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return `http://127.0.0.1:3300/api/audio?id=${videoId}&t=${startSeconds}`;
+    return `http://127.0.0.1:3300/api/audio?id=${encodeURIComponent(videoId)}&t=${startSeconds}`;
   }
-  return `/api/audio?id=${videoId}&t=${startSeconds}`;
+  return `/api/audio?id=${encodeURIComponent(videoId)}&t=${startSeconds}`;
 }
 
 // Play Track (Ultra-Reliable Dual Routing to Discord & Headphones with Zero-Fail Guarantee)
@@ -4868,7 +4868,10 @@ function setupAudioElementEvents() {
           const baseUrl = await getBestAudioStreamUrl(currentTrack.id, Math.floor(streamOffsetSeconds || 0));
           const sep = baseUrl.includes('?') ? '&' : '?';
           audioSourceElement.src = `${baseUrl}${sep}retry=${Date.now()}`;
-          audioSourceElement.play().catch(() => {});
+          audioSourceElement.load();
+          audioSourceElement.play().catch(playErr => {
+            console.warn('AudioSource retry play caught:', playErr.message || playErr);
+          });
         }
       }, delayMs);
     } else {

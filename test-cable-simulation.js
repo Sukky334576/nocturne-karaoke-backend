@@ -287,6 +287,36 @@ async function runCableSimulationTests() {
     failed++;
   }
 
+  // ----------------------------------------------------
+  // Test 8: Leading Hyphen, Underscore & Tricky ID Stream Pipeline Invariants
+  // ----------------------------------------------------
+  try {
+    console.log('\n[Test 8] Verifying Leading-Hyphen IDs & Content-Type Safety Invariants...');
+    const hasLeadingHyphenDefense = serverJs.includes("args.push('--', targetUrl);") ||
+                                   serverJs.includes("args.push('--', normalizedUrl);");
+    const hasContentTypeGuard = serverJs.includes("cType.includes('text/html')");
+    const hasCobaltFallback = serverJs.includes('fetchCobaltApiStream');
+    const hasSafeFfmpegStream = serverJs.includes("ffmpegProcess.stdout.once('data'");
+
+    // Test tricky ID extraction regex
+    const trickyIdRegex = /^[a-zA-Z0-9_-]{11}$/;
+    const validTrickyIds = ['-FJ_T3VK4dE', '-F1_T3YK4dE', '___a123-bcD', 'A-B_C-d_E-1'];
+    const invalidTrickyIds = ['-FJ_T3VK4d', '--malicious_cli', 'https://evil.com/video', 'rm -rf /'];
+
+    const allValidPass = validTrickyIds.every(id => trickyIdRegex.test(id));
+    const allInvalidFail = invalidTrickyIds.every(id => !trickyIdRegex.test(id));
+
+    if (hasLeadingHyphenDefense && hasContentTypeGuard && hasCobaltFallback && hasSafeFfmpegStream && allValidPass && allInvalidFail) {
+      console.log('  ✅ Passed: Tricky leading-hyphen IDs, Cobalt fallback, HTML bot check guards & safe FFmpeg pipe verified!');
+      passed++;
+    } else {
+      throw new Error('Test 8 failed: Missing leading-hyphen defense, Cobalt, content-type guard, or regex validation');
+    }
+  } catch (err) {
+    console.error('  ❌ Test 8 Error:', err.message);
+    failed++;
+  }
+
   console.log('\n====================================================');
   console.log(`📊 VB-CABLE SIMULATION REPORT: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');

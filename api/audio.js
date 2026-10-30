@@ -71,5 +71,11 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.status(500).send('All audio backends unavailable');
+  if (!res.headersSent) {
+    res.status(503).json({
+      error: 'All audio backends unavailable for this track',
+      videoId: id,
+      fallback: 'direct_iframe'
+    });
+  }
 };

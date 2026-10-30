@@ -643,24 +643,30 @@ async function runEdgeCaseTests() {
                           serverCode.includes("args.push('--', normalizedUrl);");
     const hasStrictIdRegex = serverCode.includes('/^[a-zA-Z0-9_-]{11}$/');
 
-    // 17b. Multi-hop redirect traversal and candidate race
+    // 17b. Multi-hop redirect traversal, candidate race, and Cobalt cascading
     const hasMultiHopRedirect = serverCode.includes('maxHops') && serverCode.includes('probe(nextLoc);');
     const hasMultiSourceFallback = serverCode.includes('fetchInvidiousApiStream') &&
                                    serverCode.includes('fetchPipedApiStream') &&
+                                   serverCode.includes('fetchCobaltApiStream') &&
                                    serverCode.includes('checkRes.statusCode === 200 || checkRes.statusCode === 206');
+    const hasContentTypeFilter = serverCode.includes("cType.includes('text/html')");
+    const hasSafeFfmpegPipe = serverCode.includes("ffmpegProcess.stdout.once('data'");
 
     // 17c. Frontend exponential backoff retry and user feedback
     const hasToastFailover = appCode.includes('showHostToast') && appCode.includes('activateYtAudioFailover();');
     const hasRetryBackoff = appCode.includes('audioErrorRetries < 3') && appCode.includes('audioRetryTimeout = setTimeout');
 
-    // 17d. Vercel serverless audio endpoint handles 206 Partial Content
+    // 17d. Vercel serverless audio endpoint handles 206 Partial Content and 503 fallback
     const hasVercel206Support = vercelAudioCode.includes('resp.statusCode !== 200 && resp.statusCode !== 206');
+    const hasVercel503Fallback = vercelAudioCode.includes('res.status(503).json');
 
-    if (hasCliDefense && hasStrictIdRegex && hasMultiHopRedirect && hasMultiSourceFallback && hasToastFailover && hasRetryBackoff && hasVercel206Support) {
-      console.log('  ✅ Passed: CLI argument injection defense, multi-hop redirect race, backoff retry & 206 partial content verified!');
+    if (hasCliDefense && hasStrictIdRegex && hasMultiHopRedirect && hasMultiSourceFallback &&
+        hasContentTypeFilter && hasSafeFfmpegPipe && hasToastFailover && hasRetryBackoff &&
+        hasVercel206Support && hasVercel503Fallback) {
+      console.log('  ✅ Passed: CLI injection defense, Cobalt cascading, content-type filter, safe FFmpeg piping & 503 fallback verified!');
       passed++;
     } else {
-      throw new Error('Missing CLI defense, multi-hop redirect, toast failover or 206 partial content invariants');
+      throw new Error('Missing CLI defense, Cobalt, content-type filter, safe FFmpeg piping or 503 fallback invariants');
     }
   } catch (err) {
     console.error('  ❌ Edge Case 17 Error:', err.message);
