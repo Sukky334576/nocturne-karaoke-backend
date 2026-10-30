@@ -739,6 +739,7 @@ function saveUserProfile() {
     isCableMusicMuted: isCableMusicMuted,
     isHpVocalMuted: isHpVocalMuted,
     isCableVocalMuted: isCableVocalMuted,
+    reverbEnabled: isReverbEnabled,
     reverbMix: parseFloat(reverbMix.value),
     reverbDecay: parseFloat(reverbDecay.value),
     roomSize: parseInt(roomSize.value),
@@ -910,6 +911,30 @@ function applyUserPreset(preset) {
       soundboardGain.gain.setValueAtTime(preset.sfxVol, audioCtx.currentTime);
     }
   }
+
+  // Studio Vocal Reverb (Core Pillar 3)
+  if (preset.reverbMix !== undefined && reverbMix) {
+    reverbMix.value = preset.reverbMix;
+    if (reverbMixText) reverbMixText.innerText = `${Math.round(preset.reverbMix * 100)}%`;
+  }
+  if (preset.reverbDecay !== undefined && reverbDecay) {
+    reverbDecay.value = preset.reverbDecay;
+    if (reverbDecayText) reverbDecayText.innerText = `${preset.reverbDecay.toFixed(1)}s`;
+  }
+  if (preset.roomSize !== undefined && roomSize) {
+    roomSize.value = preset.roomSize;
+    if (typeof updateRoomSizeText === 'function') updateRoomSizeText(preset.roomSize);
+  }
+  if (preset.reverbEnabled !== undefined && reverbToggle) {
+    isReverbEnabled = preset.reverbEnabled;
+    reverbToggle.checked = isReverbEnabled;
+  }
+  if (reverbGain && audioCtx) {
+    reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
+  }
+  if (typeof updateReverbImpulse === 'function') {
+    updateReverbImpulse();
+  }
 }
 
 function syncMuteUI(btn1, btn2, isActive) {
@@ -1007,6 +1032,9 @@ function applyVocalPreset(presetKey) {
   if (typeof updateDoublerParams === 'function') updateDoublerParams();
 
   updateAutotuneParams();
+  if (reverbGain && audioCtx) {
+    reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
+  }
   updateReverbImpulse();
   updateDynamicsParams();
   saveUserProfile();
@@ -3822,7 +3850,14 @@ async function setSinkCable(deviceId) {
         return;
       }
       await audioElCable.setSinkId(deviceId);
+      if (destCable && audioElCable.srcObject !== destCable.stream) {
+        audioElCable.srcObject = destCable.stream;
+      }
       audioElCable.muted = false; // Only unmute when safely assigned to a distinct virtual cable!
+      if (audioElCable.paused) {
+        await audioElCable.play().catch(e => console.warn('audioElCable play catch:', e));
+      }
+      if (trafficCableDot) trafficCableDot.classList.add('active');
       console.log('✅ Backing track and broadcast stream connected to CABLE Input:', deviceId);
       if (typeof showHostToast === 'function') {
         showHostToast('✅ เชื่อมต่อ CABLE Input แล้ว! (ใน FiveM/Discord ให้เลือกไมค์เป็น CABLE Output)');
@@ -4806,6 +4841,19 @@ function setupAudioElementEvents() {
       }, 800);
     } else {
       activateYtAudioFailover();
+    }
+  });
+
+  audioSourceElement.addEventListener('playing', () => {
+    audioErrorRetries = 0;
+    if (isUsingDirectYtAudio && !isTabAudioActive) {
+      console.log('⚡ Web Audio stream connected! Muting direct YouTube iframe to route cleanly through DSP to VB-Cable.');
+      isUsingDirectYtAudio = false;
+      sendYtCommand('mute');
+      if (ytPlayer && typeof ytPlayer.mute === 'function') {
+        try { ytPlayer.mute(); } catch (_) {}
+      }
+      updateTabAudioUI();
     }
   });
 

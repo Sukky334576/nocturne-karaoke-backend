@@ -154,8 +154,21 @@ async function fetchUpstreamFallbackStream(videoId) {
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const loc = new URL(res.headers.location, candidate).href;
-        resolve(loc);
-      } else if (res.statusCode === 200) {
+        // Verify redirected stream returns valid audio (200 or 206) rather than 400/500
+        const checkReq = https.get(loc, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Range': 'bytes=0-1024' },
+          timeout: 3500
+        }, (checkRes) => {
+          checkReq.destroy();
+          if (checkRes.statusCode === 200 || checkRes.statusCode === 206) {
+            resolve(loc);
+          } else {
+            reject(new Error('Redirect candidate failed: ' + checkRes.statusCode));
+          }
+        });
+        checkReq.on('error', reject);
+        checkReq.on('timeout', () => { checkReq.destroy(); reject(new Error('Redirect check timeout')); });
+      } else if (res.statusCode === 200 || res.statusCode === 206) {
         resolve(candidate);
       } else {
         reject(new Error('Status ' + res.statusCode));
@@ -250,7 +263,13 @@ async function extractStreamUrl(targetUrl) {
       return streamUrl;
     }
   } catch (e) {
-    // Cloud datacenter block, immediately try upstream fallback
+    try {
+      const streamUrl = await runYtDlpExtract('youtube:player_client=android,web', targetUrl);
+      if (streamUrl) {
+        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+        return streamUrl;
+      }
+    } catch (_) {}
   }
 
   // 2. Upstream fallback streams (Fast resilient audio for Cloud / Render datacenter IPs)

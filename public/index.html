@@ -311,16 +311,31 @@
             </button>
           </div>
 
-          <!-- Cloud / Render Tab Audio Fallback Controls -->
-          <div class="rec-cloud-tools-row" style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center;">
-            <button id="tabAudioCaptureBtn" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px; border-radius: 6px;" title="เปิดเฉพาะเมื่อไม่ได้ยินเสียงเพลงใน FiveM/Discord">🎙️ ดึงเสียงเพลงจากแท็บ (สำรองฉุกเฉิน)</button>
-          <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
-            * ปกติเสียงเพลงและเสียงร้องพร้อมรีเวิร์บจะส่งเข้า Discord ผ่านสาย <strong>CABLE Input</strong> อัตโนมัติอยู่แล้ว <strong>ไม่ต้องกดปุ่มนี้</strong> (เพื่อป้องกันเสียงสะท้อนวนลูป)
-          </div>
-            <span id="audioPipelineBadge" class="rec-status-badge" style="font-size: 10px; background: rgba(216,177,93,0.1); border: 1px solid rgba(216,177,93,0.3); color: #d8b15d; border-radius: 4px; padding: 4px 8px;">
-              Pipeline: Web Audio DSP
+          <!-- 3 Core Pillars Active Status Banner -->
+          <div class="pillars-status-banner" style="margin-top: 10px; padding: 8px 12px; background: rgba(216, 177, 93, 0.08); border: 1px solid rgba(216, 177, 93, 0.25); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: #f4e6c3; display: flex; align-items: center; gap: 6px;">
+              <span>🎙️ ระบบ 3 เสาหลัก:</span>
+              <span style="color: #4ade80;">1. เพลงคาราโอเกะ</span>
+              <span style="color: #94a3b8;">•</span>
+              <span style="color: #60a5fa;">2. เสียงร้องสด</span>
+              <span style="color: #94a3b8;">•</span>
+              <span style="color: #c084fc;">3. รีเวิร์บสตูดิโอ</span>
+            </div>
+            <span id="audioPipelineBadge" class="rec-status-badge" style="font-size: 10px; background: rgba(216,177,93,0.15); border: 1px solid rgba(216,177,93,0.3); color: #d8b15d; border-radius: 4px; padding: 2px 8px;">
+              Pipeline: Web Audio DSP (CABLE Ready)
             </span>
           </div>
+
+          <!-- Cloud / Render Emergency Fallback Controls (Folded to keep focus on 3 Core Pillars) -->
+          <details style="margin-top: 6px; font-size: 11px; color: #94a3b8;">
+            <summary style="cursor: pointer; opacity: 0.7; font-size: 10px;">⚙️ เครื่องมือสำรองฉุกเฉิน (คลิกเพื่อดู)</summary>
+            <div class="rec-cloud-tools-row" style="display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; align-items: center;">
+              <button id="tabAudioCaptureBtn" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px; border-radius: 6px;" title="เปิดเฉพาะเมื่อไม่ได้ยินเสียงเพลงใน FiveM/Discord">🎙️ ดึงเสียงเพลงจากแท็บ (สำรองฉุกเฉิน)</button>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 2px; line-height: 1.4;">
+                * เสียงเพลงและเสียงร้องพร้อมรีเวิร์บส่งเข้า Discord ผ่าน <strong>CABLE Input</strong> อัตโนมัติอยู่แล้ว <strong>ไม่ต้องกดปุ่มนี้</strong>
+              </div>
+            </div>
+          </details>
 
           <!-- Playback Widget -->
           <div id="playbackWidget" class="playback-widget hidden">
