@@ -3704,3 +3704,165 @@ body {
   font-size: 15px !important;
   flex-shrink: 0 !important;
 }
+
+
+/* ==========================================================================
+   ONE MUSIC AUDIO DOCK LAYOUT & OVERFLOW CONTAINMENT
+   Prevents any overflow across card borders, multi-tiered responsive layout
+   ========================================================================== */
+
+.now-playing-bar {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  padding: 14px 16px !important;
+  background: rgba(10, 12, 20, 0.65) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.now-playing-main-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+
+.track-details {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.track-details h3 {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  margin: 2px 0 !important;
+}
+
+.track-details p {
+  font-size: 0.72rem !important;
+  color: var(--text-secondary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.playback-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+.playback-controls .btn-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.playback-controls .btn-icon:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: #d8b15d !important;
+  color: #d8b15d !important;
+  transform: scale(1.05) !important;
+}
+
+.playback-controls .btn-play {
+  width: 40px !important;
+  height: 40px !important;
+  background: #d8b15d !important;
+  color: #08090d !important;
+  border-color: #d8b15d !important;
+  box-shadow: 0 4px 16px rgba(216, 177, 93, 0.4) !important;
+}
+
+.playback-controls .btn-play:hover {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #08090d !important;
+  box-shadow: 0 6px 22px rgba(255, 255, 255, 0.5) !important;
+  transform: scale(1.08) !important;
+}
+
+/* Progress Timeline */
+.now-playing-bar .progress-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.now-playing-bar .progress-container span {
+  font-size: 0.75rem !important;
+  color: var(--text-secondary) !important;
+  min-width: 35px !important;
+}
+
+/* Music Dual Controls & Vocal Tools Row */
+.music-dual-control {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  padding-top: 10px !important;
+}
+
+.music-channel-pill {
+  flex: 1 1 125px !important;
+  min-width: 110px !important;
+  max-width: 160px !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  padding: 5px 8px !important;
+  box-sizing: border-box !important;
+}
+
+.btn-vocal-cut,
+.btn-lyrics-toggle,
+.karaoke-score-pill {
+  flex: 0 0 auto !important;
+  font-size: 11px !important;
+  padding: 6px 11px !important;
+  border-radius: 20px !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-sizing: border-box !important;
+}
+
+.btn-vocal-cut:hover,
+.btn-lyrics-toggle:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #d8b15d !important;
+  color: #fff !important;
+}

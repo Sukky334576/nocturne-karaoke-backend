@@ -189,30 +189,52 @@
             </div>
           </div>
 
-          <!-- Track Info, Quick Dual Music Volume & Controls -->
+          <!-- One Music Integrated Audio Dock (100% Contained & Responsive) -->
           <div class="now-playing-bar">
-            <div class="track-details">
-              <span class="track-status-label">CURRENT TRACK</span>
-              <h3 id="currentTrackTitle">ยังไม่มีเพลงที่เล่น</h3>
-              <p id="currentTrackArtist">เลือกเพลงจากช่องค้นหาหรือคิวเพลง</p>
+            <!-- Row 1: Track Details & Playback Controls -->
+            <div class="now-playing-main-row">
+              <div class="track-details">
+                <span class="track-status-label">CURRENT TRACK</span>
+                <h3 id="currentTrackTitle">ยังไม่มีเพลงที่เล่น</h3>
+                <p id="currentTrackArtist">เลือกเพลงจากช่องค้นหาหรือคิวเพลง</p>
+              </div>
+
+              <div class="playback-controls">
+                <button id="prevBtn" class="btn-icon" title="เพลงก่อนหน้า">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="3"/></svg>
+                </button>
+                <button id="playPauseBtn" class="btn-icon btn-play" title="เล่น / หยุด">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
+                <button id="nextBtn" class="btn-icon" title="เพลงถัดไป">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="3"/></svg>
+                </button>
+              </div>
             </div>
 
-            <!-- Quick Dual-Channel Music Volume Controls -->
+            <!-- Row 2: Progress Timeline -->
+            <div class="progress-container">
+              <span id="currentTime" class="mono-num">0:00</span>
+              <input type="range" id="progressBar" min="0" max="100" value="0" step="0.1" aria-label="แถบเวลาเพลง">
+              <span id="totalDuration" class="mono-num">0:00</span>
+            </div>
+
+            <!-- Row 3: Quick Dual Volumes, Vocal Cut & Lyrics Toolbar -->
             <div class="music-dual-control">
-              <!-- Channel 1: Headphones -->
+              <!-- Channel 1: Headphones Volume -->
               <div class="music-channel-pill" id="hpMusicPill">
-                <button id="toggleHpMusicBtn" class="btn-channel-mute active" title="กดเพื่อ Mute / Unmute เพลงในหูฟังเรา">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                <button id="toggleHpMusicBtn" class="btn-channel-mute active" title="Mute / Unmute เพลงในหูฟังเรา">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
                   <span>หูเรา:</span>
                   <span id="quickHpMusicText" class="val-gold mono-num">90%</span>
                 </button>
                 <input type="range" id="quickHpMusicSlider" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเพลงในหูเรา">
               </div>
 
-              <!-- Channel 2: FiveM / Discord -->
+              <!-- Channel 2: FiveM / Discord Volume -->
               <div class="music-channel-pill" id="cableMusicPill">
-                <button id="toggleCableMusicBtn" class="btn-channel-mute active" title="กดเพื่อ Mute / Unmute เพลงที่ส่งเข้าเกม FiveM & Discord">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                <button id="toggleCableMusicBtn" class="btn-channel-mute active" title="Mute / Unmute เพลงส่งเข้า FiveM & Discord">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                   <span>FiveM:</span>
                   <span id="quickCableMusicText" class="val-green mono-num">20%</span>
                 </button>
@@ -221,7 +243,7 @@
 
               <!-- Center Vocal Remover (Karaoke Mode) -->
               <button id="vocalCutBtn" type="button" class="btn-vocal-cut" title="ตัดเสียงร้องนำตรงกลาง (Center Vocal Remover / Karaoke Mode)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line x1="2" y1="2" x2="22" y2="22" stroke="#ef4444" stroke-width="2.5"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line x1="2" y1="2" x2="22" y2="22" stroke="#ef4444" stroke-width="2.5"/></svg>
                 <span>ตัดเสียงร้อง:</span>
                 <span id="vocalCutStatusText" class="vocal-cut-badge mono-num">OFF</span>
               </button>
@@ -238,25 +260,6 @@
                 <span id="karaokeLiveScoreText" class="mono-num">--</span>
               </div>
             </div>
-
-            <div class="playback-controls">
-              <button id="prevBtn" class="btn-icon" title="เพลงก่อนหน้า">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="3"/></svg>
-              </button>
-              <button id="playPauseBtn" class="btn-icon btn-play" title="เล่น / หยุด">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              </button>
-              <button id="nextBtn" class="btn-icon" title="เพลงถัดไป">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="3"/></svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Progress bar -->
-          <div class="progress-container">
-            <span id="currentTime" class="mono-num">0:00</span>
-            <input type="range" id="progressBar" min="0" max="100" value="0" step="0.1" aria-label="แถบเวลาเพลง">
-            <span id="totalDuration" class="mono-num">0:00</span>
           </div>
         </div>
 
