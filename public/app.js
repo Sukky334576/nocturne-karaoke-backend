@@ -2391,6 +2391,21 @@ let isVocalChainWired = false;
 let currentMicRequestId = 0;
 
 async function initMicrophoneStream(deviceId) {
+  if (!deviceId && micSelect && micSelect.value && micSelect.value !== 'default') {
+    deviceId = micSelect.value;
+  }
+  if (deviceId && micSelect) {
+    const selectedOpt = Array.from(micSelect.options).find(o => o.value === deviceId);
+    if (selectedOpt) {
+      const lower = selectedOpt.text.toLowerCase();
+      if (lower.includes('loopback') || lower.includes('playback') || lower.includes('stereo mix') || lower.includes('what u hear')) {
+        console.warn('Loopback microphone device selected:', selectedOpt.text);
+        if (typeof showHostToast === 'function') {
+          showHostToast('⚠️ ช่องไมค์ที่เลือกเป็น Loopback/Playback ซึ่งจะดูดเสียงเพลงเข้าไมค์ กรุณาเลือก In 1/2 หรือไมโครโฟนจริง');
+        }
+      }
+    }
+  }
   const requestId = ++currentMicRequestId;
   try {
     const constraints = {
@@ -3720,12 +3735,43 @@ async function enumerateAudioDevices() {
       }
     }
 
-    // 3. Auto-select Microphone (Prioritize Maono Fairy)
+    // 3. Auto-select Microphone (Strictly prioritize genuine physical inputs; reject Loopback, Playback, Stereo Mix, Cable Output)
+    let micIndex = -1;
+    // Pass 1: Maono physical mic input ("in 1/2", "mic", "microphone")
     for (let i = 0; i < micSelect.options.length; i++) {
       const text = micSelect.options[i].text.toLowerCase();
-      if (text.includes('maono') || text.includes('fairy')) {
-        micSelect.selectedIndex = i;
+      const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx');
+      if (!isLoop && (text.includes('maono') || text.includes('fairy')) && (text.includes('in') || text.includes('mic') || text.includes('input'))) {
+        micIndex = i;
         break;
+      }
+    }
+    // Pass 2: Any Maono input device that is strictly NOT loopback/playback/fx/cable
+    if (micIndex === -1) {
+      for (let i = 0; i < micSelect.options.length; i++) {
+        const text = micSelect.options[i].text.toLowerCase();
+        const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx');
+        if (!isLoop && (text.includes('maono') || text.includes('fairy'))) {
+          micIndex = i;
+          break;
+        }
+      }
+    }
+    // Pass 3: Any physical microphone input (excluding loopback/playback/stereo mix/cable)
+    if (micIndex === -1) {
+      for (let i = 0; i < micSelect.options.length; i++) {
+        const text = micSelect.options[i].text.toLowerCase();
+        const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx');
+        if (!isLoop && (text.includes('mic') || text.includes('microphone') || text.includes('in') || text.includes('input'))) {
+          micIndex = i;
+          break;
+        }
+      }
+    }
+    if (micIndex !== -1) {
+      micSelect.selectedIndex = micIndex;
+      if (audioCtx && isAudioInitialized && micSelect.value) {
+        initMicrophoneStream(micSelect.value);
       }
     }
 
