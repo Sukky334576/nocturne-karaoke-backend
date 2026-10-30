@@ -2152,12 +2152,11 @@ async function initAudioEngine() {
     destCable = audioCtx.createMediaStreamDestination();
     destRecordTest = audioCtx.createMediaStreamDestination();
 
-    audioElCable = document.getElementById('sinkCable');
+    // Create audioElCable purely in memory (NEVER append to DOM to prevent Chrome Tab Audio from capturing it and causing feedback loops)
     if (!audioElCable) {
       audioElCable = new Audio();
       audioElCable.id = 'sinkCable';
-      audioElCable.className = 'hidden';
-      document.body.appendChild(audioElCable);
+      audioElCable.autoplay = true;
     }
     audioElCable.srcObject = destCable.stream;
     audioElCable.muted = true; // Safety invariant: Always keep muted until safely bound to a distinct virtual cable!
