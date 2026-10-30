@@ -3177,3 +3177,270 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
+
+
+/* ==========================================================================
+   TRANSLUCENT FROSTED GLASS THEME (ONE MUSIC LUXURY GLASSMORPHISM)
+   Transparent Frames, Relaxing Stage Aesthetics, Ambient Concert Lighting
+   ========================================================================== */
+
+/* 1. Global Concert Stage Background (Subtle Overlay so Stage Glows Through) */
+body {
+  background-color: #07070b !important;
+  background-image: 
+    linear-gradient(180deg, rgba(7, 8, 14, 0.38) 0%, rgba(7, 8, 14, 0.48) 450px, rgba(7, 8, 14, 0.58) 900px, rgba(7, 8, 14, 0.68) 100%),
+    url('img/bg-1.jpg') !important;
+  background-size: cover !important;
+  background-position: center top !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+}
+
+/* 2. Translucent Navigation Header */
+.app-header {
+  background: rgba(12, 14, 22, 0.52) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* 3. Translucent Hero Banner */
+.onemusic-hero-banner {
+  background: 
+    linear-gradient(135deg, rgba(12, 15, 26, 0.42) 0%, rgba(18, 22, 36, 0.32) 100%),
+    url('img/bg-2.jpg') center center / cover no-repeat !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
+}
+
+.hero-overlay-dark {
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.15) 0%, rgba(7, 7, 11, 0.65) 100%) !important;
+}
+
+/* 4. Translucent Workspace Mode Bar */
+.workspace-mode-bar {
+  background: rgba(12, 14, 22, 0.48) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3) !important;
+}
+
+.mode-tabs {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.btn-studio-drawer {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.btn-studio-drawer:hover {
+  background: rgba(216, 177, 93, 0.2) !important;
+  border-color: #d8b15d !important;
+}
+
+/* 5. Translucent Studio Modules & Cards (Source & Playback, Queue, Presets, DSP Rack) */
+.studio-module {
+  background: rgba(12, 15, 25, 0.48) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.studio-module:hover {
+  background: rgba(14, 18, 30, 0.56) !important;
+  border-color: rgba(216, 177, 93, 0.38) !important;
+}
+
+.vocal-presets-card {
+  background: rgba(12, 15, 25, 0.48) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 6. Translucent Quick Mic Status Card */
+.quick-mic-status-card {
+  background: rgba(12, 15, 25, 0.48) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 7. Translucent Video & Screen Placeholder */
+.video-container {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.video-placeholder {
+  background: rgba(8, 10, 18, 0.45) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.placeholder-crest {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* 8. Translucent Search Bar & Inputs */
+.search-box-compact .input-group-compact {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.search-box-compact input {
+  background: transparent !important;
+  color: #fff !important;
+}
+
+.search-results-dropdown {
+  background: rgba(12, 14, 24, 0.92) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* 9. Translucent Tracklist (Song Queue) */
+.queue-item {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.queue-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: #d8b15d !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3) !important;
+}
+
+.empty-queue {
+  background: rgba(0, 0, 0, 0.22) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* 10. Translucent Bottom Audio Dock & Control Pills */
+.now-playing-bar {
+  background: rgba(10, 12, 20, 0.58) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.music-channel-pill {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.preset-pill {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+.preset-pill:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.preset-pill.active {
+  background: rgba(216, 177, 93, 0.22) !important;
+  border-color: #d8b15d !important;
+  color: #fce59f !important;
+}
+
+/* 11. Translucent Buttons & Status Tags */
+.btn-outline {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.audio-traffic-status {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.ducking-badge {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.btn-vocal-cut {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.btn-lyrics-toggle {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.karaoke-score-pill {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* 12. Translucent Key Calibration & Controls */
+.pitch-btn {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+.pitch-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.pitch-btn.active {
+  background: rgba(216, 177, 93, 0.25) !important;
+  border-color: #d8b15d !important;
+  color: #fce59f !important;
+}
+
+.readout-box {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+.sfx-btn {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+.sfx-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #d8b15d !important;
+}
