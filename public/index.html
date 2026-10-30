@@ -14,35 +14,62 @@
   <div class="app-container">
     <!-- Studio Header -->
     <header class="app-header">
+      <!-- One Music Brand Logo & Title -->
       <div class="header-brand">
-        <a href="#" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
-          <img src="img/logo.png" alt="One Music" class="onemusic-logo-img" style="height: 28px; width: auto; object-fit: contain;">
+        <a href="#" class="brand-link" aria-label="One Music Home">
+          <div class="brand-logo-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+            </svg>
+          </div>
           <div class="brand-text">
-            <h1 class="brand-title" style="letter-spacing: 4px; font-family: 'Poppins', sans-serif; font-weight: 700;">ONE <span class="brand-accent" style="color: #d8b15d;">MUSIC</span></h1>
-            <p class="subtitle" style="font-size: 11px; letter-spacing: 1px; color: var(--text-secondary);">Nocturne Vocal Studio & Karaoke Engine</p>
+            <h1 class="brand-title">ONE <span class="brand-accent">MUSIC</span></h1>
+            <p class="subtitle">Precision Vocal Studio & Karaoke</p>
           </div>
         </a>
       </div>
       
+      <!-- Unified One Music Toolbar Actions (Single Sleek Row) -->
       <div class="header-actions">
-        <!-- Plugin Manager Button -->
-        <button id="headerPluginBtn" class="btn btn-outline" title="จัดการปลั๊กอินและเอฟเฟกต์เสริม">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2v6m0 8v6M2 12h6m8 0h6M5 5l4 4m6 6 4 4M19 5l-4 4m-6 6-4 4"/></svg>
-          <span>ปลั๊กอิน (Plugins)</span>
-        </button>
-
-        <!-- Shared Room / Mobile Remote Button -->
-        <button id="openRoomModalBtn" class="btn btn-outline" title="เปิดห้องคาราโอเกะ ให้เพื่อนใช้มือถือสแกนสั่งเพลงเข้าคิว">
+        <!-- 1. Shared Room / Mobile Remote Button -->
+        <button id="openRoomModalBtn" class="btn btn-nav-glass" title="เปิดห้องคาราโอเกะ ให้เพื่อนใช้มือถือสแกนสั่งเพลงเข้าคิว">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
             <line x1="12" y1="18" x2="12.01" y2="18"/>
           </svg>
-          <span id="roomStatusBtnText">📱 รีโมทมือถือ (Remote)</span>
-          <span id="roomClientsBadge" class="badge-count hidden" style="margin-left: 4px; font-size: 10px; background: var(--emerald-bright); color: #08090d; font-weight: 700; padding: 1px 6px; border-radius: 9999px;">0</span>
+          <span id="roomStatusBtnText">📱 รีโมทมือถือ</span>
+          <span id="roomClientsBadge" class="badge-count hidden">0</span>
         </button>
 
-        <!-- Audio Traffic Light Ready Status -->
-        <div class="audio-traffic-status" title="สถานะความพร้อมของสัญญาณเสียง">
+        <!-- 2. Studio Tools Dropdown Menu (Groups Wizard, Record Test, Latency, Plugins) -->
+        <div class="header-dropdown-wrap" id="headerToolsDropdownWrap">
+          <button id="headerToolsMenuBtn" type="button" class="btn btn-nav-glass" title="เครื่องมือสตูดิโอและการตั้งค่า">
+            <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>เครื่องมือสตูดิโอ</span>
+            <span style="font-size: 10px; margin-left: 2px;">▾</span>
+          </button>
+          <div id="headerToolsMenu" class="header-dropdown-menu hidden">
+            <button id="openSetupGuideBtn" class="dropdown-item-btn" type="button">
+              <span class="dropdown-item-icon">🪄</span>
+              <span>ตั้งค่าด่วน (Wizard)</span>
+            </button>
+            <button id="openRecordTestBtn" class="dropdown-item-btn" type="button">
+              <span class="dropdown-item-icon">🔴</span>
+              <span>อัดเสียงทดสอบ (Record Test)</span>
+            </button>
+            <button id="openSyncModalBtn" class="dropdown-item-btn" type="button">
+              <span class="dropdown-item-icon">⏱️</span>
+              <span>ตรวจดีเลย์เสียง (Latency Test)</span>
+            </button>
+            <button id="headerPluginBtn" class="dropdown-item-btn" type="button">
+              <span class="dropdown-item-icon">🧩</span>
+              <span>จัดการปลั๊กอิน (Plugins)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Audio Traffic Ready Status -->
+        <div class="audio-traffic-status" title="สถานะสัญญาณเสียง (ไมค์ | เพลง | FiveM)">
           <div class="traffic-item" title="ไมโครโฟน">
             <span id="trafficMicDot" class="traffic-dot"></span>
             <span>ไมค์</span>
@@ -59,38 +86,20 @@
           </div>
         </div>
 
-        <!-- Setup Guide / Wizard Button -->
-        <button id="openSetupGuideBtn" class="btn btn-outline" title="เปิดผู้ช่วยตั้งค่าระบบเสียง 3 สเต็ป">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-          <span>🪄 ตั้งค่าด่วน (Wizard)</span>
-        </button>
-
-        <!-- User Profile / Auth Button -->
-        <button id="userProfileBtn" class="btn btn-outline" title="เข้าสู่ระบบ / จัดการโปรไฟล์">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
-          <span id="userProfileLabel">เข้าสู่ระบบ / สมาชิก</span>
-        </button>
-
-        <!-- Record Test Modal / Action -->
-        <button id="openRecordTestBtn" class="btn btn-garnet" title="บันทึกเสียงร้องและฟังย้อนหลัง">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="6" fill="currentColor"/><circle cx="12" cy="12" r="10"/></svg>
-          <span>อัดเสียงทดสอบ</span>
-        </button>
-
-        <!-- Latency Tester -->
-        <button id="openSyncModalBtn" class="btn btn-gold" title="เครื่องมือวัดความหน่วงของอุปกรณ์">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><path d="m10 15 5-3-5-3v6z"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
-          <span>ตรวจดีเลย์</span>
-        </button>
-
-        <!-- Ducking Toggle -->
+        <!-- 4. Ducking Mode Toggle -->
         <button id="duckingBtn" class="ducking-badge" title="กดเพื่อเบาเสียงเพลงเวลาพูดคุย (Hotkey: F8 หรือ Numpad -)">
           <span class="status-indicator"></span>
           <span id="duckingStatusText">SINGING MODE</span>
         </button>
+
+        <!-- 5. User Profile / Auth Button -->
+        <button id="userProfileBtn" class="btn btn-nav-glass" title="เข้าสู่ระบบ / จัดการโปรไฟล์">
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+          <span id="userProfileLabel">เข้าสู่ระบบ / สมาชิก</span>
+        </button>
         
-        <!-- Start Engine -->
-        <button id="audioInitBtn" class="btn btn-primary">
+        <!-- 6. Start Audio Engine (One Music Signature Gold CTA) -->
+        <button id="audioInitBtn" class="btn btn-onemusic-primary">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           <span>START ENGINE</span>
         </button>

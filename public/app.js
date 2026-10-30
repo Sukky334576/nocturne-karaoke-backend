@@ -5753,3 +5753,29 @@ if (playerCardEl) {
   } catch (_) {}
   setWorkspaceMode(savedMode);
 })();
+
+// ==========================================================================
+// ONE MUSIC HEADER TOOLS DROPDOWN CONTROLLER
+// ==========================================================================
+(function initHeaderToolsDropdown() {
+  const headerToolsMenuBtn = document.getElementById('headerToolsMenuBtn');
+  const headerToolsMenu = document.getElementById('headerToolsMenu');
+  if (headerToolsMenuBtn && headerToolsMenu) {
+    headerToolsMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      headerToolsMenu.classList.toggle('hidden');
+    });
+
+    headerToolsMenu.querySelectorAll('.dropdown-item-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        headerToolsMenu.classList.add('hidden');
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#headerToolsDropdownWrap')) {
+        headerToolsMenu.classList.add('hidden');
+      }
+    });
+  }
+})();
