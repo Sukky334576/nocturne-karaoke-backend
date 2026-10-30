@@ -2987,3 +2987,193 @@ body {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
+
+
+/* ==========================================================================
+   AUTHENTIC ONE MUSIC TEMPLATE ENGINE (THEMEWAGON & COLORLIB)
+   Concert Stage Photography, Hero Typography, High-Contrast Buttons & Glass Cards
+   ========================================================================== */
+
+/* 1. Global Concert Stage Background with bg-1.jpg */
+body {
+  background-color: #07070b !important;
+  background-image: 
+    linear-gradient(180deg, rgba(7, 7, 11, 0.62) 0%, rgba(7, 7, 11, 0.82) 450px, rgba(7, 7, 11, 0.94) 900px, #07070b 100%),
+    url('img/bg-1.jpg') !important;
+  background-size: 100% auto, cover !important;
+  background-position: center top !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  font-family: 'Poppins', 'Outfit', 'Kanit', sans-serif !important;
+}
+
+/* 2. One Music Hero Banner Area */
+.onemusic-hero-banner {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  padding: 45px 30px;
+  background: 
+    linear-gradient(135deg, rgba(13, 15, 26, 0.82) 0%, rgba(20, 24, 38, 0.75) 100%),
+    url('img/bg-2.jpg') center center / cover no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hero-overlay-dark {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, rgba(7, 7, 11, 0.85) 100%);
+  pointer-events: none;
+}
+
+.hero-content-wrap {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+}
+
+.hero-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: #d8b15d;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.hero-giant-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  font-weight: 300;
+  color: #ffffff;
+  letter-spacing: clamp(6px, 1.5vw, 14px);
+  text-transform: uppercase;
+  margin: 0 0 12px 0;
+  line-height: 1.15;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+}
+
+.hero-giant-title .hero-highlight {
+  font-weight: 800;
+  color: #d8b15d;
+  background: linear-gradient(135deg, #fce59f 0%, #d8b15d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-subtitle {
+  font-size: 13px;
+  color: #cfd3dc;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  margin: 0 auto 24px auto;
+  line-height: 1.6;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+
+.hero-btn-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.onemusic-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 26px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: 'Poppins', sans-serif;
+}
+
+.onemusic-btn-gold {
+  background: #d8b15d;
+  color: #000000;
+  border: 1px solid #d8b15d;
+  box-shadow: 0 4px 20px rgba(216, 177, 93, 0.4);
+}
+
+.onemusic-btn-gold:hover {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(255, 255, 255, 0.4);
+}
+
+.onemusic-btn-outline {
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.onemusic-btn-outline:hover {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  transform: translateY(-2px);
+}
+
+/* 3. One Music Navigation Bar Enhancement */
+.app-header {
+  background: rgba(10, 11, 18, 0.88) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.onemusic-logo-img {
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+}
+
+/* 4. One Music Glass Cards with Stage Sheen */
+.studio-module {
+  background: rgba(13, 15, 24, 0.88) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+.studio-module:hover {
+  border-color: rgba(216, 177, 93, 0.35) !important;
+}
+
+/* 5. One Music Tracklist Item */
+.queue-item {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 6px !important;
+  transition: all 0.25s ease !important;
+}
+
+.queue-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: #d8b15d !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 6. One Music Audio Dock */
+.now-playing-bar {
+  background: rgba(8, 9, 14, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
