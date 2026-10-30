@@ -670,7 +670,7 @@ function loadUserProfile() {
 
   // Automatic Pro activation for Owner/Developer accounts, and expiry check
   const unameLower = (currentUser.username || '').toLowerCase();
-  if (['sukky', 'sukky334576', 'tong', 'admin'].includes(unameLower)) {
+  if (['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(unameLower)) {
     currentUser.tier = 'pro';
     currentUser.proExpiresAt = 253402300799000;
   } else if (currentUser.tier === 'pro' && currentUser.proExpiresAt && currentUser.proExpiresAt < Date.now()) {
@@ -679,6 +679,32 @@ function loadUserProfile() {
 
   applyUserPreset(currentUser.preset);
   updateAuthUI();
+  // Server-sync user tier & profile in background:
+  if (currentUser.username && currentUser.username !== 'Guest') {
+    fetch('/api/auth/profile?username=' + encodeURIComponent(currentUser.username))
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.success && data.user) {
+          let updated = false;
+          if (currentUser.tier !== data.user.tier) {
+            currentUser.tier = data.user.tier;
+            currentUser.proExpiresAt = data.user.proExpiresAt;
+            updated = true;
+          }
+          if (data.user.preset && (!currentUser.preset || Object.keys(currentUser.preset).length === 0)) {
+            currentUser.preset = data.user.preset;
+            applyUserPreset(currentUser.preset);
+            updated = true;
+          }
+          if (updated) {
+            localStorage.setItem('karaoke_current_user', JSON.stringify(currentUser));
+            updateAuthUI();
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
 
   // Strict Gated Funnel:
   // 1. If not logged in: lock screen with landingGate (no close button)
@@ -3731,11 +3757,17 @@ async function setSinkCable(deviceId) {
       if (!deviceId || deviceId === 'default' || (currentHpSink && deviceId === currentHpSink)) {
         console.warn('Virtual cable destination matches default or headphone output. Muting audioElCable to prevent headphone echo.');
         audioElCable.muted = true;
+        if (typeof showHostToast === 'function' && deviceId && (currentHpSink && deviceId === currentHpSink)) {
+          showHostToast('⚠️ ช่อง FiveM ต้องเลือกเป็น "CABLE Input" (ห้ามเลือกช่องหูฟังซ้ำ ระบบตัดเสียงกันสะท้อน)');
+        }
         return;
       }
       await audioElCable.setSinkId(deviceId);
       audioElCable.muted = false; // Only unmute when safely assigned to a distinct virtual cable!
       console.log('✅ Backing track and broadcast stream connected to CABLE Input:', deviceId);
+      if (typeof showHostToast === 'function') {
+        showHostToast('✅ เชื่อมต่อ CABLE Input แล้ว! (ใน FiveM/Discord ให้เลือกไมค์เป็น CABLE Output)');
+      }
     } catch (e) {
       console.warn('setSinkId CABLE error:', e);
       audioElCable.muted = true;

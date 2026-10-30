@@ -695,17 +695,50 @@ app.post('/api/auth/save-profile', (req, res) => {
   if (tier) user.tier = tier;
   if (proExpiresAt !== undefined) user.proExpiresAt = proExpiresAt;
 
-  // Enforce 30-day subscription expiration
-  if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
-    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower)) {
-      user.tier = 'free';
-    }
+  // Enforce server-side Pro tier retention & expiration
+  const isVip = ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower);
+  if (isVip) {
+    user.tier = 'pro';
+    user.proExpiresAt = 253402300799000;
+  } else if (user.proExpiresAt && user.proExpiresAt > Date.now()) {
+    user.tier = 'pro'; // Protect against stale client localStorage overwriting active Pro
+  } else if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt <= Date.now()) {
+    user.tier = 'free'; // Expire subscription
   }
 
   user.lastActive = Date.now();
   persistUserDb();
 
   res.json({ success: true, tier: user.tier, proExpiresAt: user.proExpiresAt });
+});
+
+
+app.get('/api/auth/profile', (req, res) => {
+  const username = sanitizeText(req.query.username, 30);
+  if (!username) return res.status(400).json({ error: 'Username required' });
+  const lower = username.toLowerCase();
+  const user = usersDb.get(lower);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Expiry check
+  if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
+    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower)) {
+      user.tier = 'free';
+      persistUserDb();
+    }
+  }
+
+  res.json({
+    success: true,
+    user: {
+      username: user.username,
+      tier: user.tier || 'free',
+      proExpiresAt: user.proExpiresAt || null,
+      preset: user.preset || {},
+      songKeys: user.songKeys || {},
+      hasCompletedOnboarding: user.hasCompletedOnboarding !== false
+    }
+  });
 });
 
 app.post('/api/auth/upgrade-pro', (req, res) => {
