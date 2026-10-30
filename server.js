@@ -141,11 +141,10 @@ function fastYoutubeSearch(query) {
 // Upstream Fallback Audio Stream Finder (for Cloud / Render datacenter IPs)
 async function fetchUpstreamFallbackStream(videoId) {
   const upstreamInstances = [
-    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`,
     `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140`,
     `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
-    `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140`,
-    `https://inv.zzls.xyz/latest_version?id=${videoId}&itag=140`
+    `https://inv.zzls.xyz/latest_version?id=${videoId}&itag=140`,
+    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`
   ];
 
   for (const candidate of upstreamInstances) {
@@ -219,28 +218,18 @@ async function extractStreamUrl(targetUrl) {
     return cached.url;
   }
 
-  // 1. Try resilient client configs with yt-dlp
-  const clientConfigs = [
-    'youtube:player_client=android,web',
-    'youtube:player_client=android_vr,web_embedded,android,web',
-    'youtube:player_client=android_embedded,android,web',
-    'youtube:player_client=ios,mweb',
-    'youtube:player_client=tv,android'
-  ];
-
-  for (const clientArgs of clientConfigs) {
-    try {
-      const streamUrl = await runYtDlpExtract(clientArgs, targetUrl);
-      if (streamUrl) {
-        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
-        return streamUrl;
-      }
-    } catch (e) {
-      // try next config
+  // 1. Primary fast yt-dlp extraction (direct clean audio for local/proxied environments)
+  try {
+    const streamUrl = await runYtDlpExtract('youtube:player_client=android,web', targetUrl);
+    if (streamUrl) {
+      setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+      return streamUrl;
     }
+  } catch (e) {
+    // Cloud datacenter block, immediately try upstream fallback
   }
 
-  // 2. If yt-dlp encounters datacenter blocks on Cloud, try upstream fallback streams
+  // 2. Upstream fallback streams (Fast resilient audio for Cloud / Render datacenter IPs)
   const match = targetUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
   if (match && match[1]) {
     try {
@@ -252,6 +241,21 @@ async function extractStreamUrl(targetUrl) {
     } catch (e) {
       console.warn('Upstream fallback stream note:', e.message);
     }
+  }
+
+  // 3. Secondary yt-dlp configs as last resort
+  const secondaryConfigs = [
+    'youtube:player_client=ios,mweb',
+    'youtube:player_client=tv,android'
+  ];
+  for (const clientArgs of secondaryConfigs) {
+    try {
+      const streamUrl = await runYtDlpExtract(clientArgs, targetUrl);
+      if (streamUrl) {
+        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+        return streamUrl;
+      }
+    } catch (e) {}
   }
 
   throw new Error('All audio stream extraction strategies exhausted for ' + targetUrl);

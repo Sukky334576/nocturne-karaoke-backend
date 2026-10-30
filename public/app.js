@@ -3212,6 +3212,15 @@ async function startTabAudioCapture() {
     }
 
     isTabAudioActive = true;
+    // Isolate headphone vocal monitor and reverb tail from tab audio capture
+    // This guarantees Chrome's tab capture grabs ONLY the clean YouTube backing music,
+    // eliminating doubled vocal slapback and music reverb bleeding!
+    if (vocalHpGain && audioCtx) {
+      vocalHpGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
+    if (headphoneReverbGain && audioCtx) {
+      headphoneReverbGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    }
     updateTabAudioUI();
 
     audioTrack.onended = () => {
@@ -3235,6 +3244,15 @@ function stopTabAudioCapture() {
     tabAudioSourceNode = null;
   }
   isTabAudioActive = false;
+  // Restore headphone vocal monitor and reverb when tab audio capture stops
+  if (headphoneReverbGain && audioCtx) {
+    headphoneReverbGain.gain.setValueAtTime(1.2, audioCtx.currentTime);
+  }
+  if (vocalHpGain && audioCtx) {
+    const initHpV = (currentUser && currentUser.preset && currentUser.preset.hpVocalVol !== undefined)
+      ? currentUser.preset.hpVocalVol : 0.0;
+    vocalHpGain.gain.setValueAtTime(isHpVocalMuted ? 0.0 : initHpV, audioCtx.currentTime);
+  }
   updateTabAudioUI();
 }
 
