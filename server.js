@@ -255,41 +255,44 @@ async function fetchInvidiousApiStream(videoId) {
     'https://invidious.tiekoetter.com',
     'https://invidious.nerdvpn.de'
   ];
-  for (const base of apiInstances) {
-    try {
-      const streamUrl = await new Promise((resolve, reject) => {
-        const req = https.get(`${base}/api/v1/videos/${encodeURIComponent(videoId)}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-          timeout: 4000
-        }, (res) => {
-          let body = '';
-          res.on('data', c => body += c);
-          res.on('end', () => {
+
+  const fetchFromBase = (base) => new Promise((resolve, reject) => {
+    const req = https.get(`${base}/api/v1/videos/${encodeURIComponent(videoId)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      timeout: 4000
+    }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', async () => {
+        try {
+          if (res.statusCode !== 200) return reject(new Error('Status ' + res.statusCode));
+          const data = JSON.parse(body);
+          const formats = (data.adaptiveFormats || []).concat(data.formatStreams || []);
+          const audios = formats.filter(f => f.type && f.type.startsWith('audio/') && f.url);
+          if (audios.length > 0) {
+            const preferred = audios.find(a => a.itag === 140 || a.itag === '140') ||
+                              audios.find(a => a.itag === 251 || a.itag === '251') ||
+                              audios[0];
             try {
-              if (res.statusCode !== 200) return reject(new Error('Status ' + res.statusCode));
-              const data = JSON.parse(body);
-              const formats = (data.adaptiveFormats || []).concat(data.formatStreams || []);
-              const audios = formats.filter(f => f.type && f.type.startsWith('audio/') && f.url);
-              if (audios.length > 0) {
-                const preferred = audios.find(a => a.itag === 140 || a.itag === '140') ||
-                                  audios.find(a => a.itag === 251 || a.itag === '251') ||
-                                  audios[0];
-                return resolve(preferred.url);
-              }
-              reject(new Error('No audio formats found'));
-            } catch (e) { reject(e); }
-          });
-        });
-        req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+              const validated = await checkCandidate(preferred.url);
+              if (validated) return resolve(validated);
+            } catch (err) {
+              return reject(err);
+            }
+          }
+          reject(new Error('No audio formats found'));
+        } catch (e) { reject(e); }
       });
-      if (streamUrl) {
-        const validated = await checkCandidate(streamUrl);
-        if (validated) return validated;
-      }
-    } catch (_) {}
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+  });
+
+  try {
+    return await Promise.any(apiInstances.map(fetchFromBase));
+  } catch (_) {
+    return null;
   }
-  return null;
 }
 
 async function fetchPipedApiStream(videoId) {
@@ -427,6 +430,15 @@ async function extractStreamUrl(targetUrl) {
       if (streamUrl) {
         setBoundedCache(streamCache, cacheKey, { url: streamUrl, time: Date.now() }, 100);
         return streamUrl;
+      }
+    } catch (_) {}
+
+    // Direct upstream fallback on cloud without wasting time on blocked yt-dlp retries
+    try {
+      const directFallback = await fetchUpstreamFallbackStream(videoId);
+      if (directFallback) {
+        setBoundedCache(streamCache, cacheKey, { url: directFallback, time: Date.now() }, 100);
+        return directFallback;
       }
     } catch (_) {}
   }

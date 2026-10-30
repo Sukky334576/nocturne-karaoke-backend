@@ -73,6 +73,7 @@ let safetyLimiterNode = null;
 let convolverNode = null;
 let reverbInputGain = null;
 let reverbGain = null;
+let cableReverbGain = null;
 let headphoneReverbGain = null;
 
 // 3-Band Studio Vocal EQ Nodes
@@ -1043,7 +1044,7 @@ function applyVocalPreset(presetKey) {
 function updateAuthUI() {
   const unameLower = (currentUser.username || '').toLowerCase();
   let tierExpired = false;
-  if (!['sukky', 'sukky334576', 'tong', 'admin'].includes(unameLower)) {
+  if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(unameLower)) {
     if (currentUser.tier === 'pro' && currentUser.proExpiresAt && currentUser.proExpiresAt < Date.now()) {
       currentUser.tier = 'free';
       tierExpired = true;
@@ -1291,6 +1292,25 @@ if (gateSubmitBtn) {
 if (userProfileBtn) {
   userProfileBtn.addEventListener('click', () => {
     if (currentUser.isLoggedIn) {
+      if (currentUser.username && currentUser.username !== 'Guest') {
+        fetch('/api/auth/profile?username=' + encodeURIComponent(currentUser.username))
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.success && data.user) {
+              let updated = false;
+              if (currentUser.tier !== data.user.tier) {
+                currentUser.tier = data.user.tier;
+                currentUser.proExpiresAt = data.user.proExpiresAt;
+                updated = true;
+              }
+              if (updated) {
+                localStorage.setItem('karaoke_current_user', JSON.stringify(currentUser));
+                updateAuthUI();
+              }
+            }
+          })
+          .catch(() => {});
+      }
       updateAuthUI();
       if (userProfileModal) userProfileModal.classList.remove('hidden');
     } else {
@@ -2117,6 +2137,9 @@ async function initAudioEngine() {
     const activeReverb = isReverbEnabled;
     reverbGain.gain.setValueAtTime(activeReverb ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
 
+    cableReverbGain = audioCtx.createGain();
+    cableReverbGain.gain.setValueAtTime(1.5, audioCtx.currentTime);
+
     headphoneReverbGain = audioCtx.createGain();
     headphoneReverbGain.gain.setValueAtTime(1.2, audioCtx.currentTime);
 
@@ -2230,8 +2253,9 @@ async function initAudioEngine() {
     reverbInputGain.connect(convolverNode);
     convolverNode.connect(reverbGain);
 
-    // Reverb Tail to FiveM / Discord
-    reverbGain.connect(cableMixGain);
+    // Reverb Tail to FiveM / Discord (with 1.5x Broadcast Presence)
+    reverbGain.connect(cableReverbGain);
+    cableReverbGain.connect(cableMixGain);
 
     // Reverb Tail to Headphone Monitor
     reverbGain.connect(headphoneReverbGain);
