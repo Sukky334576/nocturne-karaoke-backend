@@ -2807,3 +2807,183 @@ body.drawer-open #studioDspModulesContainer {
   background: #d8b15d;
   color: #08090d;
 }
+
+
+/* ==========================================================================
+   ONE MUSIC SIGNATURE THEME & DESIGN SYSTEM (THEMEWAGON INSPIRATION)
+   Dark Luxury Concert Vibe: Deep Obsidian, Cyber Wave, Neon Mint & Champagne Gold
+   ========================================================================== */
+
+/* 1. Global Background & Atmosphere */
+body {
+  background-color: #08090e;
+  background-image: 
+    radial-gradient(circle at 10% 10%, rgba(0, 223, 162, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 90% 15%, rgba(0, 210, 255, 0.05) 0%, transparent 45%),
+    radial-gradient(circle at 50% 90%, rgba(216, 177, 93, 0.05) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(13, 15, 22, 0.96) 0%, #08090d 100%);
+  background-attachment: fixed;
+  color: #f5f6fa;
+  font-family: 'Poppins', 'Outfit', 'Kanit', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* 2. One Music Navigation Bar */
+.app-header {
+  background: rgba(13, 15, 23, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.25s ease;
+}
+
+.brand-monogram {
+  background: linear-gradient(135deg, rgba(0, 223, 162, 0.15), rgba(0, 210, 255, 0.1));
+  border: 1px solid rgba(0, 223, 162, 0.35);
+  color: #00dfa2;
+  box-shadow: 0 0 16px rgba(0, 223, 162, 0.2);
+}
+
+.brand-title {
+  font-family: 'Poppins', 'Outfit', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: 1.35rem;
+}
+
+.brand-title .brand-accent {
+  background: linear-gradient(135deg, #00dfa2 0%, #00d2ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(0, 223, 162, 0.3);
+}
+
+/* 3. One Music Workspace Tabs */
+.workspace-mode-bar {
+  background: rgba(13, 15, 23, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.mode-tabs {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 30px;
+}
+
+.mode-tab {
+  font-family: 'Poppins', 'Outfit', sans-serif;
+  border-radius: 20px;
+}
+
+.mode-tab.active {
+  background: linear-gradient(135deg, rgba(0, 223, 162, 0.2) 0%, rgba(0, 210, 255, 0.15) 100%);
+  color: #00dfa2;
+  border: 1px solid rgba(0, 223, 162, 0.4);
+  box-shadow: 0 2px 14px rgba(0, 223, 162, 0.25);
+}
+
+/* 4. One Music Tracklist Styling (Song Queue & Search) */
+.queue-item {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 6px;
+}
+
+.queue-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(0, 223, 162, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.empty-queue {
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 5. One Music Persistent Player Dock */
+.now-playing-bar {
+  background: rgba(10, 12, 18, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 10px 16px;
+}
+
+/* 6. One Music Action Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, #00dfa2 0%, #00b4d8 100%);
+  color: #06080d;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 4px 18px rgba(0, 223, 162, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #10f0b4 0%, #18c2e6 100%);
+  box-shadow: 0 6px 24px rgba(0, 223, 162, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #d8b15d 0%, #b8933b 100%);
+  color: #08090d;
+  font-weight: 700;
+}
+
+/* 7. Quick Mic Status Card (Stage Mode) */
+.quick-mic-status-card {
+  background: rgba(13, 15, 23, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.btn-open-dsp-pill {
+  background: rgba(0, 223, 162, 0.1);
+  border: 1px solid rgba(0, 223, 162, 0.3);
+  color: #00dfa2;
+}
+
+.btn-open-dsp-pill:hover {
+  background: #00dfa2;
+  color: #08090d;
+  box-shadow: 0 0 14px rgba(0, 223, 162, 0.4);
+}
+
+/* 8. One Music High-End Card Surfaces */
+.studio-module {
+  background: rgba(14, 16, 25, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.25s ease;
+}
+
+.studio-module:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* 9. One Music Login & VIP Modal Styling */
+.landing-gate-overlay .modal-card {
+  background: rgba(14, 16, 25, 0.94);
+  border: 1px solid rgba(0, 223, 162, 0.3);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 223, 162, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
