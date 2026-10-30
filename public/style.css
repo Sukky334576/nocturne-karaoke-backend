@@ -112,6 +112,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ==========================================================================
@@ -3865,4 +3866,80 @@ body {
   background: rgba(255, 255, 255, 0.1) !important;
   border-color: #d8b15d !important;
   color: #fff !important;
+}
+
+
+/* ==========================================================================
+   📱 Mobile Safe-Area & Ultra-Compact Viewports (@media max-width: 480px)
+   ========================================================================== */
+@media (max-width: 480px) {
+  .app-container {
+    gap: 10px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 12px)) !important;
+  }
+
+  .app-header {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+
+  .app-header-left .brand-subtitle {
+    display: none !important;
+  }
+
+  .header-center-pill {
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .header-right-actions {
+    gap: 4px !important;
+  }
+
+  .header-btn {
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .preset-pill-group {
+    gap: 4px !important;
+  }
+
+  .preset-pill {
+    padding: 4px 7px !important;
+    font-size: 10.5px !important;
+  }
+
+  .now-playing-bar {
+    padding: 8px 10px !important;
+  }
+
+  .now-playing-info {
+    max-width: 170px !important;
+  }
+
+  .music-channel-pill {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+  }
+
+  .btn-vocal-cut,
+  .btn-lyrics-toggle,
+  .karaoke-score-pill {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .key-calibration-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+  }
+
+  .modal-dialog,
+  .remote-panel,
+  .wizard-modal-content {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 12px)) !important;
+  }
 }

@@ -43,12 +43,34 @@ function setBoundedCache(map, key, value, maxEntries = 300) {
   map.set(key, value);
 }
 
-// Input Validator for YouTube IDs and URLs (Defense-in-Depth against argument injection)
+// Input Validator & Strict YouTube ID Extractor (Defense-in-Depth against argument injection)
+function extractValidYouTubeId(str) {
+  if (!str || typeof str !== 'string') return null;
+  const trimmed = str.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'youtu.be' || host.endsWith('.youtu.be')) {
+      const id = parsed.pathname.slice(1).split('/')[0];
+      if (/^[a-zA-Z0-9_-]{11}$/.test(id)) return id;
+    }
+    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+      if (parsed.pathname === '/watch') {
+        const v = parsed.searchParams.get('v');
+        if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
+      }
+      const match = parsed.pathname.match(/^\/(?:embed|v|shorts)\/([a-zA-Z0-9_-]{11})/);
+      if (match && match[1]) return match[1];
+    }
+  } catch (_) {}
+  return null;
+}
+
 function isValidYouTubeIdOrUrl(str) {
-  if (!str || typeof str !== 'string') return false;
-  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return true;
-  if (/^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)[a-zA-Z0-9_-]{11}/.test(str)) return true;
-  return false;
+  return extractValidYouTubeId(str) !== null;
 }
 
 // Ultra-Fast YouTube Search via Direct InnerTube API (~150-300ms)
@@ -413,9 +435,37 @@ function getLocalIpAddresses() {
 // ==========================================================================
 const rooms = new Map(); // roomCode -> Room Object
 
+// In-Memory Lightweight Rate Limiter for DDoS & Spam Mitigation
+const ipRateLimits = new Map();
+
+function checkRateLimit(req, action, maxRequests, windowMs) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip = (forwarded ? forwarded.split(',')[0].trim() : (req.socket.remoteAddress || '127.0.0.1'));
+  const key = `${ip}:${action}`;
+  const now = Date.now();
+  let record = ipRateLimits.get(key);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+    ipRateLimits.set(key, record);
+    return true;
+  }
+  if (record.count >= maxRequests) {
+    return false;
+  }
+  record.count++;
+  return true;
+}
+
 function sanitizeText(str, maxLen = 120) {
   if (!str || typeof str !== 'string') return '';
-  return str.replace(/[<>]/g, '').trim().slice(0, maxLen);
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .trim()
+    .slice(0, maxLen);
 }
 
 function normalizeRoomCode(code) {
@@ -877,15 +927,15 @@ app.get('/api/room/:code/events', (req, res) => {
   // Broadcast updated client count
   broadcastRoomEvent(room, 'client_count', { clientCount: room.clients.size });
 
-  // Keep-alive heartbeat every 15s to prevent cloud proxy disconnects
+  // Keep-alive heartbeat every 25s to prevent cloud proxy disconnects
   const heartbeat = setInterval(() => {
     try {
-      res.write(': ping\n\n');
+      res.write(': keep-alive\n\n');
     } catch (e) {
       clearInterval(heartbeat);
       room.clients.delete(res);
     }
-  }, 15000);
+  }, 25000);
 
   req.on('close', () => {
     clearInterval(heartbeat);
@@ -896,12 +946,17 @@ app.get('/api/room/:code/events', (req, res) => {
 
 // Add Song to Room Queue (from Mobile or Host)
 app.post('/api/room/:code/queue', (req, res) => {
+  if (!checkRateLimit(req, 'queue', 60, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many requests. Please slow down.' });
+  }
+
   const norm = normalizeRoomCode(req.params.code);
   const room = getOrCreateRoom(norm);
   const track = req.body && req.body.track;
   const addedBy = sanitizeText(req.body && req.body.addedBy, 32) || 'Guest Mobile';
 
-  if (!track || !track.id || !isValidYouTubeIdOrUrl(track.id)) {
+  const validTrackId = track && track.id ? extractValidYouTubeId(track.id) : null;
+  if (!track || !track.id || !validTrackId) {
     return res.status(400).json({ error: 'Valid YouTube video track is required' });
   }
 
@@ -911,7 +966,7 @@ app.post('/api/room/:code/queue', (req, res) => {
   }
 
   const queueItem = {
-    id: track.id,
+    id: validTrackId,
     title: sanitizeText(track.title, 120) || 'YouTube Track',
     author: sanitizeText(track.author, 60) || 'YouTube',
     duration: sanitizeText(track.duration, 15) || '4:00',
@@ -1045,11 +1100,12 @@ app.post('/api/room/:code/control', (req, res) => {
 
   let safePayload = payload;
   if (action === 'play_now') {
-    if (!payload || !payload.id || !isValidYouTubeIdOrUrl(payload.id)) {
+    const validPlayId = payload && payload.id ? extractValidYouTubeId(payload.id) : null;
+    if (!payload || !payload.id || !validPlayId) {
       return res.status(400).json({ error: 'Valid YouTube video track required for play_now' });
     }
     safePayload = {
-      id: payload.id,
+      id: validPlayId,
       title: sanitizeText(payload.title, 120) || 'YouTube Track',
       author: sanitizeText(payload.author, 60) || 'YouTube',
       duration: sanitizeText(payload.duration, 15) || '4:00',
@@ -1162,6 +1218,10 @@ app.get('/api/lyrics', async (req, res) => {
 
 // Room Live Reaction Broadcast (Emoji / SFX from Remote to Host screen)
 app.post('/api/room/:code/reaction', (req, res) => {
+  if (!checkRateLimit(req, 'reaction', 30, 10 * 1000)) {
+    return res.status(429).json({ error: 'Too many reactions. Please wait a moment.' });
+  }
+
   const norm = normalizeRoomCode(req.params.code);
   const room = rooms.get(norm);
   if (!room) return res.status(404).json({ error: 'Room not found' });
@@ -1204,7 +1264,7 @@ app.post('/api/room/:code/tip', (req, res) => {
   res.json({ success: true, sender, amount, message });
 });
 
-// Periodic LRU & Stale Room Garbage Collection (every 15 mins)
+// Periodic LRU & Stale Room Garbage Collection (every 10 mins)
 setInterval(() => {
   const now = Date.now();
   for (const [k, v] of searchCache.entries()) {
@@ -1214,11 +1274,15 @@ setInterval(() => {
     if (now - v.time > 4 * 60 * 60 * 1000) streamCache.delete(k);
   }
   for (const [code, r] of rooms.entries()) {
-    if (r.clients.size === 0 && (now - r.lastActive > 24 * 60 * 60 * 1000)) {
+    // Sweep rooms with 0 connected clients inactive for > 1 hour
+    if (r.clients.size === 0 && (now - r.lastActive > 60 * 60 * 1000)) {
       rooms.delete(code);
     }
   }
-}, 15 * 60 * 1000);
+  for (const [k, v] of ipRateLimits.entries()) {
+    if (now > v.resetTime) ipRateLimits.delete(k);
+  }
+}, 10 * 60 * 1000);
 
 // Health check endpoint (for Cloud keep-alive)
 app.get('/api/ping', (req, res) => {

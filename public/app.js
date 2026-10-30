@@ -559,6 +559,54 @@ const VOCAL_PRESETS = {
     doublerEnabled: false,
     doublerMix: 0.0
   },
+  megaphone: {
+    autotuneEnabled: false,
+    reverbEnabled: false,
+    reverbMix: 0.0,
+    reverbDecay: 0.8,
+    roomSize: 1,
+    noiseGateThreshold: -32,
+    compressorRatio: 8,
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: 5.5,
+    eqHigh: -4.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
+  },
+  walkietalkie: {
+    autotuneEnabled: false,
+    reverbEnabled: true,
+    reverbMix: 0.08,
+    reverbDecay: 0.9,
+    roomSize: 1,
+    noiseGateThreshold: -34,
+    compressorRatio: 7,
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: true,
+    eqMid: 3.5,
+    eqHigh: -6.0,
+    doublerEnabled: false,
+    doublerMix: 0.0
+  },
+  helmet: {
+    autotuneEnabled: false,
+    reverbEnabled: true,
+    reverbMix: 0.16,
+    reverbDecay: 1.1,
+    roomSize: 1,
+    noiseGateThreshold: -46,
+    compressorRatio: 3.5,
+    dynamicsEnabled: true,
+    eqEnabled: true,
+    eqLowCut: false,
+    eqMid: -2.0,
+    eqHigh: -6.5,
+    doublerEnabled: false,
+    doublerMix: 0.0
+  },
   rock: {
     autotuneEnabled: false,
     reverbEnabled: true,
@@ -2714,7 +2762,11 @@ atAmount.addEventListener('input', (e) => {
   updateAutotuneParams();
 });
 
-// VU Meters
+// VU Meters (with Page Visibility Throttling for 0% Background CPU in FiveM)
+let isVuActive = true;
+let vuRafId = null;
+let resumeVuMetersLoop = null;
+
 function startVuMeters() {
   const micData = new Uint8Array(micAnalyser.frequencyBinCount);
   const hpData = new Uint8Array(headphoneAnalyser.frequencyBinCount);
@@ -2723,7 +2775,8 @@ function startVuMeters() {
   let lastClapTime = 0;
 
   function draw() {
-    requestAnimationFrame(draw);
+    if (!isVuActive) return;
+    vuRafId = requestAnimationFrame(draw);
 
     if (micAnalyser && micVuBar) {
       micAnalyser.getByteFrequencyData(micData);
@@ -2767,12 +2820,22 @@ function startVuMeters() {
             isDuckingCurrentlyActive = true;
             duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
             duckingGain.gain.setValueAtTime(duckingGain.gain.value, audioCtx.currentTime);
-            duckingGain.gain.linearRampToValueAtTime(smartDuckingDepthVal, audioCtx.currentTime + 0.12);
+            duckingGain.gain.linearRampToValueAtTime(smartDuckingDepthVal, audioCtx.currentTime + 0.08);
+
+            // Smoothly duck musicHpGain and musicCableGain by depth
+            if (musicHpGain && audioCtx) {
+              const baseHp = isHpMusicMuted ? 0.0 : (currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9);
+              musicHpGain.gain.setTargetAtTime(baseHp * smartDuckingDepthVal, audioCtx.currentTime, 0.05);
+            }
+            if (musicCableGain && audioCtx) {
+              const baseCable = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
+              musicCableGain.gain.setTargetAtTime(baseCable * smartDuckingDepthVal, audioCtx.currentTime, 0.05);
+            }
             if (tabMusicGain) {
               const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
               tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
               tabMusicGain.gain.setValueAtTime(tabMusicGain.gain.value, audioCtx.currentTime);
-              tabMusicGain.gain.linearRampToValueAtTime(baseCableVol * smartDuckingDepthVal, audioCtx.currentTime + 0.12);
+              tabMusicGain.gain.linearRampToValueAtTime(baseCableVol * smartDuckingDepthVal, audioCtx.currentTime + 0.08);
             }
             if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function') {
               const baseVol = Math.round((currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9) * 100);
@@ -2785,20 +2848,28 @@ function startVuMeters() {
             if (duckingGain && audioCtx && !isDucked) {
               duckingGain.gain.cancelScheduledValues(audioCtx.currentTime);
               duckingGain.gain.setValueAtTime(duckingGain.gain.value, audioCtx.currentTime);
-              duckingGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.8);
+              duckingGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.4);
+            }
+            if (musicHpGain && audioCtx && !isDucked) {
+              const baseHp = isHpMusicMuted ? 0.0 : (currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9);
+              musicHpGain.gain.setTargetAtTime(baseHp, audioCtx.currentTime, 0.08);
+            }
+            if (musicCableGain && audioCtx && !isDucked) {
+              const baseCable = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
+              musicCableGain.gain.setTargetAtTime(baseCable, audioCtx.currentTime, 0.08);
             }
             if (tabMusicGain && audioCtx && !isDucked) {
               const baseCableVol = isCableMusicMuted ? 0.0 : (currentUser.preset.cableMusicVol !== undefined ? currentUser.preset.cableMusicVol : 0.20);
               tabMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
               tabMusicGain.gain.setValueAtTime(tabMusicGain.gain.value, audioCtx.currentTime);
-              tabMusicGain.gain.linearRampToValueAtTime(baseCableVol, audioCtx.currentTime + 0.8);
+              tabMusicGain.gain.linearRampToValueAtTime(baseCableVol, audioCtx.currentTime + 0.4);
             }
             if (ytPlayer && isUsingDirectYtAudio && typeof ytPlayer.setVolume === 'function' && !isDucked) {
               const baseVol = Math.round((currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9) * 100);
               ytPlayer.setVolume(isHpMusicMuted ? 0 : baseVol);
             }
             smartDuckingRecoverTimer = null;
-          }, 800);
+          }, 400); // 0.4s fast smooth release
         }
       }
 
@@ -2838,8 +2909,35 @@ function startVuMeters() {
       trafficCableDot.classList.toggle('active', isAudioInitialized && audioElCable && !audioElCable.muted);
     }
   }
+
+  resumeVuMetersLoop = () => {
+    if (!isVuActive) {
+      isVuActive = true;
+      vuRafId = requestAnimationFrame(draw);
+    }
+  };
+
   draw();
 }
+
+// Global Visibility Listener to save GPU/CPU when playing FiveM
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    isVuActive = false;
+    if (vuRafId) {
+      cancelAnimationFrame(vuRafId);
+      vuRafId = null;
+    }
+  } else {
+    if (typeof resumeVuMetersLoop === 'function') {
+      resumeVuMetersLoop();
+    }
+    if (typeof reactionCanvas !== 'undefined' && reactionParticles && reactionParticles.length > 0 && !isReactionLoopRunning) {
+      isReactionLoopRunning = true;
+      requestAnimationFrame(renderReactionLoop);
+    }
+  }
+});
 
 // Add Latency Sample
 function addLatencySample(ms) {
@@ -4011,6 +4109,16 @@ function playSfx(sfxType) {
     setTimeout(() => btn.classList.remove('playing'), 600);
   }
 
+  const cleanupNodeOnEnd = (src, ...others) => {
+    if (!src) return;
+    src.onended = () => {
+      try { src.disconnect(); } catch (_) {}
+      others.forEach(n => {
+        try { if (n && typeof n.disconnect === 'function') n.disconnect(); } catch (_) {}
+      });
+    };
+  };
+
   try {
     switch (sfxType) {
       case 'airhorn': {
@@ -4019,6 +4127,7 @@ function playSfx(sfxType) {
           notes.forEach(f => {
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
+            cleanupNodeOnEnd(osc, g);
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(f, now + startOffset);
             osc.frequency.exponentialRampToValueAtTime(f * 0.96, now + startOffset + 0.18);
@@ -4047,6 +4156,7 @@ function playSfx(sfxType) {
         gain.gain.setValueAtTime(0.01, now);
         gain.gain.linearRampToValueAtTime(0.35, now + 0.3);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+        cleanupNodeOnEnd(whiteNoise, filter, gain);
         whiteNoise.connect(filter);
         filter.connect(gain);
         gain.connect(out);
@@ -4057,6 +4167,7 @@ function playSfx(sfxType) {
       case 'rimshot': {
         const snareOsc = audioCtx.createOscillator();
         const snareGain = audioCtx.createGain();
+        cleanupNodeOnEnd(snareOsc, snareGain);
         snareOsc.frequency.setValueAtTime(220, now);
         snareOsc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
         snareGain.gain.setValueAtTime(0.4, now);
@@ -4068,6 +4179,7 @@ function playSfx(sfxType) {
 
         const tomOsc = audioCtx.createOscillator();
         const tomGain = audioCtx.createGain();
+        cleanupNodeOnEnd(tomOsc, tomGain);
         tomOsc.frequency.setValueAtTime(160, now + 0.15);
         tomOsc.frequency.exponentialRampToValueAtTime(60, now + 0.28);
         tomGain.gain.setValueAtTime(0.45, now + 0.15);
@@ -4089,6 +4201,7 @@ function playSfx(sfxType) {
         const cymGain = audioCtx.createGain();
         cymGain.gain.setValueAtTime(0.3, now + 0.35);
         cymGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+        cleanupNodeOnEnd(cymSrc, cymFilt, cymGain);
         cymSrc.connect(cymFilt);
         cymFilt.connect(cymGain);
         cymGain.connect(out);
@@ -4100,6 +4213,7 @@ function playSfx(sfxType) {
         [0, 0.08, 0.35, 0.43].forEach(offset => {
           const osc = audioCtx.createOscillator();
           const g = audioCtx.createGain();
+          cleanupNodeOnEnd(osc, g);
           osc.type = 'sine';
           osc.frequency.setValueAtTime(4600, now + offset);
           g.gain.setValueAtTime(0.12, now + offset);
@@ -4114,6 +4228,7 @@ function playSfx(sfxType) {
       case 'ding': {
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
+        cleanupNodeOnEnd(osc, g);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(2093, now);
         g.gain.setValueAtTime(0.35, now);
@@ -4127,6 +4242,7 @@ function playSfx(sfxType) {
       case 'laser': {
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
+        cleanupNodeOnEnd(osc, g);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(2400, now);
         osc.frequency.exponentialRampToValueAtTime(80, now + 0.45);
@@ -5479,6 +5595,10 @@ function spawnReactionParticle(emoji = '❤️') {
 }
 
 function renderReactionLoop() {
+  if (document.hidden) {
+    isReactionLoopRunning = false;
+    return;
+  }
   if (!reactionCanvas) return;
   const ctx = reactionCanvas.getContext('2d');
   ctx.clearRect(0, 0, reactionCanvas.width, reactionCanvas.height);
