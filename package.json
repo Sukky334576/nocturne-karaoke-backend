@@ -6,9 +6,12 @@
   "directories": {
     "doc": "docs"
   },
-  "scripts": {
+    "scripts": {
     "start": "node server.js",
-    "test": "node test-full-loop.js"
+    "test": "node test-full-loop.js",
+    "test:edge": "node test-edge-cases.js",
+    "test:cable": "node test-cable-simulation.js",
+    "test:all": "node test-full-loop.js && node test-edge-cases.js && node test-cable-simulation.js"
   },
   "keywords": [],
   "author": "",

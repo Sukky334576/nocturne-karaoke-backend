@@ -149,6 +149,7 @@ let currentUser = {
     isCableMusicMuted: false,
     isHpVocalMuted: true,
     isCableVocalMuted: false,
+    reverbEnabled: true,
     reverbMix: 0.25,
     reverbDecay: 1.8,
     roomSize: 2,
@@ -941,7 +942,7 @@ function applyVocalPreset(presetKey) {
   }
 
   const isProTier = currentUser.tier === 'pro';
-  isReverbEnabled = isProTier ? cfg.reverbEnabled : false;
+  isReverbEnabled = cfg.reverbEnabled !== undefined ? cfg.reverbEnabled : true;
   reverbToggle.checked = isReverbEnabled;
   if (cfg.reverbMix !== undefined) {
     reverbMix.value = cfg.reverbMix;
@@ -1067,11 +1068,6 @@ function updateAuthUI() {
     }
 
     if (!isPro) {
-      if (reverbToggle) reverbToggle.checked = false;
-      isReverbEnabled = false;
-      if (reverbGain && audioCtx) {
-        reverbGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
-      }
       if (vocalEqToggle) vocalEqToggle.checked = false;
       isVocalEqEnabled = false;
       updateVocalEqParams();
@@ -2090,7 +2086,7 @@ async function initAudioEngine() {
     reverbInputGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
     reverbGain = audioCtx.createGain();
-    const activeReverb = (currentUser.tier === 'pro' && isReverbEnabled);
+    const activeReverb = isReverbEnabled;
     reverbGain.gain.setValueAtTime(activeReverb ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
 
     headphoneReverbGain = audioCtx.createGain();
@@ -3901,15 +3897,6 @@ cableVol.addEventListener('input', (e) => {
 
 // Reverb Sliders
 reverbToggle.addEventListener('change', (e) => {
-  if (e.target.checked && currentUser.tier !== 'pro') {
-    e.target.checked = false;
-    isReverbEnabled = false;
-    if (reverbGain && audioCtx) {
-      reverbGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
-    }
-    alert('✨ Studio Vocal Reverb เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nช่วยปรับเสียงร้องให้ก้องละมุนมีมิติระดับสตูดิโอ สามารถเปิดใช้งานได้ที่เมนูโปรไฟล์มุมขวาบนครับ');
-    return;
-  }
   isReverbEnabled = e.target.checked;
   if (reverbGain && audioCtx) {
     reverbGain.gain.setValueAtTime(isReverbEnabled ? parseFloat(reverbMix.value) : 0.0, audioCtx.currentTime);
@@ -4664,13 +4651,16 @@ async function playTrack(track, seekSeconds = 0) {
         }).catch(err => {
           console.warn('AudioSource play catch:', err);
           if (err.name !== 'AbortError') {
-            activateYtAudioFailover();
+            setTimeout(() => {
+              if (currentTrack && currentTrack.id === track.id) {
+                audioSourceElement.play().catch(() => {});
+              }
+            }, 700);
           }
         });
       }
     } catch (err) {
-      console.warn('AudioSource play sync note, activating failover:', err);
-      activateYtAudioFailover();
+      console.warn('AudioSource play sync note:', err);
     }
   }
 
@@ -4803,12 +4793,24 @@ playPauseBtn.addEventListener('click', togglePlayPause);
 
 function setupAudioElementEvents() {
   if (!audioSourceElement) return;
+  let audioErrorRetries = 0;
   audioSourceElement.addEventListener('error', (e) => {
-    console.warn('AudioSource stream error event, activating YouTube direct player:', e);
-    activateYtAudioFailover();
+    console.warn('AudioSource stream error event:', e);
+    if (audioErrorRetries < 2 && currentTrack && currentTrack.id) {
+      audioErrorRetries++;
+      setTimeout(() => {
+        if (currentTrack && audioSourceElement) {
+          audioSourceElement.src = `/api/audio?id=${currentTrack.id}&t=${Math.floor(streamOffsetSeconds || 0)}&retry=${Date.now()}`;
+          audioSourceElement.play().catch(() => {});
+        }
+      }, 800);
+    } else {
+      activateYtAudioFailover();
+    }
   });
 
   audioSourceElement.addEventListener('ended', () => {
+    audioErrorRetries = 0;
     showKaraokeScoreCelebration();
     if (!isUsingDirectYtAudio) {
       console.log('⚡ AudioSource finished playback, advancing queue...');

@@ -142,35 +142,41 @@ function fastYoutubeSearch(query) {
 async function fetchUpstreamFallbackStream(videoId) {
   const upstreamInstances = [
     `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140`,
-    `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
     `https://inv.zzls.xyz/latest_version?id=${videoId}&itag=140`,
+    `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
     `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`
   ];
 
-  for (const candidate of upstreamInstances) {
-    try {
-      const streamUrl = await new Promise((resolve, reject) => {
-        const req = https.get(candidate, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-          timeout: 3500
-        }, (res) => {
-          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            const loc = new URL(res.headers.location, candidate).href;
-            resolve(loc);
-          } else if (res.statusCode === 200) {
-            resolve(candidate);
-          } else {
-            reject(new Error('Status ' + res.statusCode));
-          }
-        });
-        req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-      });
-      if (streamUrl && streamUrl.startsWith('http')) {
-        return streamUrl;
+  const checkCandidate = (candidate) => new Promise((resolve, reject) => {
+    const req = https.get(candidate, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      timeout: 3500
+    }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const loc = new URL(res.headers.location, candidate).href;
+        resolve(loc);
+      } else if (res.statusCode === 200) {
+        resolve(candidate);
+      } else {
+        reject(new Error('Status ' + res.statusCode));
       }
-    } catch (e) {
-      // try next candidate
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+  });
+
+  try {
+    const streamUrl = await Promise.any(upstreamInstances.map(checkCandidate));
+    if (streamUrl && streamUrl.startsWith('http')) {
+      return streamUrl;
+    }
+  } catch (e) {
+    // If concurrent race failed, try sequential fallback
+    for (const candidate of upstreamInstances) {
+      try {
+        const streamUrl = await checkCandidate(candidate);
+        if (streamUrl && streamUrl.startsWith('http')) return streamUrl;
+      } catch (_) {}
     }
   }
   return null;
@@ -218,6 +224,24 @@ async function extractStreamUrl(targetUrl) {
     return cached.url;
   }
 
+  const match = targetUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+  const videoId = match ? match[1] : null;
+  const isCloudEnv = !!(process.env.RENDER || process.env.NODE_ENV === 'production');
+
+  // On Cloud (Render) where yt-dlp can get blocked by YouTube IP limits, race yt-dlp with upstream fallback
+  if (isCloudEnv && videoId) {
+    try {
+      const streamUrl = await Promise.any([
+        runYtDlpExtract('youtube:player_client=android,web', targetUrl),
+        fetchUpstreamFallbackStream(videoId)
+      ]);
+      if (streamUrl) {
+        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+        return streamUrl;
+      }
+    } catch (_) {}
+  }
+
   // 1. Primary fast yt-dlp extraction (direct clean audio for local/proxied environments)
   try {
     const streamUrl = await runYtDlpExtract('youtube:player_client=android,web', targetUrl);
@@ -230,10 +254,9 @@ async function extractStreamUrl(targetUrl) {
   }
 
   // 2. Upstream fallback streams (Fast resilient audio for Cloud / Render datacenter IPs)
-  const match = targetUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
-  if (match && match[1]) {
+  if (videoId) {
     try {
-      const upstreamUrl = await fetchUpstreamFallbackStream(match[1]);
+      const upstreamUrl = await fetchUpstreamFallbackStream(videoId);
       if (upstreamUrl) {
         setBoundedCache(streamCache, targetUrl, { url: upstreamUrl, time: Date.now() }, 100);
         return upstreamUrl;

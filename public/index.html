@@ -365,6 +365,227 @@
           </button>
         </div>
 
+        <!-- 4. Dual-Channel Signal Dispatcher (Independent Channels) -->
+        <div id="channelDispatcherModule" class="studio-module collapsible">
+          <div class="module-header">
+            <div>
+              <h2>Signal Dispatcher (แยกชาแนลเสียง) <span class="accordion-toggle-icon">▼</span></h2>
+              <p class="module-desc">ปรับระดับเสียง & เปิด/ปิดเสียงหูฟัง และเสียงเข้าเกม FiveM/Discord แยกอิสระ</p>
+            </div>
+          </div>
+
+          <!-- CHANNEL A: หูฟังของเรา (Monitor) -->
+          <div class="channel-rack">
+            <div class="channel-rack-header">
+              <div class="channel-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                <span>1. หูฟังของเรา (Direct Monitor)</span>
+              </div>
+              <span id="headphoneVolText" class="val-text mono-num">100% Master</span>
+            </div>
+            
+            <select id="headphoneSelect" class="select-box">
+              <option value="default">หูฟัง / ลำโพงเริ่มต้น (Default System Output)</option>
+            </select>
+
+            <div class="channel-controls-subgrid">
+              <!-- Sub: Music in HP -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="hpMusicMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดเสียงเพลงในหูเรา">🎧 เพลง</button>
+                    <label for="hpMusicVol">เพลงในหู</label>
+                  </div>
+                  <span id="hpMusicVolText" class="val-text val-gold mono-num">90%</span>
+                </div>
+                <input type="range" id="hpMusicVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเพลงในหู">
+              </div>
+
+              <!-- Sub: Vocal in HP (Default 0% to prevent headphone echo with hardware mic) -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="hpVocalMuteBtn" class="mute-mini-badge muted" title="เปิด/ปิดฟังเสียงร้องตัวเองในหู">🎤 เสียงร้อง</button>
+                    <label for="hpVocalVol">เสียงร้องในหู</label>
+                  </div>
+                  <span id="hpVocalVolText" class="val-text val-green mono-num">0% (ปิด)</span>
+                </div>
+                <input type="range" id="hpVocalVol" min="0" max="1.5" step="0.05" value="0.0" aria-label="ระดับเสียงร้องในหู">
+              </div>
+            </div>
+
+            <!-- Master HP Output Slider -->
+            <div class="master-sub-slider">
+              <label for="headphoneVol">ระดับหูฟังรวม (Master Output):</label>
+              <input type="range" id="headphoneVol" min="0" max="1.5" step="0.05" value="1.0" aria-label="ระดับเสียงหูฟังรวม">
+            </div>
+            <div class="vu-meter-container">
+              <div class="vu-bar" id="headphoneVuBar"></div>
+            </div>
+          </div>
+
+          <!-- CHANNEL B: ส่งเข้า FiveM & Discord (Broadcast) -->
+          <div class="channel-rack channel-rack-cable">
+            <div class="channel-rack-header">
+              <div class="channel-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                <span>2. ส่งเข้า FiveM & Discord (VB-Cable)</span>
+              </div>
+              <span id="cableVolText" class="val-text mono-num">90% Master</span>
+            </div>
+
+            <select id="virtualCableSelect" class="select-box">
+              <option value="default">CABLE Input (VB-Audio Virtual Cable)</option>
+            </select>
+            <div style="font-size: 11px; margin-top: 5px; margin-bottom: 8px; padding: 6px 10px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; color: #bae6fd; display: flex; align-items: center; gap: 6px;">
+              <span>📌</span>
+              <span><strong>สำคัญ:</strong> ในช่องนี้ให้เลือก <strong>CABLE Input</strong> และใน FiveM / Discord ให้เลือกไมโครโฟนเป็น <strong>CABLE Output</strong></span>
+            </div>
+
+            <div class="channel-controls-subgrid">
+              <!-- Sub: Music in Cable (Calibrated default 20%) -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="cableMusicMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดส่งเสียงเพลงเข้า FiveM/Discord">🔊 เพลงเข้าเกม</button>
+                    <label for="cableMusicVol">เพลงเข้า FiveM</label>
+                  </div>
+                  <span id="cableMusicVolText" class="val-text val-gold-highlight mono-num">20% (พอดี)</span>
+                </div>
+                <input type="range" id="cableMusicVol" min="0" max="1.0" step="0.02" value="0.20" aria-label="ระดับเสียงเพลงเข้า FiveM">
+              </div>
+
+              <!-- Sub: Vocal in Cable -->
+              <div class="control-subgroup">
+                <div class="group-header">
+                  <div class="title-with-badge">
+                    <button id="cableVocalMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดส่งเสียงร้องเข้า FiveM/Discord">🎙️ ไมค์เข้าเกม</button>
+                    <label for="cableVocalVol">เสียงร้องเข้า FiveM</label>
+                  </div>
+                  <span id="cableVocalVolText" class="val-text val-green mono-num">100%</span>
+                </div>
+                <input type="range" id="cableVocalVol" min="0" max="1.5" step="0.05" value="1.0" aria-label="ระดับเสียงร้องเข้า FiveM">
+              </div>
+            </div>
+
+            <!-- Master Cable Output Slider -->
+            <div class="master-sub-slider">
+              <label for="cableVol">ระดับสัญญาณรวมเข้าเกม (Master Broadcast):</label>
+              <input type="range" id="cableVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเคเบิลรวม">
+            </div>
+            <div class="vu-meter-container">
+              <div class="vu-bar" id="cableVuBar"></div>
+            </div>
+
+            <div class="control-group sync-offset-box">
+              <div class="group-header">
+                <label for="cableSyncOffset">FiveM / Discord Sync Offset</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button id="openSonarCalibrateBtn" type="button" class="btn btn-outline" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; color: #d8b15d; border-color: rgba(216,177,93,0.4);" title="เปิดเครื่องมือยิงคลื่นเสียงวัดดีเลย์อัตโนมัติ">⚡ วัดดีเลย์อัตโนมัติ</button>
+                  <span id="cableSyncOffsetText" class="val-text val-gold-highlight mono-num">120 ms</span>
+                </div>
+              </div>
+              <input type="range" id="cableSyncOffset" min="0" max="300" step="10" value="120" aria-label="ปรับชดเชยดีเลย์">
+            </div>
+
+            <!-- Smart Voice Ducking (PRO 49฿) -->
+            <div class="control-group" style="padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 6px; margin-top: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 12px; color: #f4e6c3;">Smart Voice Ducking</strong>
+                  
+                </div>
+                <label class="switch" title="เปิด/ปิด ดนตรีหลบเสียงพูดอัตโนมัติ">
+                  <input type="checkbox" id="smartDuckingToggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                ดนตรีจะลดระดับลงอัตโนมัติเมื่อเริ่มพูดหรือ MC ใน FiveM/Discord และค่อยๆ ดังขึ้นเองเมื่อหยุดพูด
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 11px; color: var(--text-secondary); white-space: nowrap;">ระดับดนตรีตอนหลบ:</span>
+                <input type="range" id="smartDuckingDepth" min="0.1" max="0.6" step="0.05" value="0.30" style="flex: 1;">
+                <span id="smartDuckingDepthText" class="val-text mono-num" style="min-width: 40px; text-align: right;">30%</span>
+              </div>
+            </div>
+
+            <!-- Zero Latency Hardware Monitoring Notice -->
+            <div class="anti-echo-box" style="margin-top: 12px; padding: 10px; background: rgba(216, 177, 93, 0.08); border: 1px solid rgba(216, 177, 93, 0.25); border-radius: 8px; font-size: 11px; line-height: 1.5; color: #cfd3dc;">
+              <div style="font-weight: 600; color: #d8b15d; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>วิธีแก้ได้ยินเสียงตัวเองดีเลย์ (0ms Zero Latency):</span>
+              </div>
+              <p style="margin: 0 0 6px 0;">เสียงร้องเข้า FiveM นี้ส่งให้คนอื่นในเกมฟัง <strong>ห้ามติ๊ก "ฟังอุปกรณ์นี้" ใน Windows</strong> เด็ดขาด เพราะจะทำให้เสียงดีเลย์ 120ms เข้าหู ให้ฟังเสียงตัวเอง 0ms ตรงจากช่องเสียบหูฟังของ Soundcard Maono Fairy แทน</p>
+              <button id="openSoundSettingsBtn" type="button" class="btn btn-outline" style="width: 100%; font-size: 11px; padding: 5px 8px; border-radius: 5px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; background: rgba(0,0,0,0.25); border-color: rgba(216,177,93,0.4); color: #f4e6c3;">
+                ⚙️ เปิดหน้าต่างเสียง Windows (เช็กเอาติ๊ก "ฟังอุปกรณ์นี้" ออก)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Vocal FX Rack (Studio Reverb) -->
+        <div id="reverbModule" class="studio-module collapsible">
+          <div class="module-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h2>Studio Vocal Reverb <span class="accordion-toggle-icon">▼</span></h2>
+              </div>
+              <p class="module-desc">Convolution Impulse Response Generator</p>
+            </div>
+            <label class="switch" title="เปิด/ปิด Reverb">
+              <input type="checkbox" id="reverbToggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="control-group">
+            <label for="micSelect">ไมโครโฟนร้องสด (Live Mic)</label>
+            <select id="micSelect" class="select-box">
+              <option value="default">ไมโครโฟนเริ่มต้น (Default Live Mic)</option>
+            </select>
+            <div class="vu-meter-container">
+              <div class="vu-bar" id="micVuBar"></div>
+            </div>
+          </div>
+          <div style="font-size: 11px; margin-top: 6px; margin-bottom: 12px; padding: 7px 10px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; color: #fca5a5; display: flex; align-items: flex-start; gap: 7px; line-height: 1.45;">
+            <span style="font-size: 13px;">💡</span>
+            <div>
+              <strong style="color: #f87171;">วิธีแก้เปิดรีเวิร์บแล้วเพลงก้องไปด้วย:</strong>
+              <div style="color: #cbd5e1; margin-top: 2px;">
+                1. ตรวจสอบว่าช่องไมค์ข้างบนนี้เลือกเป็น <strong>In 1/2 (Maono)</strong> หรือไมค์จริง (ห้ามเลือกช่อง Playback, FX หรือ Stereo Mix)<br>
+                2. <strong>กดปิดปุ่ม LOOPBACK</strong> บนการ์ดเสียง Maono หรือในโปรแกรม Maono Routing Center เพื่อไม่ให้การ์ดเสียงดูดเพลงกลับเข้าไมค์
+              </div>
+            </div>
+          </div>
+
+          <div class="control-grid-3">
+            <div class="control-group">
+              <div class="group-header">
+                <label for="reverbMix">Wet Mix</label>
+                <span id="reverbMixText" class="val-text mono-num">25%</span>
+              </div>
+              <input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.25">
+            </div>
+
+            <div class="control-group">
+              <div class="group-header">
+                <label for="reverbDecay">Decay</label>
+                <span id="reverbDecayText" class="val-text mono-num">1.8s</span>
+              </div>
+              <input type="range" id="reverbDecay" min="0.5" max="5.0" step="0.1" value="1.8">
+            </div>
+
+            <div class="control-group">
+              <div class="group-header">
+                <label for="roomSize">Size</label>
+                <span id="roomSizeText" class="val-text mono-num">Studio</span>
+              </div>
+              <input type="range" id="roomSize" min="1" max="4" step="1" value="2">
+            </div>
+          </div>
+        </div>
+
         <!-- 6. Song Queue -->
         <div id="karaokeQueueCard" class="studio-module queue-stage-card">
           <div class="module-header">
@@ -379,50 +600,6 @@
           </div>
           <div id="queueList" class="queue-list">
             <div class="empty-queue">ไม่มีเพลงในคิว</div>
-          </div>
-        </div>
-
-        <!-- 5.5 DJ Soundboard & Mic SFX (PRO 49฿) -->
-        <div id="soundboardModule" class="studio-module collapsible">
-          <div class="module-header">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>DJ Soundboard & Mic SFX <span class="accordion-toggle-icon">▼</span></h2>
-                <span class="badge-pro-tag">PRO 49฿</span>
-              </div>
-              <p class="module-desc">ส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM & Discord ผ่านสายไมค์ทันที</p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span id="sfxVolText" class="val-text mono-num">80%</span>
-              <input type="range" id="sfxVol" min="0" max="1" step="0.05" value="0.8" style="width: 70px;" title="ระดับเสียง Soundboard">
-            </div>
-          </div>
-
-          <div class="soundboard-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;">
-            <button class="sfx-btn" data-sfx="airhorn" title="เสียงแอร์ฮอร์นเปิดเพลง">
-              <span class="sfx-icon">📢</span>
-              <span class="sfx-name">Airhorn</span>
-            </button>
-            <button class="sfx-btn" data-sfx="applause" title="เสียงปรบมือ & กรี๊ดเชียร์">
-              <span class="sfx-icon">👏</span>
-              <span class="sfx-name">Applause</span>
-            </button>
-            <button class="sfx-btn" data-sfx="rimshot" title="เสียงกลองตึกโป๊ะเล่นมุก">
-              <span class="sfx-icon">🥁</span>
-              <span class="sfx-name">Rimshot</span>
-            </button>
-            <button class="sfx-btn" data-sfx="cricket" title="เสียงจิ้งหรีดเวลาเดดแอร์">
-              <span class="sfx-icon">🦗</span>
-              <span class="sfx-name">Cricket</span>
-            </button>
-            <button class="sfx-btn" data-sfx="ding" title="เสียงกระดิ่งถูกต้อง">
-              <span class="sfx-icon">🔔</span>
-              <span class="sfx-name">Ding!</span>
-            </button>
-            <button class="sfx-btn" data-sfx="laser" title="เสียงเลเซอร์ไซไฟดรอป">
-              <span class="sfx-icon">🚀</span>
-              <span class="sfx-name">Laser Drop</span>
-            </button>
           </div>
         </div>
 
@@ -693,227 +870,51 @@
           </div>
         </div>
 
-        <!-- 4. Dual-Channel Signal Dispatcher (Independent Channels) -->
-        <div class="studio-module collapsible">
-          <div class="module-header">
-            <div>
-              <h2>Signal Dispatcher (แยกชาแนลเสียง) <span class="accordion-toggle-icon">▼</span></h2>
-              <p class="module-desc">ปรับระดับเสียง & เปิด/ปิดเสียงหูฟัง และเสียงเข้าเกม FiveM/Discord แยกอิสระ</p>
-            </div>
-          </div>
-
-          <!-- CHANNEL A: หูฟังของเรา (Monitor) -->
-          <div class="channel-rack">
-            <div class="channel-rack-header">
-              <div class="channel-title">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-                <span>1. หูฟังของเรา (Direct Monitor)</span>
-              </div>
-              <span id="headphoneVolText" class="val-text mono-num">100% Master</span>
-            </div>
-            
-            <select id="headphoneSelect" class="select-box">
-              <option value="default">หูฟัง / ลำโพงเริ่มต้น (Default System Output)</option>
-            </select>
-
-            <div class="channel-controls-subgrid">
-              <!-- Sub: Music in HP -->
-              <div class="control-subgroup">
-                <div class="group-header">
-                  <div class="title-with-badge">
-                    <button id="hpMusicMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดเสียงเพลงในหูเรา">🎧 เพลง</button>
-                    <label for="hpMusicVol">เพลงในหู</label>
-                  </div>
-                  <span id="hpMusicVolText" class="val-text val-gold mono-num">90%</span>
-                </div>
-                <input type="range" id="hpMusicVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเพลงในหู">
-              </div>
-
-              <!-- Sub: Vocal in HP (Default 0% to prevent headphone echo with hardware mic) -->
-              <div class="control-subgroup">
-                <div class="group-header">
-                  <div class="title-with-badge">
-                    <button id="hpVocalMuteBtn" class="mute-mini-badge muted" title="เปิด/ปิดฟังเสียงร้องตัวเองในหู">🎤 เสียงร้อง</button>
-                    <label for="hpVocalVol">เสียงร้องในหู</label>
-                  </div>
-                  <span id="hpVocalVolText" class="val-text val-green mono-num">0% (ปิด)</span>
-                </div>
-                <input type="range" id="hpVocalVol" min="0" max="1.5" step="0.05" value="0.0" aria-label="ระดับเสียงร้องในหู">
-              </div>
-            </div>
-
-            <!-- Master HP Output Slider -->
-            <div class="master-sub-slider">
-              <label for="headphoneVol">ระดับหูฟังรวม (Master Output):</label>
-              <input type="range" id="headphoneVol" min="0" max="1.5" step="0.05" value="1.0" aria-label="ระดับเสียงหูฟังรวม">
-            </div>
-            <div class="vu-meter-container">
-              <div class="vu-bar" id="headphoneVuBar"></div>
-            </div>
-          </div>
-
-          <!-- CHANNEL B: ส่งเข้า FiveM & Discord (Broadcast) -->
-          <div class="channel-rack channel-rack-cable">
-            <div class="channel-rack-header">
-              <div class="channel-title">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                <span>2. ส่งเข้า FiveM & Discord (VB-Cable)</span>
-              </div>
-              <span id="cableVolText" class="val-text mono-num">90% Master</span>
-            </div>
-
-            <select id="virtualCableSelect" class="select-box">
-              <option value="default">CABLE Input (VB-Audio Virtual Cable)</option>
-            </select>
-            <div style="font-size: 11px; margin-top: 5px; margin-bottom: 8px; padding: 6px 10px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; color: #bae6fd; display: flex; align-items: center; gap: 6px;">
-              <span>📌</span>
-              <span><strong>สำคัญ:</strong> ในช่องนี้ให้เลือก <strong>CABLE Input</strong> และใน FiveM / Discord ให้เลือกไมโครโฟนเป็น <strong>CABLE Output</strong></span>
-            </div>
-
-            <div class="channel-controls-subgrid">
-              <!-- Sub: Music in Cable (Calibrated default 20%) -->
-              <div class="control-subgroup">
-                <div class="group-header">
-                  <div class="title-with-badge">
-                    <button id="cableMusicMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดส่งเสียงเพลงเข้า FiveM/Discord">🔊 เพลงเข้าเกม</button>
-                    <label for="cableMusicVol">เพลงเข้า FiveM</label>
-                  </div>
-                  <span id="cableMusicVolText" class="val-text val-gold-highlight mono-num">20% (พอดี)</span>
-                </div>
-                <input type="range" id="cableMusicVol" min="0" max="1.0" step="0.02" value="0.20" aria-label="ระดับเสียงเพลงเข้า FiveM">
-              </div>
-
-              <!-- Sub: Vocal in Cable -->
-              <div class="control-subgroup">
-                <div class="group-header">
-                  <div class="title-with-badge">
-                    <button id="cableVocalMuteBtn" class="mute-mini-badge active" title="เปิด/ปิดส่งเสียงร้องเข้า FiveM/Discord">🎙️ ไมค์เข้าเกม</button>
-                    <label for="cableVocalVol">เสียงร้องเข้า FiveM</label>
-                  </div>
-                  <span id="cableVocalVolText" class="val-text val-green mono-num">100%</span>
-                </div>
-                <input type="range" id="cableVocalVol" min="0" max="1.5" step="0.05" value="1.0" aria-label="ระดับเสียงร้องเข้า FiveM">
-              </div>
-            </div>
-
-            <!-- Master Cable Output Slider -->
-            <div class="master-sub-slider">
-              <label for="cableVol">ระดับสัญญาณรวมเข้าเกม (Master Broadcast):</label>
-              <input type="range" id="cableVol" min="0" max="1.5" step="0.05" value="0.9" aria-label="ระดับเสียงเคเบิลรวม">
-            </div>
-            <div class="vu-meter-container">
-              <div class="vu-bar" id="cableVuBar"></div>
-            </div>
-
-            <div class="control-group sync-offset-box">
-              <div class="group-header">
-                <label for="cableSyncOffset">FiveM / Discord Sync Offset</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button id="openSonarCalibrateBtn" type="button" class="btn btn-outline" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; color: #d8b15d; border-color: rgba(216,177,93,0.4);" title="เปิดเครื่องมือยิงคลื่นเสียงวัดดีเลย์อัตโนมัติ">⚡ วัดดีเลย์อัตโนมัติ</button>
-                  <span id="cableSyncOffsetText" class="val-text val-gold-highlight mono-num">120 ms</span>
-                </div>
-              </div>
-              <input type="range" id="cableSyncOffset" min="0" max="300" step="10" value="120" aria-label="ปรับชดเชยดีเลย์">
-            </div>
-
-            <!-- Smart Voice Ducking (PRO 49฿) -->
-            <div class="control-group" style="padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 6px; margin-top: 10px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <strong style="font-size: 12px; color: #f4e6c3;">Smart Voice Ducking</strong>
-                  <span class="badge-pro-tag">PRO 49฿</span>
-                </div>
-                <label class="switch" title="เปิด/ปิด ดนตรีหลบเสียงพูดอัตโนมัติ">
-                  <input type="checkbox" id="smartDuckingToggle">
-                  <span class="slider round"></span>
-                </label>
-              </div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
-                ดนตรีจะลดระดับลงอัตโนมัติเมื่อเริ่มพูดหรือ MC ใน FiveM/Discord และค่อยๆ ดังขึ้นเองเมื่อหยุดพูด
-              </div>
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 11px; color: var(--text-secondary); white-space: nowrap;">ระดับดนตรีตอนหลบ:</span>
-                <input type="range" id="smartDuckingDepth" min="0.1" max="0.6" step="0.05" value="0.30" style="flex: 1;">
-                <span id="smartDuckingDepthText" class="val-text mono-num" style="min-width: 40px; text-align: right;">30%</span>
-              </div>
-            </div>
-
-            <!-- Zero Latency Hardware Monitoring Notice -->
-            <div class="anti-echo-box" style="margin-top: 12px; padding: 10px; background: rgba(216, 177, 93, 0.08); border: 1px solid rgba(216, 177, 93, 0.25); border-radius: 8px; font-size: 11px; line-height: 1.5; color: #cfd3dc;">
-              <div style="font-weight: 600; color: #d8b15d; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span>วิธีแก้ได้ยินเสียงตัวเองดีเลย์ (0ms Zero Latency):</span>
-              </div>
-              <p style="margin: 0 0 6px 0;">เสียงร้องเข้า FiveM นี้ส่งให้คนอื่นในเกมฟัง <strong>ห้ามติ๊ก "ฟังอุปกรณ์นี้" ใน Windows</strong> เด็ดขาด เพราะจะทำให้เสียงดีเลย์ 120ms เข้าหู ให้ฟังเสียงตัวเอง 0ms ตรงจากช่องเสียบหูฟังของ Soundcard Maono Fairy แทน</p>
-              <button id="openSoundSettingsBtn" type="button" class="btn btn-outline" style="width: 100%; font-size: 11px; padding: 5px 8px; border-radius: 5px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; background: rgba(0,0,0,0.25); border-color: rgba(216,177,93,0.4); color: #f4e6c3;">
-                ⚙️ เปิดหน้าต่างเสียง Windows (เช็กเอาติ๊ก "ฟังอุปกรณ์นี้" ออก)
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5. Vocal FX Rack (Studio Reverb) -->
-        <div class="studio-module collapsible">
+        <!-- 5.5 DJ Soundboard & Mic SFX (PRO 49฿) -->
+        <div id="soundboardModule" class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <h2>Studio Vocal Reverb <span class="accordion-toggle-icon">▼</span></h2>
+                <h2>DJ Soundboard & Mic SFX <span class="accordion-toggle-icon">▼</span></h2>
                 <span class="badge-pro-tag">PRO 49฿</span>
               </div>
-              <p class="module-desc">Convolution Impulse Response Generator</p>
+              <p class="module-desc">ส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM & Discord ผ่านสายไมค์ทันที</p>
             </div>
-            <label class="switch" title="เปิด/ปิด Reverb">
-              <input type="checkbox" id="reverbToggle" checked>
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-          <div class="control-group">
-            <label for="micSelect">ไมโครโฟนร้องสด (Live Mic)</label>
-            <select id="micSelect" class="select-box">
-              <option value="default">ไมโครโฟนเริ่มต้น (Default Live Mic)</option>
-            </select>
-            <div class="vu-meter-container">
-              <div class="vu-bar" id="micVuBar"></div>
-            </div>
-          </div>
-          <div style="font-size: 11px; margin-top: 6px; margin-bottom: 12px; padding: 7px 10px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; color: #fca5a5; display: flex; align-items: flex-start; gap: 7px; line-height: 1.45;">
-            <span style="font-size: 13px;">💡</span>
-            <div>
-              <strong style="color: #f87171;">วิธีแก้เปิดรีเวิร์บแล้วเพลงก้องไปด้วย:</strong>
-              <div style="color: #cbd5e1; margin-top: 2px;">
-                1. ตรวจสอบว่าช่องไมค์ข้างบนนี้เลือกเป็น <strong>In 1/2 (Maono)</strong> หรือไมค์จริง (ห้ามเลือกช่อง Playback, FX หรือ Stereo Mix)<br>
-                2. <strong>กดปิดปุ่ม LOOPBACK</strong> บนการ์ดเสียง Maono หรือในโปรแกรม Maono Routing Center เพื่อไม่ให้การ์ดเสียงดูดเพลงกลับเข้าไมค์
-              </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="sfxVolText" class="val-text mono-num">80%</span>
+              <input type="range" id="sfxVol" min="0" max="1" step="0.05" value="0.8" style="width: 70px;" title="ระดับเสียง Soundboard">
             </div>
           </div>
 
-          <div class="control-grid-3">
-            <div class="control-group">
-              <div class="group-header">
-                <label for="reverbMix">Wet Mix</label>
-                <span id="reverbMixText" class="val-text mono-num">25%</span>
-              </div>
-              <input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.25">
-            </div>
-
-            <div class="control-group">
-              <div class="group-header">
-                <label for="reverbDecay">Decay</label>
-                <span id="reverbDecayText" class="val-text mono-num">1.8s</span>
-              </div>
-              <input type="range" id="reverbDecay" min="0.5" max="5.0" step="0.1" value="1.8">
-            </div>
-
-            <div class="control-group">
-              <div class="group-header">
-                <label for="roomSize">Size</label>
-                <span id="roomSizeText" class="val-text mono-num">Studio</span>
-              </div>
-              <input type="range" id="roomSize" min="1" max="4" step="1" value="2">
-            </div>
+          <div class="soundboard-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;">
+            <button class="sfx-btn" data-sfx="airhorn" title="เสียงแอร์ฮอร์นเปิดเพลง">
+              <span class="sfx-icon">📢</span>
+              <span class="sfx-name">Airhorn</span>
+            </button>
+            <button class="sfx-btn" data-sfx="applause" title="เสียงปรบมือ & กรี๊ดเชียร์">
+              <span class="sfx-icon">👏</span>
+              <span class="sfx-name">Applause</span>
+            </button>
+            <button class="sfx-btn" data-sfx="rimshot" title="เสียงกลองตึกโป๊ะเล่นมุก">
+              <span class="sfx-icon">🥁</span>
+              <span class="sfx-name">Rimshot</span>
+            </button>
+            <button class="sfx-btn" data-sfx="cricket" title="เสียงจิ้งหรีดเวลาเดดแอร์">
+              <span class="sfx-icon">🦗</span>
+              <span class="sfx-name">Cricket</span>
+            </button>
+            <button class="sfx-btn" data-sfx="ding" title="เสียงกระดิ่งถูกต้อง">
+              <span class="sfx-icon">🔔</span>
+              <span class="sfx-name">Ding!</span>
+            </button>
+            <button class="sfx-btn" data-sfx="laser" title="เสียงเลเซอร์ไซไฟดรอป">
+              <span class="sfx-icon">🚀</span>
+              <span class="sfx-name">Laser Drop</span>
+            </button>
           </div>
         </div>
+
+        
         </div>
             </section>
     </main>
