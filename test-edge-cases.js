@@ -631,6 +631,42 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 17: Video IDs with Leading Hyphen, Underscores & Tricky URLs Hardening Invariants
+  try {
+    console.log('\n[Edge Case 17] Verifying Leading Hyphen, Underscores & Tricky Audio Stream Hardening...');
+    const serverCode = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+    const appCode = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const vercelAudioCode = fs.readFileSync(path.join(__dirname, 'api', 'audio.js'), 'utf8');
+
+    // 17a. Server defense against CLI option injection for IDs starting with hyphens
+    const hasCliDefense = serverCode.includes("args.push('--', targetUrl);") ||
+                          serverCode.includes("args.push('--', normalizedUrl);");
+    const hasStrictIdRegex = serverCode.includes('/^[a-zA-Z0-9_-]{11}$/');
+
+    // 17b. Multi-hop redirect traversal and candidate race
+    const hasMultiHopRedirect = serverCode.includes('maxHops') && serverCode.includes('probe(nextLoc);');
+    const hasMultiSourceFallback = serverCode.includes('fetchInvidiousApiStream') &&
+                                   serverCode.includes('fetchPipedApiStream') &&
+                                   serverCode.includes('checkRes.statusCode === 200 || checkRes.statusCode === 206');
+
+    // 17c. Frontend exponential backoff retry and user feedback
+    const hasToastFailover = appCode.includes('showHostToast') && appCode.includes('activateYtAudioFailover();');
+    const hasRetryBackoff = appCode.includes('audioErrorRetries < 3') && appCode.includes('audioRetryTimeout = setTimeout');
+
+    // 17d. Vercel serverless audio endpoint handles 206 Partial Content
+    const hasVercel206Support = vercelAudioCode.includes('resp.statusCode !== 200 && resp.statusCode !== 206');
+
+    if (hasCliDefense && hasStrictIdRegex && hasMultiHopRedirect && hasMultiSourceFallback && hasToastFailover && hasRetryBackoff && hasVercel206Support) {
+      console.log('  ✅ Passed: CLI argument injection defense, multi-hop redirect race, backoff retry & 206 partial content verified!');
+      passed++;
+    } else {
+      throw new Error('Missing CLI defense, multi-hop redirect, toast failover or 206 partial content invariants');
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 17 Error:', err.message);
+    failed++;
+  }
+
   console.log('\n====================================================');
   console.log(`📊 EDGE CASE REPORT: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');

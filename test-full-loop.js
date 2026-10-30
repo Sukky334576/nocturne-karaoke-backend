@@ -433,6 +433,22 @@ async function runTests() {
     failed++;
   }
 
+  // Test 9: Video IDs with Leading Hyphen & Tricky Formats Stream Pipeline
+  try {
+    console.log('\n[Test 9] Testing Tricky Video ID & Leading Hyphen Audio Pipeline (/api/audio?id=-FJ_T3VK4dE)...');
+    const res9 = await checkStream(`http://127.0.0.1:${testPort}/api/audio?id=-FJ_T3VK4dE&t=2`);
+    if (res9.status === 200 && res9.contentType && res9.contentType.includes('audio') && res9.bytesReceived > 0) {
+      console.log(`  ✅ Passed: Leading Hyphen Audio Stream connected! Received ${res9.bytesReceived} bytes (${res9.contentType})`);
+      passed++;
+    } else {
+      console.error(`  ❌ Failed: Audio stream failed for -FJ_T3VK4dE (Status: ${res9.status}, Content-Type: ${res9.contentType})`);
+      failed++;
+    }
+  } catch (err) {
+    console.error('  ❌ Test 9 Error:', err.message);
+    failed++;
+  }
+
   // Cleanup ephemeral process
   if (testProcess) {
     testProcess.kill();

@@ -1,6 +1,7 @@
 const express = require('express');
 const yts = require('yt-search');
 const https = require('https');
+const http = require('http');
 const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -139,47 +140,146 @@ function fastYoutubeSearch(query) {
 }
 
 // Upstream Fallback Audio Stream Finder (for Cloud / Render datacenter IPs)
-async function fetchUpstreamFallbackStream(videoId) {
-  const upstreamInstances = [
-    `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140`,
-    `https://inv.zzls.xyz/latest_version?id=${videoId}&itag=140`,
-    `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
-    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`
-  ];
+const checkCandidate = (candidate) => new Promise((resolve, reject) => {
+  let hops = 0;
+  const maxHops = 6;
 
-  const checkCandidate = (candidate) => new Promise((resolve, reject) => {
-    const req = https.get(candidate, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      timeout: 3500
-    }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        const loc = new URL(res.headers.location, candidate).href;
-        // Verify redirected stream returns valid audio (200 or 206) rather than 400/500
-        const checkReq = https.get(loc, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Range': 'bytes=0-1024' },
-          timeout: 3500
-        }, (checkRes) => {
-          checkReq.destroy();
-          if (checkRes.statusCode === 200 || checkRes.statusCode === 206) {
-            resolve(loc);
-          } else {
-            reject(new Error('Redirect candidate failed: ' + checkRes.statusCode));
-          }
-        });
-        checkReq.on('error', reject);
-        checkReq.on('timeout', () => { checkReq.destroy(); reject(new Error('Redirect check timeout')); });
-      } else if (res.statusCode === 200 || res.statusCode === 206) {
-        resolve(candidate);
+  function probe(target) {
+    if (hops++ > maxHops) {
+      return reject(new Error('Redirect candidate failed: max hops exceeded'));
+    }
+    let parsed;
+    try {
+      parsed = new URL(target);
+    } catch (err) {
+      return reject(new Error('Redirect candidate failed: invalid URL ' + target));
+    }
+    const client = parsed.protocol === 'http:' ? http : https;
+    const req = client.get(target, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Range': 'bytes=0-1024'
+      },
+      timeout: 4000
+    }, (checkRes) => {
+      req.destroy();
+      if (checkRes.statusCode >= 300 && checkRes.statusCode < 400 && checkRes.headers.location) {
+        try {
+          const nextLoc = new URL(checkRes.headers.location, target).href;
+          probe(nextLoc);
+        } catch (e) {
+          reject(new Error('Redirect candidate failed: bad location header'));
+        }
+      } else if (checkRes.statusCode === 200 || checkRes.statusCode === 206) {
+        resolve(target);
       } else {
-        reject(new Error('Status ' + res.statusCode));
+        reject(new Error('Redirect candidate failed: ' + checkRes.statusCode));
       }
     });
     req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-  });
+    req.on('timeout', () => { req.destroy(); reject(new Error('Redirect check timeout')); });
+  }
+
+  probe(candidate);
+});
+
+async function fetchInvidiousApiStream(videoId) {
+  const apiInstances = [
+    'https://yt.chocolatemoo53.com',
+    'https://invidious.tiekoetter.com',
+    'https://invidious.nerdvpn.de'
+  ];
+  for (const base of apiInstances) {
+    try {
+      const streamUrl = await new Promise((resolve, reject) => {
+        const req = https.get(`${base}/api/v1/videos/${encodeURIComponent(videoId)}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          timeout: 4000
+        }, (res) => {
+          let body = '';
+          res.on('data', c => body += c);
+          res.on('end', () => {
+            try {
+              if (res.statusCode !== 200) return reject(new Error('Status ' + res.statusCode));
+              const data = JSON.parse(body);
+              const formats = (data.adaptiveFormats || []).concat(data.formatStreams || []);
+              const audios = formats.filter(f => f.type && f.type.startsWith('audio/') && f.url);
+              if (audios.length > 0) {
+                const preferred = audios.find(a => a.itag === 140 || a.itag === '140') ||
+                                  audios.find(a => a.itag === 251 || a.itag === '251') ||
+                                  audios[0];
+                return resolve(preferred.url);
+              }
+              reject(new Error('No audio formats found'));
+            } catch (e) { reject(e); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      });
+      if (streamUrl) {
+        const validated = await checkCandidate(streamUrl);
+        if (validated) return validated;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+async function fetchPipedApiStream(videoId) {
+  const pipedInstances = [
+    'https://pipedapi.kavin.rocks',
+    'https://piped-api.lunar.icu'
+  ];
+  for (const base of pipedInstances) {
+    try {
+      const streamUrl = await new Promise((resolve, reject) => {
+        const req = https.get(`${base}/streams/${encodeURIComponent(videoId)}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          timeout: 4000
+        }, (res) => {
+          let body = '';
+          res.on('data', c => body += c);
+          res.on('end', () => {
+            try {
+              if (res.statusCode !== 200) return reject(new Error('Status ' + res.statusCode));
+              const data = JSON.parse(body);
+              const audios = data.audioStreams || [];
+              if (audios.length > 0 && audios[0].url) {
+                return resolve(audios[0].url);
+              }
+              reject(new Error('No audioStreams'));
+            } catch (e) { reject(e); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      });
+      if (streamUrl) {
+        const validated = await checkCandidate(streamUrl);
+        if (validated) return validated;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+async function fetchUpstreamFallbackStream(videoId) {
+  const upstreamInstances = [
+    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`,
+    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=251`,
+    `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140`,
+    `https://inv.zzls.xyz/latest_version?id=${videoId}&itag=140`,
+    `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
+    `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140`
+  ];
 
   try {
-    const streamUrl = await Promise.any(upstreamInstances.map(checkCandidate));
+    const streamUrl = await Promise.any([
+      Promise.any(upstreamInstances.map(checkCandidate)),
+      fetchInvidiousApiStream(videoId),
+      fetchPipedApiStream(videoId)
+    ]);
     if (streamUrl && streamUrl.startsWith('http')) {
       return streamUrl;
     }
@@ -191,6 +291,10 @@ async function fetchUpstreamFallbackStream(videoId) {
         if (streamUrl && streamUrl.startsWith('http')) return streamUrl;
       } catch (_) {}
     }
+    const apiStream = await fetchInvidiousApiStream(videoId);
+    if (apiStream) return apiStream;
+    const pipedStream = await fetchPipedApiStream(videoId);
+    if (pipedStream) return pipedStream;
   }
   return null;
 }
@@ -232,24 +336,27 @@ function runYtDlpExtract(clientArgs, targetUrl) {
 }
 
 async function extractStreamUrl(targetUrl) {
-  const cached = streamCache.get(targetUrl);
+  const videoId = extractValidYouTubeId(targetUrl);
+  const cacheKey = videoId || targetUrl;
+
+  const cached = streamCache.get(cacheKey);
   if (cached && (Date.now() - cached.time < 4 * 60 * 60 * 1000)) {
     return cached.url;
   }
 
-  const match = targetUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
-  const videoId = match ? match[1] : null;
+  const normalizedUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : targetUrl;
   const isCloudEnv = !!(process.env.RENDER || process.env.NODE_ENV === 'production');
 
   // On Cloud (Render) where yt-dlp can get blocked by YouTube IP limits, race yt-dlp with upstream fallback
   if (isCloudEnv && videoId) {
     try {
       const streamUrl = await Promise.any([
-        runYtDlpExtract('youtube:player_client=android,web', targetUrl),
+        runYtDlpExtract('youtube:player_client=android,web', normalizedUrl),
+        runYtDlpExtract('youtube:player_client=tv_embedded,web_embedded', normalizedUrl),
         fetchUpstreamFallbackStream(videoId)
       ]);
       if (streamUrl) {
-        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+        setBoundedCache(streamCache, cacheKey, { url: streamUrl, time: Date.now() }, 100);
         return streamUrl;
       }
     } catch (_) {}
@@ -257,16 +364,16 @@ async function extractStreamUrl(targetUrl) {
 
   // 1. Primary fast yt-dlp extraction (direct clean audio for local/proxied environments)
   try {
-    const streamUrl = await runYtDlpExtract('youtube:player_client=android,web', targetUrl);
+    const streamUrl = await runYtDlpExtract('youtube:player_client=android,web', normalizedUrl);
     if (streamUrl) {
-      setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+      setBoundedCache(streamCache, cacheKey, { url: streamUrl, time: Date.now() }, 100);
       return streamUrl;
     }
   } catch (e) {
     try {
-      const streamUrl = await runYtDlpExtract('youtube:player_client=android,web', targetUrl);
+      const streamUrl = await runYtDlpExtract('youtube:player_client=tv_embedded,web_embedded', normalizedUrl);
       if (streamUrl) {
-        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+        setBoundedCache(streamCache, cacheKey, { url: streamUrl, time: Date.now() }, 100);
         return streamUrl;
       }
     } catch (_) {}
@@ -277,7 +384,7 @@ async function extractStreamUrl(targetUrl) {
     try {
       const upstreamUrl = await fetchUpstreamFallbackStream(videoId);
       if (upstreamUrl) {
-        setBoundedCache(streamCache, targetUrl, { url: upstreamUrl, time: Date.now() }, 100);
+        setBoundedCache(streamCache, cacheKey, { url: upstreamUrl, time: Date.now() }, 100);
         return upstreamUrl;
       }
     } catch (e) {
@@ -288,19 +395,20 @@ async function extractStreamUrl(targetUrl) {
   // 3. Secondary yt-dlp configs as last resort
   const secondaryConfigs = [
     'youtube:player_client=ios,mweb',
+    'youtube:player_client=mweb',
     'youtube:player_client=tv,android'
   ];
   for (const clientArgs of secondaryConfigs) {
     try {
-      const streamUrl = await runYtDlpExtract(clientArgs, targetUrl);
+      const streamUrl = await runYtDlpExtract(clientArgs, normalizedUrl);
       if (streamUrl) {
-        setBoundedCache(streamCache, targetUrl, { url: streamUrl, time: Date.now() }, 100);
+        setBoundedCache(streamCache, cacheKey, { url: streamUrl, time: Date.now() }, 100);
         return streamUrl;
       }
     } catch (e) {}
   }
 
-  throw new Error('All audio stream extraction strategies exhausted for ' + targetUrl);
+  throw new Error('All audio stream extraction strategies exhausted for ' + normalizedUrl);
 }
 
 // API: Search YouTube with Instant Sub-Second InnerTube API & 1ms In-Memory Caching
@@ -395,7 +503,8 @@ app.get('/api/audio', async (req, res) => {
     return res.status(400).send('Valid YouTube video ID or URL required');
   }
 
-  const targetUrl = idOrUrl.startsWith('http') ? idOrUrl : `https://www.youtube.com/watch?v=${idOrUrl}`;
+  const videoId = extractValidYouTubeId(idOrUrl);
+  const targetUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : (idOrUrl.startsWith('http') ? idOrUrl : `https://www.youtube.com/watch?v=${idOrUrl}`);
 
   try {
     const directUrl = await extractStreamUrl(targetUrl);
@@ -457,8 +566,17 @@ app.get('/api/audio', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Audio stream error:', err);
-    if (!res.headersSent) res.status(500).send('Error streaming audio: ' + err);
+    console.error(`[Audio Pipeline Error] Failed for ID "${videoId}" (${targetUrl}):`, err.message || err);
+    if (videoId) streamCache.delete(videoId);
+    streamCache.delete(targetUrl);
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: 'Audio stream extraction currently unavailable for this track',
+        videoId: videoId || idOrUrl,
+        details: err.message || String(err),
+        fallback: 'direct_iframe'
+      });
+    }
   }
 });
 

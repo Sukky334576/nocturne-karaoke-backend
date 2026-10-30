@@ -4586,6 +4586,8 @@ document.addEventListener('click', (e) => {
 
 // Fallback & Dynamic API Endpoints
 let localAudioBridgeAvailable = null;
+let audioErrorRetries = 0;
+let audioRetryTimeout = null;
 
 async function checkLocalBridge() {
   if (localAudioBridgeAvailable !== null) return localAudioBridgeAvailable;
@@ -4616,6 +4618,12 @@ async function getBestAudioStreamUrl(videoId, startSeconds = 0) {
 // Play Track (Ultra-Reliable Dual Routing to Discord & Headphones with Zero-Fail Guarantee)
 async function playTrack(track, seekSeconds = 0) {
   await initAudioEngine();
+
+  audioErrorRetries = 0;
+  if (audioRetryTimeout) {
+    clearTimeout(audioRetryTimeout);
+    audioRetryTimeout = null;
+  }
 
   if (currentTrack && currentTrack.id !== track.id) {
     historyQueue.push(currentTrack);
@@ -4767,6 +4775,12 @@ function seekToSeconds(seconds) {
   const clamped = Math.max(0, Math.min(seconds, dur));
   streamOffsetSeconds = clamped;
 
+  audioErrorRetries = 0;
+  if (audioRetryTimeout) {
+    clearTimeout(audioRetryTimeout);
+    audioRetryTimeout = null;
+  }
+
   if (currentTimeText) currentTimeText.innerText = formatTime(clamped);
   if (totalDurationText) totalDurationText.innerText = formatTime(dur);
   if (progressBar) progressBar.value = (clamped / dur) * 100;
@@ -4788,8 +4802,17 @@ function seekToSeconds(seconds) {
 
   // 2. Move Web Audio Backend Stream if not in direct YouTube mode
   if (!isUsingDirectYtAudio && audioSourceElement) {
-    audioSourceElement.src = `/api/audio?id=${currentTrack.id}&t=${clamped}`;
-    audioSourceElement.play().catch(() => {});
+    getBestAudioStreamUrl(currentTrack.id, clamped).then(url => {
+      if (audioSourceElement && !isUsingDirectYtAudio) {
+        audioSourceElement.src = url;
+        audioSourceElement.play().catch(() => {});
+      }
+    }).catch(() => {
+      if (audioSourceElement && !isUsingDirectYtAudio) {
+        audioSourceElement.src = `/api/audio?id=${encodeURIComponent(currentTrack.id)}&t=${clamped}`;
+        audioSourceElement.play().catch(() => {});
+      }
+    });
   }
   isPlaying = true;
   if (playPauseBtn) playPauseBtn.innerHTML = SVG_PAUSE;
@@ -4828,24 +4851,41 @@ playPauseBtn.addEventListener('click', togglePlayPause);
 
 function setupAudioElementEvents() {
   if (!audioSourceElement) return;
-  let audioErrorRetries = 0;
+
   audioSourceElement.addEventListener('error', (e) => {
     console.warn('AudioSource stream error event:', e);
-    if (audioErrorRetries < 2 && currentTrack && currentTrack.id) {
+    if (audioRetryTimeout) {
+      clearTimeout(audioRetryTimeout);
+      audioRetryTimeout = null;
+    }
+
+    if (audioErrorRetries < 3 && currentTrack && currentTrack.id) {
       audioErrorRetries++;
-      setTimeout(() => {
-        if (currentTrack && audioSourceElement) {
-          audioSourceElement.src = `/api/audio?id=${currentTrack.id}&t=${Math.floor(streamOffsetSeconds || 0)}&retry=${Date.now()}`;
+      const delayMs = audioErrorRetries * 900;
+      console.log(`🔄 Retrying clean audio stream (attempt ${audioErrorRetries}/3 in ${delayMs}ms)...`);
+      audioRetryTimeout = setTimeout(async () => {
+        if (currentTrack && audioSourceElement && !isUsingDirectYtAudio) {
+          const baseUrl = await getBestAudioStreamUrl(currentTrack.id, Math.floor(streamOffsetSeconds || 0));
+          const sep = baseUrl.includes('?') ? '&' : '?';
+          audioSourceElement.src = `${baseUrl}${sep}retry=${Date.now()}`;
           audioSourceElement.play().catch(() => {});
         }
-      }, 800);
+      }, delayMs);
     } else {
+      console.warn('⚠️ Audio stream retries exhausted. Activating direct YouTube failover.');
       activateYtAudioFailover();
+      if (typeof showHostToast === 'function') {
+        showHostToast('⚠️ ไม่สามารถดึง Clean Audio Stream สำหรับเพลงนี้ได้ ระบบสลับไปใช้ Direct YouTube ชั่วคราว (เปิด Tab Audio เพื่อส่งเสียงเข้า Discord)', 6000);
+      }
     }
   });
 
   audioSourceElement.addEventListener('playing', () => {
     audioErrorRetries = 0;
+    if (audioRetryTimeout) {
+      clearTimeout(audioRetryTimeout);
+      audioRetryTimeout = null;
+    }
     if (isUsingDirectYtAudio && !isTabAudioActive) {
       console.log('⚡ Web Audio stream connected! Muting direct YouTube iframe to route cleanly through DSP to VB-Cable.');
       isUsingDirectYtAudio = false;
@@ -4859,6 +4899,10 @@ function setupAudioElementEvents() {
 
   audioSourceElement.addEventListener('ended', () => {
     audioErrorRetries = 0;
+    if (audioRetryTimeout) {
+      clearTimeout(audioRetryTimeout);
+      audioRetryTimeout = null;
+    }
     showKaraokeScoreCelebration();
     if (!isUsingDirectYtAudio) {
       console.log('⚡ AudioSource finished playback, advancing queue...');

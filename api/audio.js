@@ -12,7 +12,7 @@ async function streamFromTunnel(url, res) {
         const redirected = new URL(resp.headers.location, url).href;
         return streamFromTunnel(redirected, res).then(resolve).catch(reject);
       }
-      if (resp.statusCode !== 200) return reject(new Error('Status ' + resp.statusCode));
+      if (resp.statusCode !== 200 && resp.statusCode !== 206) return reject(new Error('Status ' + resp.statusCode));
       res.writeHead(resp.statusCode, {
         'Content-Type': resp.headers['content-type'] || 'audio/mpeg',
         'Access-Control-Allow-Origin': '*',
@@ -56,7 +56,9 @@ module.exports = async (req, res) => {
   // Upstream public proxy fallback for serverless cloud execution
   const upstreamInstances = [
     `https://yt.chocolatemoo53.com/latest_version?id=${encodeURIComponent(id)}&itag=140`,
+    `https://yt.chocolatemoo53.com/latest_version?id=${encodeURIComponent(id)}&itag=251`,
     `https://invidious.tiekoetter.com/latest_version?id=${encodeURIComponent(id)}&itag=140`,
+    `https://inv.zzls.xyz/latest_version?id=${encodeURIComponent(id)}&itag=140`,
     `https://inv.nadeko.net/latest_version?id=${encodeURIComponent(id)}&itag=140`
   ];
 
