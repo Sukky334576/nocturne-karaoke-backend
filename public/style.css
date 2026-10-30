@@ -1,3 +1,9 @@
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 /* ==========================================================================
    NOCTURNE STUDIO • PRECISION VOCAL & ACOUSTIC ENGINE
    Haute Horlogerie Acoustics: Deep Obsidian, Brushed Titanium & Champagne Gold
@@ -382,12 +388,19 @@ body {
   grid-template-columns: 1.15fr 0.85fr;
   gap: 16px;
   align-items: start;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .studio-rack-col {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Studio Module Cards */
@@ -2580,6 +2593,7 @@ kbd {
 .mode-tabs {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   background: rgba(0, 0, 0, 0.35);
   padding: 4px;
@@ -2707,8 +2721,22 @@ body.mode-party #soundboardModule {
 }
 
 /* Floating Drawer Override (When opened in Karaoke Mode) */
+#studioDspModulesContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 body.drawer-open #studioDspModulesContainer {
   display: flex !important;
+  flex-direction: column !important;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   animation: drawer-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

@@ -71,8 +71,8 @@
     "songKeys": {},
     "hasCompletedOnboarding": true,
     "createdAt": 1793289077718,
-    "proExpiresAt": 1795885478208,
-    "lastActive": 1793293478208
+    "proExpiresAt": 1795927172704,
+    "lastActive": 1793335172704
   },
   "oauth rocker": {
     "username": "OAuth Rocker",
@@ -92,6 +92,6 @@
     "songKeys": {},
     "hasCompletedOnboarding": false,
     "createdAt": 1793289077720,
-    "lastLogin": 1793293478210
+    "lastLogin": 1793335172705
   }
 }
