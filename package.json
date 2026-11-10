@@ -1,19 +1,43 @@
 {
-  "name": "karaoke-sync-player",
+  "name": "nocturne-studio",
   "version": "1.0.0",
-  "description": "",
+  "description": "Nocturne Studio Precision Karaoke & Vocal Engine",
+  "author": "Nocturne Acoustics",
   "main": "main.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
     "start": "node server.js",
     "app": "electron .",
     "electron": "electron .",
+    "build:exe": "electron-builder --win",
     "test": "node test-full-loop.js",
     "test:edge": "node test-edge-cases.js",
     "test:cable": "node test-cable-simulation.js",
     "test:all": "node test-full-loop.js && node test-edge-cases.js && node test-cable-simulation.js"
+  },
+  "build": {
+    "appId": "com.nocturne.studio",
+    "productName": "Nocturne Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nocturne Studio",
+      "include": "installer.nsh"
+    },
+    "extraResources": [
+      {
+        "from": "resources/driver",
+        "to": "driver"
+      }
+    ]
   },
   "keywords": [],
   "author": "",
@@ -25,6 +49,7 @@
     "yt-search": "^2.13.1"
   },
   "devDependencies": {
-    "electron": "^45.2.3"
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
   }
 }

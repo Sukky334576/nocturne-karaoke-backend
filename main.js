@@ -57,7 +57,7 @@ function createWindow() {
     minHeight: 700,
     backgroundColor: '#0a0b10',
     title: 'NOCTURNE STUDIO • Precision Karaoke & Vocal Engine',
-    icon: path.join(__dirname, 'public', 'favicon.ico'),
+    icon: path.join(__dirname, 'resources', 'icon.ico'),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

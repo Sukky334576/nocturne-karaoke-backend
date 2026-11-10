@@ -54,14 +54,82 @@
     "proExpiresAt": 253402300799000,
     "preset": {
       "syncOffsetMs": 120,
+      "hpMusicVol": 0.75,
+      "cableMusicVol": 0.32,
+      "hpVocalVol": 0,
+      "cableVocalVol": 1,
+      "headphoneVol": 1,
+      "cableVol": 0.9,
+      "isHpMusicMuted": false,
+      "isCableMusicMuted": false,
+      "isHpVocalMuted": true,
+      "isCableVocalMuted": false,
+      "reverbEnabled": true,
       "reverbMix": 0.25,
       "reverbDecay": 1.8,
-      "roomSize": 2
+      "roomSize": 2,
+      "autotuneEnabled": false,
+      "autotuneKey": 0,
+      "autotuneScale": 0,
+      "autotuneSpeed": 0.1,
+      "autotuneAmount": 1,
+      "noiseGateThreshold": -45,
+      "compressorRatio": 4,
+      "dynamicsEnabled": true,
+      "eqEnabled": false,
+      "eqLowCut": false,
+      "eqMid": 0,
+      "eqHigh": 0,
+      "doublerEnabled": false,
+      "doublerMix": 0,
+      "smartDuckingEnabled": false,
+      "smartDuckingDepth": 0.3,
+      "sfxVol": 0.8,
+      "plugins": [
+        {
+          "id": "tape-delay",
+          "enabled": false,
+          "paramValues": {
+            "time": 0.28,
+            "feedback": 0.35,
+            "tone": 3200,
+            "mix": 0.3
+          }
+        },
+        {
+          "id": "stereo-chorus",
+          "enabled": false,
+          "paramValues": {
+            "rate": 1.2,
+            "depth": 0.0035,
+            "mix": 0.45
+          }
+        },
+        {
+          "id": "radio-filter",
+          "enabled": false,
+          "paramValues": {
+            "freq": 1500,
+            "drive": 2,
+            "mix": 0.85
+          }
+        },
+        {
+          "id": "tube-saturator",
+          "enabled": false,
+          "paramValues": {
+            "drive": 1.8,
+            "warmth": 2.5,
+            "mix": 0.5
+          }
+        }
+      ]
     },
     "songKeys": {},
     "hasCompletedOnboarding": true,
     "createdAt": 1729000000000,
-    "lastLogin": 1729000000000
+    "lastLogin": 1794334482477,
+    "lastActive": 1794334533525
   },
   "testsinger": {
     "username": "TestSinger",
@@ -71,8 +139,8 @@
     "songKeys": {},
     "hasCompletedOnboarding": true,
     "createdAt": 1793289077718,
-    "proExpiresAt": 1796925604119,
-    "lastActive": 1794333604119
+    "proExpiresAt": 1796927283707,
+    "lastActive": 1794335283707
   },
   "oauth rocker": {
     "username": "OAuth Rocker",
@@ -92,7 +160,7 @@
     "songKeys": {},
     "hasCompletedOnboarding": false,
     "createdAt": 1793289077720,
-    "lastLogin": 1794333604124
+    "lastLogin": 1794335283709
   },
   "jaychomporn": {
     "username": "JayChomporn",
