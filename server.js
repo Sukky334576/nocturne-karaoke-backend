@@ -584,6 +584,16 @@ function pipeDirectAudioStream(url, res) {
       if (reqAudio && !reqAudio.destroyed) reqAudio.destroy();
     });
 
+    reqAudio.on('timeout', () => {
+      reqAudio.destroy();
+      if (!res.headersSent) {
+        res.status(503).json({
+          error: 'Direct audio pipe request timeout',
+          fallback: 'direct_iframe'
+        });
+      }
+    });
+
     reqAudio.on('error', (err) => {
       console.error('Direct audio pipe error:', err);
       if (!res.headersSent) {
@@ -717,7 +727,14 @@ const ipRateLimits = new Map();
 
 function checkRateLimit(req, action, maxRequests, windowMs) {
   const forwarded = req.headers['x-forwarded-for'];
-  const ip = (forwarded ? forwarded.split(',')[0].trim() : (req.socket.remoteAddress || '127.0.0.1'));
+  const rawIp = (forwarded ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || '127.0.0.1'));
+  const ip = rawIp.replace(/^::ffff:/, '');
+
+  // Local loopback host requests on desktop are exempt from remote rate limits
+  if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
+    return true;
+  }
+
   const key = `${ip}:${action}`;
   const now = Date.now();
   let record = ipRateLimits.get(key);
@@ -773,6 +790,8 @@ function getOrCreateRoom(code, hostName = null, hostTier = null) {
       isPlaying: false,
       queue: [],
       allowRemoteControl: true,
+      isVocalCutEnabled: false,
+      isDucked: false,
       clients: new Set()
     };
     rooms.set(norm, room);
@@ -809,6 +828,8 @@ function getRoomSnapshot(room) {
     isPlaying: room.isPlaying,
     queue: room.queue,
     allowRemoteControl: room.allowRemoteControl,
+    isVocalCutEnabled: Boolean(room.isVocalCutEnabled),
+    isDucked: Boolean(room.isDucked),
     clientCount: room.clients.size
   };
 }
@@ -842,16 +863,56 @@ app.post('/api/open-sound-settings', (req, res) => {
 
 // --- In-Memory & File-Backed User Profiles Database ---
 const usersDb = new Map();
-const userDbFile = path.join(__dirname, 'users.json');
 
-try {
-  if (fs.existsSync(userDbFile)) {
-    const raw = fs.readFileSync(userDbFile, 'utf8');
-    const parsed = JSON.parse(raw);
-    Object.keys(parsed).forEach(k => usersDb.set(k.toLowerCase(), parsed[k]));
+function getUserDbFilePath() {
+  if (process.env.NOCTURNE_DATA_DIR) {
+    const dir = process.env.NOCTURNE_DATA_DIR;
+    if (!fs.existsSync(dir)) {
+      try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+    }
+    return path.join(dir, 'users.json');
   }
-} catch (e) {
-  console.warn('User DB load warning:', e.message);
+  const isAsar = __dirname.includes('app.asar');
+  const appData = process.env.APPDATA || (process.platform === 'darwin' ? path.join(process.env.HOME || '', 'Library', 'Application Support') : null);
+  if ((isAsar || process.env.NODE_ENV === 'production') && appData) {
+    const appDir = path.join(appData, 'Nocturne Studio');
+    if (!fs.existsSync(appDir)) {
+      try { fs.mkdirSync(appDir, { recursive: true }); } catch (_) {}
+    }
+    return path.join(appDir, 'users.json');
+  }
+  return path.join(__dirname, 'users.json');
+}
+
+const bundledSeedFile = path.join(__dirname, 'users.json');
+const userDbFile = getUserDbFilePath();
+
+function loadUserDb() {
+  let loaded = false;
+  try {
+    if (fs.existsSync(userDbFile)) {
+      const raw = fs.readFileSync(userDbFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      Object.keys(parsed).forEach(k => usersDb.set(k.toLowerCase(), parsed[k]));
+      loaded = true;
+    }
+  } catch (e) {
+    console.warn('User DB load warning:', e.message);
+  }
+
+  // Fallback to bundled seed file if userDbFile does not exist yet
+  if (!loaded && fs.existsSync(bundledSeedFile)) {
+    try {
+      const raw = fs.readFileSync(bundledSeedFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      Object.keys(parsed).forEach(k => usersDb.set(k.toLowerCase(), parsed[k]));
+      if (userDbFile !== bundledSeedFile) {
+        persistUserDb();
+      }
+    } catch (e) {
+      console.warn('Seed DB load warning:', e.message);
+    }
+  }
 }
 
 function persistUserDb() {
@@ -867,6 +928,8 @@ function persistUserDb() {
     console.warn('User DB save warning:', e.message);
   }
 }
+
+loadUserDb();
 
 app.post('/api/auth/register', (req, res) => {
   if (!checkRateLimit(req, 'auth', 25, 60 * 1000)) {
@@ -1382,11 +1445,11 @@ app.post('/api/room/:code/queue/clear', (req, res) => {
   res.json({ success: true, queue: [] });
 });
 
-// Host pushes state update (current track, play status, queue sync)
+// Host pushes state update (current track, play status, queue sync, audio DSP state)
 app.post('/api/room/:code/sync', (req, res) => {
   const norm = normalizeRoomCode(req.params.code);
   const room = getOrCreateRoom(norm);
-  const { currentTrack, isPlaying, queue, allowRemoteControl, hostName, hostTier } = req.body || {};
+  const { currentTrack, isPlaying, queue, allowRemoteControl, hostName, hostTier, isVocalCutEnabled, isDucked } = req.body || {};
 
   if (currentTrack !== undefined) room.currentTrack = currentTrack;
   if (isPlaying !== undefined) room.isPlaying = Boolean(isPlaying);
@@ -1394,6 +1457,8 @@ app.post('/api/room/:code/sync', (req, res) => {
   if (allowRemoteControl !== undefined) room.allowRemoteControl = Boolean(allowRemoteControl);
   if (hostName) room.hostName = sanitizeText(hostName, 32);
   if (hostTier) room.hostTier = hostTier;
+  if (isVocalCutEnabled !== undefined) room.isVocalCutEnabled = Boolean(isVocalCutEnabled);
+  if (isDucked !== undefined) room.isDucked = Boolean(isDucked);
 
   room.lastActive = Date.now();
 

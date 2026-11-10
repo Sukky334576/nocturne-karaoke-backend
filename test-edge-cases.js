@@ -734,6 +734,80 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 20: Verifying Bidirectional Remote DSP Sync & Production Hardening
+  try {
+    console.log('\n[Edge Case 20] Verifying Bidirectional Remote DSP Sync & Production Hardening...');
+
+    // 20a. Bidirectional Vocal Cut & Ducking Sync
+    const syncRes1 = await postJson(`http://127.0.0.1:${testPort}/api/room/SYNC-20/sync`, {
+      isVocalCutEnabled: true,
+      isDucked: true,
+      hostName: 'TestHost'
+    });
+    if (syncRes1.status !== 200) throw new Error(`Host sync failed: ${JSON.stringify(syncRes1)}`);
+
+    const snapRes1 = await fetchJson(`http://127.0.0.1:${testPort}/api/room/SYNC-20`);
+    if (snapRes1.status !== 200 || snapRes1.data.isVocalCutEnabled !== true || snapRes1.data.isDucked !== true) {
+      throw new Error(`Snapshot failed to reflect vocal cut / ducking: ${JSON.stringify(snapRes1)}`);
+    }
+
+    const syncRes2 = await postJson(`http://127.0.0.1:${testPort}/api/room/SYNC-20/sync`, {
+      isVocalCutEnabled: false,
+      isDucked: false
+    });
+    if (syncRes2.status !== 200) throw new Error(`Host sync 2 failed: ${JSON.stringify(syncRes2)}`);
+
+    const snapRes2 = await fetchJson(`http://127.0.0.1:${testPort}/api/room/SYNC-20`);
+    if (snapRes2.status !== 200 || snapRes2.data.isVocalCutEnabled !== false || snapRes2.data.isDucked !== false) {
+      throw new Error(`Snapshot failed to clear vocal cut / ducking: ${JSON.stringify(snapRes2)}`);
+    }
+
+    // 20b. Localhost host requests exempt from rate limit
+    let hostExempt = true;
+    for (let i = 0; i < 50; i++) {
+      const res = await postJson(`http://127.0.0.1:${testPort}/api/room/SYNC-20/control`, {
+        action: 'ducking',
+        sender: 'LocalHost'
+      });
+      if (res.status === 429) {
+        hostExempt = false;
+        break;
+      }
+    }
+    if (!hostExempt) throw new Error('Localhost host was unexpectedly rate limited');
+
+    // 20c. Code invariant checks: ASAR DB path, Headphone virtual exclusion, Pass 4 USB mic, Setup-Windows-Audio.bat, and socket timeout
+    const appJsContent = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const serverJsContent = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+    const remoteHtmlContent = fs.readFileSync(path.join(__dirname, 'public', 'remote.html'), 'utf8');
+    const batContent = fs.readFileSync(path.join(__dirname, 'public', 'Setup-Windows-Audio.bat'), 'utf8');
+
+    const hasAsarDbRouting = serverJsContent.includes('getUserDbFilePath') && serverJsContent.includes('app.asar');
+    const hasHeadphoneVirtualExclusion = appJsContent.includes("const isVirtual = text.includes('cable') || text.includes('nocturne')");
+    const hasPass4UsbMic = appJsContent.includes('Pass 4: Any physical audio input that is NOT loopback/cable/nocturne');
+    const hasRemoteDuckingSync = remoteHtmlContent.includes('state.isDucked !== undefined') &&
+                                 remoteHtmlContent.includes("btnDucking.classList.toggle('active', !!state.isDucked)");
+    const hasBatAntiEchoNotice = batContent.includes('เอาติ๊กถูกออก ห้ามเปิด');
+    const hasReqAudioTimeout = serverJsContent.includes("reqAudio.on('timeout'");
+
+    if (hasAsarDbRouting && hasHeadphoneVirtualExclusion && hasPass4UsbMic && hasRemoteDuckingSync && hasBatAntiEchoNotice && hasReqAudioTimeout) {
+      console.log('  ✅ Passed: Bidirectional DSP sync, ASAR safe DB, headphone cable isolation, USB mic Pass 4, and anti-echo BAT verified!');
+      passed++;
+    } else {
+      throw new Error('Missing one or more invariants: ' + JSON.stringify({
+        hasAsarDbRouting,
+        hasHeadphoneVirtualExclusion,
+        hasPass4UsbMic,
+        hasRemoteDuckingSync,
+        hasBatAntiEchoNotice,
+        hasReqAudioTimeout
+      }));
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 20 Error:', err.message);
+    failed++;
+  }
+
   if (testProcess) {
     try { testProcess.kill(); } catch (_) {}
   }

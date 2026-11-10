@@ -3783,15 +3783,28 @@ async function enumerateAudioDevices() {
       micSelect.appendChild(defaultMicOpt);
     }
 
-    // 1. Auto-select Headphone (Prioritize Maono Fairy / Headphones)
+    // 1. Auto-select Headphone (Prioritize Maono Fairy / Headphones, STRICTLY avoid virtual cable endpoints)
     let hpFound = false;
     for (let i = 0; i < headphoneSelect.options.length; i++) {
       const text = headphoneSelect.options[i].text.toLowerCase();
-      if (text.includes('maono') || text.includes('fairy') || text.includes('headphones') || text.includes('headphone')) {
+      const isVirtual = text.includes('cable') || text.includes('nocturne') || text.includes('virtual') || text.includes('vb-audio');
+      if (!isVirtual && (text.includes('maono') || text.includes('fairy') || text.includes('headphones') || text.includes('headphone') || text.includes('headset'))) {
         headphoneSelect.selectedIndex = i;
         setSinkHeadphone(headphoneSelect.value);
         hpFound = true;
         break;
+      }
+    }
+    if (!hpFound) {
+      for (let i = 0; i < headphoneSelect.options.length; i++) {
+        const text = headphoneSelect.options[i].text.toLowerCase();
+        const isVirtual = text.includes('cable') || text.includes('nocturne') || text.includes('virtual') || text.includes('vb-audio');
+        if (!isVirtual) {
+          headphoneSelect.selectedIndex = i;
+          setSinkHeadphone(headphoneSelect.value);
+          hpFound = true;
+          break;
+        }
       }
     }
     if (!hpFound && headphoneSelect.options.length > 0) {
@@ -3848,6 +3861,17 @@ async function enumerateAudioDevices() {
         const text = micSelect.options[i].text.toLowerCase();
         const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx') || text.includes('nocturne');
         if (!isLoop && (text.includes('mic') || text.includes('microphone') || text.includes('in') || text.includes('input'))) {
+          micIndex = i;
+          break;
+        }
+      }
+    }
+    // Pass 4: Any physical audio input that is NOT loopback/cable/nocturne (supports USB mics like Yeti, Fifine, HyperX, Shure, Elgato)
+    if (micIndex === -1) {
+      for (let i = 0; i < micSelect.options.length; i++) {
+        const text = micSelect.options[i].text.toLowerCase();
+        const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx') || text.includes('nocturne');
+        if (!isLoop) {
           micIndex = i;
           break;
         }
@@ -4121,6 +4145,7 @@ function toggleDucking() {
     if (duckingBtn) duckingBtn.classList.remove('ducked');
     if (duckingStatusText) duckingStatusText.innerText = 'SINGING MODE';
   }
+  syncHostStateToRoom();
 }
 
 if (duckingBtn) duckingBtn.addEventListener('click', toggleDucking);
@@ -5155,6 +5180,7 @@ function playNextInQueue() {
       audioSourceElement.removeAttribute('src');
       audioSourceElement.load();
     }
+    sendYtCommand('pauseVideo');
     syncHostStateToRoom();
   }
 }
@@ -5332,7 +5358,9 @@ function syncHostStateToRoom() {
       queue,
       allowRemoteControl: isAllowRemoteControl,
       hostName: currentUser.username || 'Host',
-      hostTier: currentUser.tier || 'free'
+      hostTier: currentUser.tier || 'free',
+      isVocalCutEnabled: !!isVocalCutEnabled,
+      isDucked: !!isDucked
     })
   }).catch(() => {});
 }

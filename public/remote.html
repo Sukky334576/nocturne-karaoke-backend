@@ -1205,6 +1205,11 @@
         btnVocalCut.classList.toggle('active', !!state.isVocalCutEnabled);
       }
 
+      // Reflect Ducking state from Host
+      if (btnDucking && state.isDucked !== undefined) {
+        btnDucking.classList.toggle('active', !!state.isDucked);
+      }
+
       // Reflect allowRemoteControl state
       const isAllowed = (state.allowRemoteControl !== false);
       const ctrlGroup = document.querySelector('.playback-bar') || document.querySelector('.player-ctrl-group');

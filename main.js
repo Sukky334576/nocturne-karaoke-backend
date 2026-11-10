@@ -23,6 +23,9 @@ if (!gotTheLock) {
 function startLocalServer() {
   return new Promise((resolve) => {
     try {
+      if (app && typeof app.getPath === 'function') {
+        process.env.NOCTURNE_DATA_DIR = path.join(app.getPath('userData'), 'data');
+      }
       // Check if server is already running on port 3300
       const req = http.get('http://127.0.0.1:3300/api/ping', { timeout: 1200 }, (res) => {
         if (res.statusCode === 200) {
