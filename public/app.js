@@ -129,6 +129,18 @@ let tabAudioSourceNode = null;
 let tabMusicGain = null;
 let isTabAudioActive = false;
 
+// Desktop App Native Mode Integration (Electron Environment)
+if (typeof window !== 'undefined' && window.desktopApp && window.desktopApp.isElectron) {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.classList.add('is-desktop-app');
+    const brandSub = document.querySelector('.header-brand .subtitle');
+    if (brandSub) {
+      brandSub.innerHTML = 'Precision Vocal Studio • <span class="badge-desktop-native">🖥️ DESKTOP APP</span>';
+    }
+    console.log('🖥️ Running in Nocturne Desktop Native App Mode (0ms Local Audio Pipeline)');
+  });
+}
+
 // User Profile & App State
 let currentUser = {
   username: '',

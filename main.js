@@ -1,0 +1,110 @@
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu } = require('electron');
+const path = require('path');
+const http = require('http');
+
+let mainWindow = null;
+let tray = null;
+let serverInstance = null;
+
+// Ensure single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
+// Start embedded Express engine on port 3300
+function startLocalServer() {
+  return new Promise((resolve) => {
+    try {
+      // Check if server is already running on port 3300
+      const req = http.get('http://127.0.0.1:3300/api/ping', { timeout: 1000 }, (res) => {
+        if (res.statusCode === 200) {
+          console.log('⚡ Local Karaoke engine already active on port 3300');
+          return resolve();
+        }
+      });
+      req.on('error', () => {
+        // Port not occupied: start embedded server
+        console.log('🚀 Spawning embedded Nocturne Audio Server on port 3300...');
+        process.env.PORT = '3300';
+        serverInstance = require('./server.js');
+        setTimeout(resolve, 800);
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        serverInstance = require('./server.js');
+        setTimeout(resolve, 800);
+      });
+    } catch (e) {
+      console.warn('Server initialization note:', e.message);
+      resolve();
+    }
+  });
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 860,
+    minWidth: 1000,
+    minHeight: 700,
+    backgroundColor: '#0a0b10',
+    title: 'NOCTURNE STUDIO • Precision Karaoke & Vocal Engine',
+    icon: path.join(__dirname, 'public', 'favicon.ico'),
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      backgroundThrottling: false, // Invariant: Never throttle Web Audio DSP when minimized or behind FiveM/Discord
+      autoplayPolicy: 'no-user-gesture-required' // Immediate audio playback
+    }
+  });
+
+  // Automatically grant media permissions (Microphone & Audio Sinks)
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission) => {
+    if (permission === 'media' || permission === 'mediaKeySystem' || permission === 'audio-capture') {
+      return true;
+    }
+    return true;
+  });
+
+  mainWindow.webContents.session.setDevicePermissionHandler((details) => {
+    return true;
+  });
+
+  // Load local UI directly from embedded server
+  mainWindow.loadURL('http://127.0.0.1:3300');
+
+  // Handle external links safely
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+app.whenReady().then(async () => {
+  await startLocalServer();
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});

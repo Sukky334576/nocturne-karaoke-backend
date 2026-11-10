@@ -2854,6 +2854,23 @@ body {
   font-size: 1.35rem;
 }
 
+.badge-desktop-native {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  letter-spacing: 0.5px;
+}
+body.is-desktop-app .web-only-fallback {
+  display: none !important;
+}
+
 .brand-title .brand-accent {
   background: linear-gradient(135deg, #00dfa2 0%, #00d2ff 100%);
   -webkit-background-clip: text;

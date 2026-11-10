@@ -135,10 +135,10 @@ async function startEphemeralServer() {
   testProcess = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
     cwd: __dirname,
     env: { ...process.env, PORT: '3399' },
-    stdio: 'ignore'
+    stdio: 'inherit'
   });
   // Wait up to 5s for server to boot
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 100; i++) {
     await new Promise(r => setTimeout(r, 100));
     if (await isPortOpen(testPort)) return;
   }
