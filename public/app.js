@@ -3744,14 +3744,22 @@ async function enumerateAudioDevices() {
 
       const opt2 = document.createElement('option');
       opt2.value = d.deviceId;
-      opt2.text = d.label || `Output Device ${i + 1}`;
+      let cableLabel = d.label || `Output Device ${i + 1}`;
+      if (cableLabel.toLowerCase().includes('cable input') || cableLabel.toLowerCase().includes('nocturne')) {
+        cableLabel = `🎙️ Nocturne Audio Line [CABLE Input]`;
+      }
+      opt2.text = cableLabel;
       virtualCableSelect.appendChild(opt2);
     });
 
     audioInputs.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      opt.text = d.label || `Microphone ${i + 1}`;
+      let micLabel = d.label || `Microphone ${i + 1}`;
+      if (micLabel.toLowerCase().includes('cable output')) {
+        micLabel = `⚠️ ห้ามเลือกช่องนี้ในแอป (ช่องนี้ไว้ใช้ใน FiveM/Discord): ${micLabel}`;
+      }
+      opt.text = micLabel;
       micSelect.appendChild(opt);
     });
 
@@ -3765,7 +3773,7 @@ async function enumerateAudioDevices() {
     if (virtualCableSelect.options.length === 0) {
       const defaultCableOpt = document.createElement('option');
       defaultCableOpt.value = 'default';
-      defaultCableOpt.text = 'CABLE Input (VB-Audio Virtual Cable)';
+      defaultCableOpt.text = '🎙️ Nocturne Audio Line [CABLE Input]';
       virtualCableSelect.appendChild(defaultCableOpt);
     }
     if (micSelect.options.length === 0) {
