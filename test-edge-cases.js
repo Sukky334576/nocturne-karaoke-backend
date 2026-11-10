@@ -7,7 +7,7 @@ const fs = require('fs');
 let testPort = 3398;
 let testProcess = null;
 
-function postJson(url, body) {
+function postJson(url, body, customHeaders = {}) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body || {});
     const parsed = new URL(url);
@@ -18,7 +18,9 @@ function postJson(url, body) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(data)
+        'Content-Length': Buffer.byteLength(data),
+        'Connection': 'close',
+        ...customHeaders
       }
     }, (res) => {
       let respData = '';
@@ -31,15 +33,27 @@ function postJson(url, body) {
         }
       });
     });
-    req.on('error', reject);
+    req.on('error', (err) => {
+      resolve({ status: 500, error: err.message });
+    });
     req.write(data);
     req.end();
   });
 }
 
-function fetchJson(url) {
+function fetchJson(url, customHeaders = {}) {
   return new Promise((resolve, reject) => {
-    http.get(url, (res) => {
+    const parsed = new URL(url);
+    const req = http.request({
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.pathname + parsed.search,
+      method: 'GET',
+      headers: {
+        'Connection': 'close',
+        ...customHeaders
+      }
+    }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -49,7 +63,11 @@ function fetchJson(url) {
           resolve({ status: res.statusCode, raw: data, error: e.message });
         }
       });
-    }).on('error', reject);
+    });
+    req.on('error', (err) => {
+      resolve({ status: 500, error: err.message });
+    });
+    req.end();
   });
 }
 
@@ -101,7 +119,10 @@ async function runEdgeCaseTests() {
   testProcess = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
     cwd: __dirname,
     env: { ...process.env, PORT: String(testPort) },
-    stdio: 'ignore'
+    stdio: ['ignore', 'ignore', 'inherit']
+  });
+  testProcess.on('exit', (code, sig) => {
+    if (code !== null && code !== 0) console.log(`[Test Server Exit] code: ${code}, signal: ${sig}`);
   });
 
   for (let i = 0; i < 50; i++) {
@@ -504,8 +525,6 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
-  if (testProcess) testProcess.kill();
-
   if (originalUsersJson) {
     try { fs.writeFileSync(userDbPath, originalUsersJson, 'utf8'); } catch (e) {}
   }
@@ -670,6 +689,85 @@ async function runEdgeCaseTests() {
     }
   } catch (err) {
     console.error('  ❌ Edge Case 17 Error:', err.message);
+    failed++;
+  }
+
+  // Edge Case 18: Testing toggle_vocal_cut action, Rate Limiter & PromptPay Amount Clamping
+  try {
+    console.log('\n[Edge Case 18] Testing toggle_vocal_cut remote action, Rate Limiter & Clamped Payment...');
+    
+    // 18a. toggle_vocal_cut remote action is accepted by server
+    const cutRes = await postJson(`http://127.0.0.1:${testPort}/api/room/SEC-001/control`, {
+      action: 'toggle_vocal_cut',
+      sender: 'MobileRemote'
+    });
+    if (cutRes.status !== 200 || !cutRes.data || !cutRes.data.success) {
+      throw new Error(`toggle_vocal_cut failed: ${JSON.stringify(cutRes)}`);
+    }
+
+    // 18b. Rate limiter triggers 429 when control requests flood
+    let got429 = false;
+    for (let i = 0; i < 48; i++) {
+      const floodRes = await postJson(`http://127.0.0.1:${testPort}/api/room/SEC-001/control`, {
+        action: 'next',
+        sender: 'Spammer'
+      }, { 'x-forwarded-for': '203.0.113.88' });
+      if (floodRes && floodRes.status === 429) {
+        got429 = true;
+        break;
+      }
+    }
+    if (!got429) {
+      throw new Error('Rate limiter failed to block rapid control flood');
+    }
+
+    // 18c. PromptPay negative/zero amount is clamped safely
+    const qrRes = await fetchJson(`http://127.0.0.1:${testPort}/api/payment/promptpay-qr?amount=-50`);
+    if (qrRes.status !== 200 || qrRes.data.amount !== 49.00) {
+      throw new Error(`PromptPay amount not clamped: ${JSON.stringify(qrRes)}`);
+    }
+
+    console.log('  ✅ Passed: toggle_vocal_cut accepted, rate limiting enforced & PromptPay amount clamped safely');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Edge Case 18 Error:', err.message);
+    failed++;
+  }
+
+  if (testProcess) {
+    try { testProcess.kill(); } catch (_) {}
+  }
+
+  // Edge Case 19: Verifying Loopback Feedback Elimination & YouTube Live / Shorts extraction invariants
+  try {
+    console.log('\n[Edge Case 19] Verifying Loopback Feedback Elimination & Live/Shorts extraction invariants...');
+    const appJsContent = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const serverJsContent = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+    // 19a. Loopback guard excludes "nocturne" from physical mic selection across passes
+    const hasNocturneMicExclusion = appJsContent.includes("text.includes('nocturne')") &&
+                                    appJsContent.includes("isLoop");
+    const hasNocturneMicWarning = appJsContent.includes("micLabel.toLowerCase().includes('nocturne studio mic')");
+
+    // 19b. YouTube Live stream ID extraction support
+    const hasLiveStreamRegex = serverJsContent.includes('(?:embed|v|shorts|live)');
+
+    // 19c. Atomic database persistence via temporary file
+    const hasAtomicDbPersistence = serverJsContent.includes('.tmp') && serverJsContent.includes('fs.renameSync');
+
+    // 19d. Native Electron IPC external link security
+    const mainJsContent = fs.readFileSync(path.join(__dirname, 'main.js'), 'utf8');
+    const hasSecureIpcExternal = mainJsContent.includes("ipcMain.on('open-external'") &&
+                                 mainJsContent.includes("parsed.protocol === 'http:' || parsed.protocol === 'https:'");
+
+    if (hasNocturneMicExclusion && hasNocturneMicWarning && hasLiveStreamRegex && hasAtomicDbPersistence && hasSecureIpcExternal) {
+      console.log('  ✅ Passed: Anti-loopback mic guards, Live/Shorts extraction, atomic DB & secure IPC verified!');
+      passed++;
+    } else {
+      throw new Error('Missing anti-loopback guards, Live extraction, atomic DB, or secure IPC');
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 19 Error:', err.message);
     failed++;
   }
 

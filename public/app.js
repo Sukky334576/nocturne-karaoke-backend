@@ -3756,7 +3756,7 @@ async function enumerateAudioDevices() {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
       let micLabel = d.label || `Microphone ${i + 1}`;
-      if (micLabel.toLowerCase().includes('cable output')) {
+      if (micLabel.toLowerCase().includes('cable output') || micLabel.toLowerCase().includes('nocturne studio mic') || (micLabel.toLowerCase().includes('nocturne') && micLabel.toLowerCase().includes('mic'))) {
         micLabel = `⚠️ ห้ามเลือกช่องนี้ในแอป (ช่องนี้ไว้ใช้ใน FiveM/Discord): ${micLabel}`;
       }
       opt.text = micLabel;
@@ -3802,7 +3802,7 @@ async function enumerateAudioDevices() {
     let cableFound = false;
     for (let i = 0; i < virtualCableSelect.options.length; i++) {
       const text = virtualCableSelect.options[i].text.toLowerCase();
-      if (text.includes('cable input') || (text.includes('cable') && !text.includes('16ch') && !text.includes('output'))) {
+      if (text.includes('cable input') || text.includes('nocturne') || (text.includes('cable') && !text.includes('16ch') && !text.includes('output'))) {
         virtualCableSelect.selectedIndex = i;
         setSinkCable(virtualCableSelect.value);
         cableFound = true;
@@ -3820,33 +3820,33 @@ async function enumerateAudioDevices() {
       }
     }
 
-    // 3. Auto-select Microphone (Strictly prioritize genuine physical inputs; reject Loopback, Playback, Stereo Mix, Cable Output)
+    // 3. Auto-select Microphone (Strictly prioritize genuine physical inputs; reject Loopback, Playback, Stereo Mix, Cable Output, Nocturne)
     let micIndex = -1;
     // Pass 1: Maono physical mic input ("in 1/2", "mic", "microphone")
     for (let i = 0; i < micSelect.options.length; i++) {
       const text = micSelect.options[i].text.toLowerCase();
-      const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx');
+      const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx') || text.includes('nocturne');
       if (!isLoop && (text.includes('maono') || text.includes('fairy')) && (text.includes('in') || text.includes('mic') || text.includes('input'))) {
         micIndex = i;
         break;
       }
     }
-    // Pass 2: Any Maono input device that is strictly NOT loopback/playback/fx/cable
+    // Pass 2: Any Maono input device that is strictly NOT loopback/playback/fx/cable/nocturne
     if (micIndex === -1) {
       for (let i = 0; i < micSelect.options.length; i++) {
         const text = micSelect.options[i].text.toLowerCase();
-        const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx');
+        const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx') || text.includes('nocturne');
         if (!isLoop && (text.includes('maono') || text.includes('fairy'))) {
           micIndex = i;
           break;
         }
       }
     }
-    // Pass 3: Any physical microphone input (excluding loopback/playback/stereo mix/cable)
+    // Pass 3: Any physical microphone input (excluding loopback/playback/stereo mix/cable/nocturne)
     if (micIndex === -1) {
       for (let i = 0; i < micSelect.options.length; i++) {
         const text = micSelect.options[i].text.toLowerCase();
-        const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx');
+        const isLoop = text.includes('loopback') || text.includes('playback') || text.includes('stereo mix') || text.includes('what u hear') || text.includes('cable') || text.includes('fx') || text.includes('nocturne');
         if (!isLoop && (text.includes('mic') || text.includes('microphone') || text.includes('in') || text.includes('input'))) {
           micIndex = i;
           break;

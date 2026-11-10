@@ -24,10 +24,15 @@ function startLocalServer() {
   return new Promise((resolve) => {
     try {
       // Check if server is already running on port 3300
-      const req = http.get('http://127.0.0.1:3300/api/ping', { timeout: 1000 }, (res) => {
+      const req = http.get('http://127.0.0.1:3300/api/ping', { timeout: 1200 }, (res) => {
         if (res.statusCode === 200) {
           console.log('⚡ Local Karaoke engine already active on port 3300');
           return resolve();
+        } else {
+          console.log('🚀 Spawning embedded Nocturne Audio Server on port 3300...');
+          process.env.PORT = '3300';
+          serverInstance = require('./server.js');
+          setTimeout(resolve, 800);
         }
       });
       req.on('error', () => {
@@ -80,8 +85,18 @@ function createWindow() {
     return true;
   });
 
-  // Load local UI directly from embedded server
-  mainWindow.loadURL('http://127.0.0.1:3300');
+  // Load local UI directly from embedded server with auto-retry
+  const loadApp = () => {
+    mainWindow.loadURL('http://127.0.0.1:3300').catch((err) => {
+      console.warn('Initial loadURL note, retrying...', err.message);
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL('http://127.0.0.1:3300').catch(() => {});
+        }
+      }, 1000);
+    });
+  };
+  loadApp();
 
   // Handle external links safely
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -94,6 +109,18 @@ function createWindow() {
   });
 }
 
+// Secure IPC handler for opening external URLs
+ipcMain.on('open-external', (event, url) => {
+  if (url && typeof url === 'string') {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        shell.openExternal(url);
+      }
+    } catch (_) {}
+  }
+});
+
 app.whenReady().then(async () => {
   await startLocalServer();
   createWindow();
@@ -101,6 +128,12 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+app.on('before-quit', () => {
+  if (serverInstance && typeof serverInstance.close === 'function') {
+    try { serverInstance.close(); } catch (_) {}
+  }
 });
 
 app.on('window-all-closed', () => {

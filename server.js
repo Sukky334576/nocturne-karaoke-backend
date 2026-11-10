@@ -63,7 +63,7 @@ function extractValidYouTubeId(str) {
         const v = parsed.searchParams.get('v');
         if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
       }
-      const match = parsed.pathname.match(/^\/(?:embed|v|shorts)\/([a-zA-Z0-9_-]{11})/);
+      const match = parsed.pathname.match(/^\/(?:embed|v|shorts|live)\/([a-zA-Z0-9_-]{11})/);
       if (match && match[1]) return match[1];
     }
   } catch (_) {}
@@ -494,6 +494,9 @@ async function extractStreamUrl(targetUrl) {
 
 // API: Search YouTube with Instant Sub-Second InnerTube API & 1ms In-Memory Caching
 app.get('/api/search', async (req, res) => {
+  if (!checkRateLimit(req, 'search', 60, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many search requests. Please slow down.' });
+  }
   const rawQuery = req.query.q;
   if (!rawQuery) return res.status(400).json({ error: 'Query parameter q is required' });
   const query = rawQuery.trim().toLowerCase();
@@ -857,13 +860,18 @@ function persistUserDb() {
     for (const [k, v] of usersDb.entries()) {
       obj[k] = v;
     }
-    fs.writeFileSync(userDbFile, JSON.stringify(obj, null, 2), 'utf8');
+    const tempFile = `${userDbFile}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(obj, null, 2), 'utf8');
+    fs.renameSync(tempFile, userDbFile);
   } catch (e) {
     console.warn('User DB save warning:', e.message);
   }
 }
 
 app.post('/api/auth/register', (req, res) => {
+  if (!checkRateLimit(req, 'auth', 25, 60 * 1000)) {
+    return res.status(429).json({ error: 'มีคำขอถี่เกินไป กรุณารอสักครู่' });
+  }
   const username = sanitizeText(req.body && req.body.username, 30);
   const password = req.body && req.body.password;
   const initialPreset = req.body && req.body.preset;
@@ -909,6 +917,9 @@ app.post('/api/auth/register', (req, res) => {
 });
 
 app.post('/api/auth/login', (req, res) => {
+  if (!checkRateLimit(req, 'auth', 25, 60 * 1000)) {
+    return res.status(429).json({ error: 'มีคำขอถี่เกินไป กรุณารอสักครู่' });
+  }
   const username = sanitizeText(req.body && req.body.username, 30);
   const password = req.body && req.body.password;
 
@@ -1085,7 +1096,8 @@ function generatePromptPayPayload(target, amount) {
 
 // PromptPay QR Code Generation for Pro Pack (49 THB)
 app.get('/api/payment/promptpay-qr', (req, res) => {
-  const amount = parseFloat(req.query.amount) || 49.00;
+  const parsedAmt = parseFloat(req.query.amount);
+  const amount = (isNaN(parsedAmt) || parsedAmt <= 0) ? 49.00 : Math.min(100000, parsedAmt);
   const username = sanitizeText(req.query.username, 30) || 'Guest';
   const promptpayId = process.env.PROMPTPAY_ID || '0812345678';
   const ref = `PRO-${Date.now().toString().slice(-6)}`;
@@ -1391,6 +1403,10 @@ app.post('/api/room/:code/sync', (req, res) => {
 
 // Remote triggers playback action (Play/Pause, Skip, Ducking)
 app.post('/api/room/:code/control', (req, res) => {
+  if (!checkRateLimit(req, 'control', 45, 10 * 1000)) {
+    return res.status(429).json({ error: 'Too many control requests. Please slow down.' });
+  }
+
   const norm = normalizeRoomCode(req.params.code);
   const room = rooms.get(norm);
   if (!room) return res.status(404).json({ error: 'Room not found' });
@@ -1400,7 +1416,7 @@ app.post('/api/room/:code/control', (req, res) => {
   }
 
   const { action, payload, sender } = req.body || {};
-  const validActions = ['play', 'pause', 'toggle', 'next', 'prev', 'ducking', 'play_now'];
+  const validActions = ['play', 'pause', 'toggle', 'next', 'prev', 'ducking', 'play_now', 'toggle_vocal_cut'];
   if (!validActions.includes(action)) {
     return res.status(400).json({ error: 'Invalid action' });
   }
@@ -1553,6 +1569,10 @@ app.post('/api/room/:code/reaction', (req, res) => {
 
 // Fast-Pass VIP Tip & Superchat Broadcast
 app.post('/api/room/:code/tip', (req, res) => {
+  if (!checkRateLimit(req, 'tip', 20, 10 * 1000)) {
+    return res.status(429).json({ error: 'Too many tip requests. Please slow down.' });
+  }
+
   const norm = normalizeRoomCode(req.params.code);
   const room = rooms.get(norm);
   if (!room) return res.status(404).json({ error: 'Room not found' });
@@ -1606,6 +1626,8 @@ setTimeout(() => {
   });
 }, 2000);
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`⚡ NOCTURNE Studio Engine listening on port ${PORT}`);
 });
+
+module.exports = server;
