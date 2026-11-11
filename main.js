@@ -88,6 +88,24 @@ function createWindow() {
     return true;
   });
 
+  // Enable YouTube embed playback for restricted music videos (override Referer & X-Frame-Options)
+  const ytFilter = {
+    urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*']
+  };
+
+  mainWindow.webContents.session.webRequest.onBeforeSendHeaders(ytFilter, (details, callback) => {
+    details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+    details.requestHeaders['Origin'] = 'https://www.youtube.com';
+    callback({ cancel: false, requestHeaders: details.requestHeaders });
+  });
+
+  mainWindow.webContents.session.webRequest.onHeadersReceived(ytFilter, (details, callback) => {
+    const responseHeaders = Object.assign({}, details.responseHeaders);
+    delete responseHeaders['x-frame-options'];
+    delete responseHeaders['X-Frame-Options'];
+    callback({ cancel: false, responseHeaders });
+  });
+
   // Load local UI directly from embedded server with auto-retry
   const loadApp = () => {
     mainWindow.loadURL('http://127.0.0.1:3300').catch((err) => {

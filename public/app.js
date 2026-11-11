@@ -1880,6 +1880,7 @@ function initYtPlayer(videoId, startSec = 0) {
         mute: muteFlag,
         enablejsapi: 1,
         origin: origin,
+        widget_referrer: 'https://www.youtube.com',
         start: Math.floor(startSec)
       },
       events: {
@@ -1895,6 +1896,25 @@ function initYtPlayer(videoId, startSec = 0) {
             sendYtCommand('mute');
           }
           sendYtCommand('playVideo');
+        },
+        onError: (e) => {
+          console.warn('⚡ YouTube embed restricted (code ' + (e && e.data) + '). Audio continues cleanly through Nocturne DSP.');
+          // Error 101/150: Video owner does not allow embedding
+          // Fall back gracefully to Studio Stage Audio view with album art & lyrics
+          if (videoPlaceholder && currentTrack) {
+            videoPlaceholder.innerHTML = `
+              <div class="placeholder-content" style="padding: 20px; text-align: center;">
+                <div style="width: 140px; height: 140px; margin: 0 auto 16px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 2px solid rgba(245,158,11,0.4);">
+                  <img src="${currentTrack.thumbnail || ''}" style="width: 100%; height: 100%; object-fit: cover;" alt="Artwork" onerror="this.style.display='none'">
+                </div>
+                <h3 style="font-size: 18px; color: #fff; margin-bottom: 6px;">${escapeHtml(currentTrack.title || 'Karaoke Track')}</h3>
+                <p style="font-size: 13px; color: #f59e0b; margin-bottom: 8px;">🎙️ สตรีมเสียงผ่าน Nocturne DSP Engine • ไร้เสียงสะท้อน</p>
+                <span style="font-size: 11px; padding: 4px 10px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: 20px; color: #fde68a;">โหมดสตูดิโอเสียงคมชัด 100%</span>
+              </div>
+            `;
+            videoPlaceholder.classList.remove('hidden');
+            ytPlayerDiv.classList.add('hidden');
+          }
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
@@ -1923,7 +1943,7 @@ function initYtPlayer(videoId, startSec = 0) {
     });
   } catch (err) {
     console.warn('YT.Player init fallback:', err);
-    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}&widget_referrer=https%3A%2F%2Fwww.youtube.com" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
   }
   startYtProgressTracker();
 }
@@ -1943,12 +1963,13 @@ function startYtProgressTracker() {
     }
 
     let curr = 0;
-    if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+    const isYtPlaying = ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1;
+    if (isYtPlaying && typeof ytPlayer.getCurrentTime === 'function') {
       const ytCurr = ytPlayer.getCurrentTime();
       if (ytCurr !== undefined && isFinite(ytCurr) && ytCurr >= 0) {
         curr = ytCurr;
       }
-    } else if (audioSourceElement && !audioSourceElement.paused) {
+    } else if (audioSourceElement && (!audioSourceElement.paused || isPlaying)) {
       curr = streamOffsetSeconds + (audioSourceElement.currentTime || 0);
     }
 
