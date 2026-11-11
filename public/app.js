@@ -430,6 +430,17 @@ const promptPayTimerText = document.getElementById('promptPayTimerText');
 const confirmPaidBtn = document.getElementById('confirmPaidBtn');
 const simulatePayBtn = document.getElementById('simulatePayBtn');
 
+// One-Time Tester License Key Modal DOM
+const redeemTesterBtn = document.getElementById('redeemTesterBtn');
+const testerBadgeIcon = document.getElementById('testerBadgeIcon');
+const testerBadgeLabel = document.getElementById('testerBadgeLabel');
+const redeemModal = document.getElementById('redeemModal');
+const closeRedeemModalBtn = document.getElementById('closeRedeemModalBtn');
+const redeemCodeInput = document.getElementById('redeemCodeInput');
+const redeemErrorMsg = document.getElementById('redeemErrorMsg');
+const submitRedeemBtn = document.getElementById('submitRedeemBtn');
+const profileTesterCodeTag = document.getElementById('profileTesterCodeTag');
+
 // Onboarding Setup Wizard DOM
 const onboardingWizardModal = document.getElementById('onboardingWizardModal');
 const closeWizardModalBtn = document.getElementById('closeWizardModalBtn');
@@ -718,6 +729,21 @@ function loadUserProfile() {
       })
       .catch(() => {});
   }
+
+  // Check Device / VIP Tester Activation status on startup
+  fetch('/api/license/status' + (currentUser.username ? ('?username=' + encodeURIComponent(currentUser.username)) : ''))
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.isActivated) {
+        if (currentUser.tier !== 'pro' || !currentUser.isTesterPro) {
+          currentUser.tier = 'pro';
+          currentUser.isTesterPro = true;
+          localStorage.setItem('karaoke_current_user', JSON.stringify(currentUser));
+          updateAuthUI();
+        }
+      }
+    })
+    .catch(() => {});
 
 
   // Strict Gated Funnel:
@@ -1083,7 +1109,7 @@ function updateAuthUI() {
     if (profileUsernameText) profileUsernameText.innerText = displayName;
     if (profileTierBadge) {
       if (isPro) {
-        profileTierBadge.innerText = 'PRO PACK ⭐ (49฿/เดือน)';
+        profileTierBadge.innerText = '✨ TESTER PRO';
         profileTierBadge.style.background = 'rgba(216,177,93,0.2)';
         profileTierBadge.style.borderColor = '#d8b15d';
         profileTierBadge.style.color = '#f4e6c3';
@@ -1095,16 +1121,30 @@ function updateAuthUI() {
       }
     }
     if (profileProStatusPill) {
-      profileProStatusPill.innerText = isPro ? 'Active Pro Pack ⭐' : 'Free Version';
+      profileProStatusPill.innerText = isPro ? '✨ TESTER PRO ACTIVE' : 'รอการเปิดสิทธิ์';
       profileProStatusPill.style.color = isPro ? '#d8b15d' : '#cfd3dc';
     }
     if (upgradeProBtn) {
       if (isPro) {
-        upgradeProBtn.innerText = '👑 คุณใช้งาน PRO PACK VIP เรียบร้อยแล้ว';
+        upgradeProBtn.innerText = '👑 สิทธิ์ VIP TESTER ทำงานอยู่';
         upgradeProBtn.style.opacity = '0.85';
       } else {
-        upgradeProBtn.innerText = '⭐ ทดลอง / ปลดล็อก Pro Pack (49.- / เดือน)';
+        upgradeProBtn.innerText = '🔑 กรอกโค้ดทดลอง (Redeem Tester Key)';
         upgradeProBtn.style.opacity = '1';
+      }
+    }
+
+    if (redeemTesterBtn) {
+      if (isPro) {
+        if (testerBadgeIcon) testerBadgeIcon.innerText = '✨';
+        if (testerBadgeLabel) testerBadgeLabel.innerText = 'TESTER PRO';
+        redeemTesterBtn.classList.add('active-vip-tester');
+        redeemTesterBtn.title = 'สิทธิ์ VIP Tester เปิดใช้งานอยู่ (ปลดล็อกทุกฟังก์ชัน Pro)';
+      } else {
+        if (testerBadgeIcon) testerBadgeIcon.innerText = '🔑';
+        if (testerBadgeLabel) testerBadgeLabel.innerText = 'กรอกโค้ดทดลอง';
+        redeemTesterBtn.classList.remove('active-vip-tester');
+        redeemTesterBtn.title = 'กรอกโค้ดทดลองใช้งาน Single-Use เพื่อปลดล็อก Pro';
       }
     }
 
@@ -1451,7 +1491,7 @@ async function verifyPromptPayPayment(isSimulated = false) {
       saveUserProfile();
       updateAuthUI();
       closePromptPayModal();
-      alert('🎉 ชำระเงินสำเร็จ!\nยินดีต้อนรับสู่ Nocturne PRO PACK VIP (49.-/เดือน)\nปลดล็อก Reverb มิติสตูดิโอ, Vocal EQ, Doubler, และ Soundboard 30 วันเรียบร้อยแล้ว!');
+      alert('🎉 ยืนยันสิทธิ์สำเร็จ!\nยินดีต้อนรับสู่ Nocturne VIP TESTER PRO\nปลดล็อก Reverb มิติสตูดิโอ, Vocal EQ, Doubler, และ Soundboard เรียบร้อยแล้ว!');
     } else {
       alert(data.error || 'ไม่สามารถยืนยันการชำระเงินได้ กรุณาลองใหม่อีกครั้ง');
     }
@@ -1475,7 +1515,112 @@ if (simulatePayBtn) simulatePayBtn.addEventListener('click', () => verifyPromptP
 
 if (upgradeProBtn) {
   upgradeProBtn.addEventListener('click', () => {
-    openPromptPayModal();
+    if (currentUser.tier === 'pro') {
+      showHostToast('✨ บัญชีนี้เปิดใช้งานสิทธิ์ VIP Tester Pro เรียบร้อยแล้ว');
+    } else {
+      openRedeemModal();
+    }
+  });
+}
+
+// --- One-Time Tester Key Redemption Controller ---
+function openRedeemModal() {
+  if (!redeemModal) return;
+  if (redeemErrorMsg) {
+    redeemErrorMsg.style.display = 'none';
+    redeemErrorMsg.innerText = '';
+  }
+  if (redeemCodeInput) {
+    redeemCodeInput.value = '';
+  }
+  redeemModal.classList.remove('hidden');
+  setTimeout(() => {
+    if (redeemCodeInput) redeemCodeInput.focus();
+  }, 100);
+}
+
+function closeRedeemModal() {
+  if (redeemModal) redeemModal.classList.add('hidden');
+}
+
+if (closeRedeemModalBtn) {
+  closeRedeemModalBtn.addEventListener('click', closeRedeemModal);
+}
+
+if (redeemTesterBtn) {
+  redeemTesterBtn.addEventListener('click', () => {
+    if (currentUser.tier === 'pro') {
+      showHostToast('✨ บัญชีนี้เปิดใช้งานสิทธิ์ VIP Tester Pro เรียบร้อยแล้ว');
+    } else {
+      openRedeemModal();
+    }
+  });
+}
+
+async function submitRedeemCode() {
+  if (!redeemCodeInput) return;
+  const rawCode = (redeemCodeInput.value || '').trim();
+  if (!rawCode) {
+    if (redeemErrorMsg) {
+      redeemErrorMsg.innerText = 'กรุณาระบุรหัสโค้ดทดลอง (License Key)';
+      redeemErrorMsg.style.display = 'block';
+    }
+    return;
+  }
+
+  const code = rawCode.toUpperCase();
+  if (submitRedeemBtn) {
+    submitRedeemBtn.disabled = true;
+    submitRedeemBtn.innerText = '⏳ กำลังตรวจสอบรหัส...';
+  }
+
+  try {
+    const uname = currentUser.username || (currentUser.isLoggedIn ? currentUser.username : 'Tester');
+    const res = await fetch('/api/license/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: code,
+        username: uname
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      currentUser.tier = 'pro';
+      currentUser.isTesterPro = true;
+      currentUser.proExpiresAt = null;
+      saveUserProfile();
+      updateAuthUI();
+      closeRedeemModal();
+      showHostToast('🎉 ปลดล็อกสิทธิ์ VIP Tester สำเร็จแล้ว! ยินดีต้อนรับสู่ Nocturne Pro');
+      alert(`🎉 ปลดล็อกสิทธิ์ VIP Tester สำเร็จ!\nรหัส: ${data.code}\n\nปลดล็อก Studio Reverb, Auto-Tune, 3-Band EQ, Doubler, Ducking และ Soundboard ครบทุกฟังก์ชันเรียบร้อยแล้ว!`);
+    } else {
+      if (redeemErrorMsg) {
+        redeemErrorMsg.innerText = data.error || 'รหัสโค้ดไม่ถูกต้องหรือถูกใช้งานไปแล้ว';
+        redeemErrorMsg.style.display = 'block';
+      }
+    }
+  } catch (err) {
+    console.error('License redeem error:', err);
+    if (redeemErrorMsg) {
+      redeemErrorMsg.innerText = 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง';
+      redeemErrorMsg.style.display = 'block';
+    }
+  } finally {
+    if (submitRedeemBtn) {
+      submitRedeemBtn.disabled = false;
+      submitRedeemBtn.innerText = '🔓 ยืนยันรหัส & ปลดล็อก Pro ทันที';
+    }
+  }
+}
+
+if (submitRedeemBtn) {
+  submitRedeemBtn.addEventListener('click', submitRedeemCode);
+}
+if (redeemCodeInput) {
+  redeemCodeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitRedeemCode();
   });
 }
 
@@ -2978,7 +3123,7 @@ function startVuMeters() {
         trafficMicDot.classList.toggle('active', isAudioInitialized && percent > 2);
       }
 
-      // Smart Voice Auto-Ducking (PRO 49฿)
+      // Smart Voice Auto-Ducking (VIP TESTER)
       if (isSmartDuckingEnabled && currentUser.tier === 'pro' && duckingGain && audioCtx && !isDucked) {
         // Voice threshold (> 35% or maxVal > 150) prevents room/mic noise from false triggering
         const isSpeaking = (percent > 35 || maxVal > 150);
@@ -4100,7 +4245,7 @@ function setPitchShift(semitone, shouldSaveSongKey = true) {
     if (!isPro && !currentUser.songKeys[currentTrack.id] && existingKeys.length >= 3) {
       console.log('⚠️ [Song Key Memory] Free tier limited to 3 saved song keys.');
       if (typeof showHostToast === 'function') {
-        showHostToast('⚠️ บันทึกคีย์เพลงครบ 3 เพลงแล้ว (Free) • อัปเกรด PRO เพื่อบันทึกไม่จำกัด');
+        showHostToast('⚠️ บันทึกคีย์เพลงครบ 3 เพลงแล้ว (Free) • กรอกโค้ดทดลอง VIP TESTER เพื่อบันทึกไม่จำกัด');
       }
     } else {
       currentUser.songKeys[currentTrack.id] = semitone;
@@ -4204,7 +4349,10 @@ if (vocalEqToggle) {
       e.target.checked = false;
       isVocalEqEnabled = false;
       updateVocalEqParams();
-      alert('✨ 3-Band Studio Vocal EQ เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nปลดล็อกเพื่อเกลี่ยเนื้อเสียงร้องให้คมชัดใสแบบไมค์หมื่น!');
+      openRedeemModal();
+      if (typeof showHostToast === 'function') {
+        showHostToast('🔑 3-Band Vocal EQ สำหรับ VIP TESTER (กรุณากรอกโค้ดทดลอง)');
+      }
       return;
     }
     isVocalEqEnabled = e.target.checked;
@@ -4216,7 +4364,10 @@ if (vocalEqToggle) {
 if (eqLowCutBtn) {
   eqLowCutBtn.addEventListener('click', () => {
     if (currentUser.tier !== 'pro') {
-      alert('✨ Low-Cut Filter เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)');
+      openRedeemModal();
+      if (typeof showHostToast === 'function') {
+        showHostToast('🔑 Low-Cut Filter สำหรับสมาชิกระดับ VIP TESTER');
+      }
       return;
     }
     isEqLowCutActive = !isEqLowCutActive;
@@ -4264,7 +4415,10 @@ if (doublerToggle) {
       e.target.checked = false;
       isDoublerEnabled = false;
       updateDoublerParams();
-      alert('✨ Vocal Doubler & Harmony เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nสร้างมิติเสียงร้องคู่และเสียงประสานสเตอริโอ เพิ่มความหนาในท่อนฮุก!');
+      openRedeemModal();
+      if (typeof showHostToast === 'function') {
+        showHostToast('🔑 Vocal Doubler & Harmony สำหรับสมาชิกระดับ VIP TESTER');
+      }
       return;
     }
     isDoublerEnabled = e.target.checked;
@@ -4290,7 +4444,10 @@ if (smartDuckingToggle) {
     if (e.target.checked && currentUser.tier !== 'pro') {
       e.target.checked = false;
       isSmartDuckingEnabled = false;
-      alert('✨ Smart Voice Ducking เป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nลดเสียงดนตรีอัตโนมัติเมื่อเริ่มพูดหรือ MC ใน FiveM/Discord!');
+      openRedeemModal();
+      if (typeof showHostToast === 'function') {
+        showHostToast('🔑 Smart Voice Ducking สำหรับสมาชิกระดับ VIP TESTER');
+      }
       return;
     }
     isSmartDuckingEnabled = e.target.checked;
@@ -4340,9 +4497,12 @@ function playSfx(sfxType) {
     audioCtx.resume();
   }
 
-  // Free tier can preview airhorn and rimshot, others require PRO
+  // Free tier can preview airhorn and rimshot, others require VIP TESTER
   if (currentUser.tier !== 'pro' && !['airhorn', 'rimshot'].includes(sfxType)) {
-    alert('✨ DJ Soundboard ครบทุกเสียงเป็นสิทธิพิเศษของ NOCTURNE PRO PACK (49.-/เดือน)\n\nปลดล็อกเพื่อส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM / Discord ได้ไม่จำกัด!');
+    openRedeemModal();
+    if (typeof showHostToast === 'function') {
+      showHostToast('🔑 DJ Soundboard ครบทุกเสียงสำหรับผู้ทดสอบ VIP TESTER');
+    }
     return;
   }
 
@@ -4643,7 +4803,10 @@ function renderSearchResults(videos) {
       } else if (e.target.classList.contains('priority-q-btn') || e.target.closest('.priority-q-btn')) {
         e.stopPropagation();
         if (currentUser.tier !== 'pro') {
-          alert('👑 ฟังก์ชันแทรกเพลงเป็นคิวถัดไป (Priority Queue) สงวนสิทธิ์สำหรับสมาชิกระดับ PRO PACK (49.- / เดือน)\nกรุณากดไอคอนโปรไฟล์เพื่อทดลองใช้งาน Pro');
+          openRedeemModal();
+          if (typeof showHostToast === 'function') {
+            showHostToast('👑 ฟังก์ชันแทรกเพลงเป็นคิวถัดไปสำหรับผู้ทดสอบ VIP TESTER (กรุณากรอกโค้ดทดลอง)');
+          }
           return;
         }
         if (queue.length >= 100) {
@@ -5137,7 +5300,10 @@ function renderQueue(shouldSync = true) {
 
 window.jumpToTopQueue = function(idx) {
   if (currentUser.tier !== 'pro') {
-    alert('👑 ฟังก์ชันลัดคิวเพลง (VIP Priority Queue) สงวนสิทธิ์สำหรับสมาชิกระดับ PRO PACK (49.- / เดือน)');
+    openRedeemModal();
+    if (typeof showHostToast === 'function') {
+      showHostToast('👑 ฟังก์ชันลัดคิวเพลง VIP Priority Queue สำหรับผู้ทดสอบ VIP TESTER');
+    }
     return;
   }
   if (idx > 0 && idx < queue.length) {

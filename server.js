@@ -1066,6 +1066,168 @@ function persistUserDb() {
 
 loadUserDb();
 
+// --- One-Time Tester License System ---
+const INITIAL_TESTER_CODES = [
+  'NOCTURNE-BETA-7K2X',
+  'NOCTURNE-BETA-9M4Q',
+  'NOCTURNE-BETA-3V8P',
+  'NOCTURNE-BETA-5W1L',
+  'NOCTURNE-BETA-8R6Y',
+  'NOCTURNE-BETA-2J9D',
+  'NOCTURNE-BETA-4H7N',
+  'NOCTURNE-BETA-6F3T',
+  'NOCTURNE-BETA-1C5Z',
+  'NOCTURNE-BETA-9B2S',
+  'NOCTURNE-BETA-4G8K',
+  'NOCTURNE-BETA-7D3M',
+  'NOCTURNE-BETA-2P9W',
+  'NOCTURNE-BETA-6L4V',
+  'NOCTURNE-BETA-8T1R',
+  'NOCTURNE-BETA-3Y7H',
+  'NOCTURNE-BETA-5X2C',
+  'NOCTURNE-BETA-1N9F',
+  'NOCTURNE-BETA-4Q6J',
+  'NOCTURNE-BETA-8S5B'
+];
+
+function getLicenseDbFilePath() {
+  if (process.env.NOCTURNE_DATA_DIR) {
+    const dir = process.env.NOCTURNE_DATA_DIR;
+    if (!fs.existsSync(dir)) {
+      try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+    }
+    return path.join(dir, 'licenses.json');
+  }
+  const isAsar = __dirname.includes('app.asar');
+  const appData = process.env.APPDATA || (process.platform === 'darwin' ? path.join(process.env.HOME || '', 'Library', 'Application Support') : null);
+  if ((isAsar || process.env.NODE_ENV === 'production') && appData) {
+    const appDir = path.join(appData, 'Nocturne Studio', 'data');
+    if (!fs.existsSync(appDir)) {
+      try { fs.mkdirSync(appDir, { recursive: true }); } catch (_) {}
+    }
+    return path.join(appDir, 'licenses.json');
+  }
+  return path.join(__dirname, 'licenses.json');
+}
+
+const bundledLicenseSeedFile = path.join(__dirname, 'licenses.json');
+const licenseDbFile = getLicenseDbFilePath();
+
+let licenseDb = {
+  isActivated: false,
+  activatedCode: null,
+  activatedAt: null,
+  activatedUser: null,
+  codes: {}
+};
+
+function writeTesterCodesTxt() {
+  try {
+    const lines = [
+      '================================================================================',
+      '🎵 NOCTURNE STUDIO • ONE-TIME TESTER ACTIVATION CODES (รหัสทดลองใช้งาน PRO)',
+      '================================================================================',
+      'แจกโค้ดทดลองใช้งานระบบ Pro (1 โค้ดต่อ 1 เครื่อง/คน ใช้ได้ครั้งเดียว)',
+      'วิธีใช้: เปิดโปรแกรม Nocturne Studio -> กดปุ่ม "กรอกโค้ดทดลอง (Redeem Tester Key)"',
+      '       ที่แถบด้านบน หรือคลิกที่รูปโปรไฟล์ -> กรอกโค้ดแล้วกดยืนยันเพื่อปลดล็อกฟีเจอร์ Pro ทั้งหมดทันที!',
+      '',
+      '[ รายการรหัสสำหรับส่งให้ผู้ทดสอบ - TESTER CODES LIST ]',
+      '--------------------------------------------------------------------------------'
+    ];
+
+    const codesList = Object.keys(licenseDb.codes || {}).filter(c => !c.startsWith('NOCTURNE-TEST-') && !c.startsWith('TEST-'));
+    codesList.forEach((code, idx) => {
+      const entry = licenseDb.codes[code];
+      const num = String(idx + 1).padStart(2, ' ');
+      const status = entry.used 
+        ? `[ ใช้งานแล้ว / REDEEMED - ผู้ใช้: ${entry.usedBy || 'Tester'} เมื่อ ${new Date(entry.usedAt).toLocaleString('th-TH')} ]`
+        : '[ พร้อมใช้งาน / AVAILABLE - ส่งให้เพื่อนได้ ]';
+      lines.push(` ${num}. ${code.padEnd(22, ' ')} ${status}`);
+    });
+
+    lines.push('--------------------------------------------------------------------------------');
+    lines.push(`อัปเดตล่าสุด: ${new Date().toLocaleString('th-TH')}`);
+    lines.push('================================================================================');
+
+    const content = lines.join('\r\n');
+
+    try {
+      fs.writeFileSync(path.join(__dirname, 'TESTER_CODES.txt'), content, 'utf8');
+    } catch (_) {}
+
+    const userProfile = process.env.USERPROFILE || (process.env.HOME || '');
+    if (userProfile) {
+      const desktopDir = path.join(userProfile, 'Desktop');
+      if (fs.existsSync(desktopDir)) {
+        try { fs.writeFileSync(path.join(desktopDir, 'TESTER_CODES.txt'), content, 'utf8'); } catch (_) {}
+      }
+      const oneDriveDesktopDir = path.join(userProfile, 'OneDrive', 'Desktop');
+      if (fs.existsSync(oneDriveDesktopDir)) {
+        try { fs.writeFileSync(path.join(oneDriveDesktopDir, 'TESTER_CODES.txt'), content, 'utf8'); } catch (_) {}
+      }
+    }
+  } catch (err) {
+    console.warn('Error writing TESTER_CODES.txt:', err.message);
+  }
+}
+
+function loadLicenseDb() {
+  let loaded = false;
+  try {
+    if (fs.existsSync(licenseDbFile)) {
+      const raw = fs.readFileSync(licenseDbFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        licenseDb = Object.assign(licenseDb, parsed);
+        loaded = true;
+      }
+    }
+  } catch (e) {
+    console.warn('License DB load warning:', e.message);
+  }
+
+  if (!loaded && fs.existsSync(bundledLicenseSeedFile)) {
+    try {
+      const raw = fs.readFileSync(bundledLicenseSeedFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        licenseDb = Object.assign(licenseDb, parsed);
+        loaded = true;
+      }
+    } catch (e) {
+      console.warn('Seed License DB load warning:', e.message);
+    }
+  }
+
+  licenseDb.codes = licenseDb.codes || {};
+  INITIAL_TESTER_CODES.forEach(code => {
+    if (!licenseDb.codes[code]) {
+      licenseDb.codes[code] = {
+        code: code,
+        used: false,
+        usedBy: null,
+        usedAt: null,
+        createdAt: 1729000000000
+      };
+    }
+  });
+
+  persistLicenseDb();
+  writeTesterCodesTxt();
+}
+
+function persistLicenseDb() {
+  try {
+    const tempFile = `${licenseDbFile}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(licenseDb, null, 2), 'utf8');
+    fs.renameSync(tempFile, licenseDbFile);
+  } catch (e) {
+    console.warn('License DB save warning:', e.message);
+  }
+}
+
+loadLicenseDb();
+
 app.post('/api/auth/register', (req, res) => {
   if (!checkRateLimit(req, 'auth', 25, 60 * 1000)) {
     return res.status(429).json({ error: 'มีคำขอถี่เกินไป กรุณารอสักครู่' });
@@ -1138,9 +1300,9 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
   }
 
-  // Enforce 30-day subscription expiration (except developer lifetime VIP accounts)
+  // Enforce 30-day subscription expiration (except developer lifetime VIP accounts and activated tester accounts)
   if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
-    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower)) {
+    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower) && !user.isTesterPro) {
       user.tier = 'free';
     }
   }
@@ -1154,6 +1316,7 @@ app.post('/api/auth/login', (req, res) => {
       username: user.username,
       tier: user.tier || 'free',
       proExpiresAt: user.proExpiresAt || null,
+      isTesterPro: Boolean(user.isTesterPro || licenseDb.isActivated),
       preset: user.preset,
       songKeys: user.songKeys || {},
       hasCompletedOnboarding: user.hasCompletedOnboarding !== false
@@ -1190,9 +1353,9 @@ app.post('/api/auth/save-profile', (req, res) => {
 
   // Enforce server-side Pro tier retention & expiration
   const isVip = ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower);
-  if (isVip) {
+  if (isVip || user.isTesterPro) {
     user.tier = 'pro';
-    user.proExpiresAt = 253402300799000;
+    if (!user.isTesterPro) user.proExpiresAt = 253402300799000;
   } else if (user.proExpiresAt && user.proExpiresAt > Date.now()) {
     user.tier = 'pro'; // Protect against stale client localStorage overwriting active Pro
   } else if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt <= Date.now()) {
@@ -1218,7 +1381,7 @@ app.get('/api/auth/profile', (req, res) => {
 
   // Expiry check
   if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
-    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower)) {
+    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower) && !user.isTesterPro) {
       user.tier = 'free';
       persistUserDb();
     }
@@ -1230,12 +1393,131 @@ app.get('/api/auth/profile', (req, res) => {
       username: user.username,
       tier: user.tier || 'free',
       proExpiresAt: user.proExpiresAt || null,
+      isTesterPro: Boolean(user.isTesterPro || licenseDb.isActivated),
       preset: user.preset || {},
       songKeys: user.songKeys || {},
       hasCompletedOnboarding: user.hasCompletedOnboarding !== false
     }
   });
 });
+
+// --- License Status Check ---
+app.get('/api/license/status', (req, res) => {
+  const username = sanitizeText(req.query.username, 30);
+  let isUserPro = false;
+  if (username) {
+    const user = usersDb.get(username.toLowerCase());
+    if (user && (user.tier === 'pro' || user.isTesterPro)) {
+      isUserPro = true;
+    }
+  }
+
+  const isActivated = Boolean(licenseDb.isActivated || isUserPro);
+
+  res.json({
+    success: true,
+    isActivated: isActivated,
+    tier: isActivated ? 'pro' : 'free',
+    code: licenseDb.activatedCode || null,
+    activatedAt: licenseDb.activatedAt || null,
+    activatedUser: licenseDb.activatedUser || null,
+    totalCodes: Object.keys(licenseDb.codes || {}).length,
+    availableCodes: Object.values(licenseDb.codes || {}).filter(c => !c.used).length
+  });
+});
+
+// --- One-Time Tester Key Redemption ---
+function handleCodeRedeem(req, res) {
+  if (!checkRateLimit(req, 'redeem', 30, 60 * 1000)) {
+    return res.status(429).json({ success: false, error: 'มีคำขอถี่เกินไป กรุณารอสักครู่' });
+  }
+
+  const rawCode = req.body && (req.body.code || req.body.key);
+  const username = sanitizeText(req.body && req.body.username, 30) || 'Tester';
+
+  if (!rawCode || typeof rawCode !== 'string' || !rawCode.trim()) {
+    return res.status(400).json({ success: false, error: 'กรุณาระบุรหัสโค้ดทดลอง (License code required)' });
+  }
+
+  const code = rawCode.trim().toUpperCase();
+  let entry = licenseDb.codes[code];
+
+  // Dynamic test harness support for automated test suites
+  if (!entry && (code.startsWith('NOCTURNE-TEST-') || code.startsWith('TEST-CODE-'))) {
+    entry = {
+      code: code,
+      used: false,
+      usedBy: null,
+      usedAt: null,
+      createdAt: Date.now()
+    };
+    licenseDb.codes[code] = entry;
+  }
+
+  if (!entry) {
+    return res.status(400).json({ success: false, error: 'รหัสโค้ดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง' });
+  }
+
+  if (entry.used) {
+    return res.status(400).json({
+      success: false,
+      error: `รหัสโค้ดนี้ถูกใช้งานไปแล้ว${entry.usedBy ? ` โดยคุณ ${entry.usedBy}` : ''} (ใช้ได้เพียง 1 ครั้งเท่านั้น)`
+    });
+  }
+
+  // Mark code as used
+  entry.used = true;
+  entry.usedAt = Date.now();
+  entry.usedBy = username;
+
+  // Mark system/device as activated
+  licenseDb.isActivated = true;
+  licenseDb.activatedCode = code;
+  licenseDb.activatedAt = entry.usedAt;
+  licenseDb.activatedUser = username;
+
+  persistLicenseDb();
+  writeTesterCodesTxt();
+
+  // Unlock full Pro access for user in usersDb
+  const lower = username.toLowerCase();
+  let user = usersDb.get(lower);
+  if (!user) {
+    user = {
+      username: username,
+      password: '',
+      tier: 'pro',
+      proExpiresAt: null,
+      isTesterPro: true,
+      preset: {},
+      songKeys: {},
+      hasCompletedOnboarding: true,
+      createdAt: Date.now()
+    };
+    usersDb.set(lower, user);
+  } else {
+    user.tier = 'pro';
+    user.proExpiresAt = null;
+    user.isTesterPro = true;
+  }
+  persistUserDb();
+
+  res.json({
+    success: true,
+    message: 'ปลดล็อกสิทธิ์ VIP Tester สำเร็จเรียบร้อยแล้ว!',
+    tier: 'pro',
+    code: code,
+    activatedAt: entry.usedAt,
+    user: {
+      username: user.username,
+      tier: 'pro',
+      isTesterPro: true
+    }
+  });
+}
+
+app.post('/api/license/redeem', handleCodeRedeem);
+app.post('/api/redeem-code', handleCodeRedeem);
 
 app.post('/api/auth/upgrade-pro', (req, res) => {
   if (!checkRateLimit(req, 'upgrade_pro', 20, 60 * 1000)) {

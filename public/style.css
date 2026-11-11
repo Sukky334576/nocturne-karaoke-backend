@@ -2100,15 +2100,34 @@ kbd {
 }
 
 .badge-pro-tag {
-  background: rgba(216, 177, 93, 0.15);
-  border: 1px solid rgba(216, 177, 93, 0.4);
+  display: none !important;
+}
+
+.btn-tester-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(216, 177, 93, 0.12);
+  border: 1px solid rgba(216, 177, 93, 0.45);
+  color: #f4e6c3;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.btn-tester-key:hover {
+  background: rgba(216, 177, 93, 0.25);
+  border-color: #d8b15d;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(216, 177, 93, 0.3);
+}
+
+.btn-tester-key.active-vip-tester {
+  background: linear-gradient(135deg, rgba(216, 177, 93, 0.25), rgba(184, 147, 59, 0.15));
+  border: 1px solid #d8b15d;
   color: #d8b15d;
-  font-size: 10px;
   font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.3px;
-  display: inline-block;
+  box-shadow: 0 0 10px rgba(216, 177, 93, 0.25);
 }
 
 .badge-free-tag {

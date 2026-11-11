@@ -845,6 +845,44 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 21: Verifying One-Time Tester License Key System Invariants
+  try {
+    console.log('\n[Edge Case 21] Verifying One-Time Tester License Key Architecture Invariants...');
+    const appJsContent = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const serverJsContent = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+    const indexHtmlContent = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+
+    // 21a. License status and redeem API in server.js
+    const hasLicenseEndpoints = serverJsContent.includes('/api/license/status') &&
+                                serverJsContent.includes('/api/license/redeem') &&
+                                serverJsContent.includes('/api/redeem-code');
+
+    // 21b. AppData and ASAR-safe license DB path
+    const hasLicenseDbPath = serverJsContent.includes('getLicenseDbFilePath') &&
+                             serverJsContent.includes('licenses.json');
+
+    // 21c. Header redeem key button and modal in index.html
+    const hasRedeemDom = indexHtmlContent.includes('id="redeemTesterBtn"') &&
+                         indexHtmlContent.includes('id="redeemModal"') &&
+                         indexHtmlContent.includes('id="redeemCodeInput"') &&
+                         indexHtmlContent.includes('id="submitRedeemBtn"');
+
+    // 21d. Controller logic in app.js
+    const hasRedeemLogic = appJsContent.includes('openRedeemModal') &&
+                           appJsContent.includes('/api/license/redeem') &&
+                           appJsContent.includes('/api/license/status');
+
+    if (hasLicenseEndpoints && hasLicenseDbPath && hasRedeemDom && hasRedeemLogic) {
+      console.log('  ✅ Passed: One-Time Tester Key architecture, AppData persistence, UI redeem modal & API verified!');
+      passed++;
+    } else {
+      throw new Error('Missing license endpoints, ASAR-safe path, redeem DOM, or controller logic');
+    }
+  } catch (err) {
+    console.error('  ❌ Edge Case 21 Error:', err.message);
+    failed++;
+  }
+
   console.log('\n====================================================');
   console.log(`📊 EDGE CASE REPORT: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');

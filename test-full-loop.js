@@ -2,6 +2,7 @@
 const http = require('http');
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 let testPort = 3300;
 let testProcess = null;
@@ -447,6 +448,73 @@ async function runTests() {
     }
   } catch (err) {
     console.error('  ❌ Test 9 Error:', err.message);
+    failed++;
+  }
+
+  // Test 10: One-Time Single-Use Tester License Key Redemption & Status API
+  try {
+    console.log('\n[Test 10] Testing One-Time Tester License Key System (/api/license/status & /api/license/redeem)...');
+    
+    // 10a. License Status Check (Pre-Activation)
+    const statusBefore = await fetchJson(`http://127.0.0.1:${testPort}/api/license/status`);
+    if (statusBefore.status !== 200 || !statusBefore.data.success || typeof statusBefore.data.availableCodes !== 'number') {
+      throw new Error(`License status check failed: ${JSON.stringify(statusBefore)}`);
+    }
+
+    // 10b. Reject invalid / empty activation codes
+    const invalidRes = await postJson(`http://127.0.0.1:${testPort}/api/license/redeem`, {
+      code: 'TOTALLY-INVALID-KEY-1234',
+      username: 'TesterBob'
+    });
+    if (invalidRes.status !== 400 || invalidRes.data.success) {
+      throw new Error(`Expected invalid code to be rejected with 400, got: ${JSON.stringify(invalidRes)}`);
+    }
+
+    // 10c. Successfully redeem a clean test activation key
+    const uniqueTestKey = `NOCTURNE-TEST-${Date.now()}`;
+    const redeemRes = await postJson(`http://127.0.0.1:${testPort}/api/license/redeem`, {
+      code: uniqueTestKey,
+      username: 'TesterAlice'
+    });
+    if (redeemRes.status !== 200 || !redeemRes.data.success || redeemRes.data.tier !== 'pro' || !redeemRes.data.user.isTesterPro) {
+      throw new Error(`Valid code redemption failed: ${JSON.stringify(redeemRes)}`);
+    }
+
+    // 10d. Reject already-used / replayed activation key
+    const replayRes = await postJson(`http://127.0.0.1:${testPort}/api/license/redeem`, {
+      code: uniqueTestKey,
+      username: 'SneakyAttacker'
+    });
+    if (replayRes.status !== 400 || replayRes.data.success) {
+      throw new Error(`Expected replayed code to be rejected, got: ${JSON.stringify(replayRes)}`);
+    }
+
+    // 10e. Alias endpoint test (/api/redeem-code)
+    const aliasKey = `NOCTURNE-TEST-ALIAS-${Date.now()}`;
+    const aliasRes = await postJson(`http://127.0.0.1:${testPort}/api/redeem-code`, {
+      code: aliasKey,
+      username: 'TesterCharlie'
+    });
+    if (aliasRes.status !== 200 || !aliasRes.data.success || aliasRes.data.tier !== 'pro') {
+      throw new Error(`Alias endpoint /api/redeem-code failed: ${JSON.stringify(aliasRes)}`);
+    }
+
+    // 10f. License Status Check (Post-Activation)
+    const statusAfter = await fetchJson(`http://127.0.0.1:${testPort}/api/license/status?username=TesterAlice`);
+    if (statusAfter.status !== 200 || !statusAfter.data.isActivated || statusAfter.data.tier !== 'pro') {
+      throw new Error(`Post-activation status failed: ${JSON.stringify(statusAfter)}`);
+    }
+
+    // 10g. Verify TESTER_CODES.txt exists
+    const codesTxtPath = path.join(__dirname, 'TESTER_CODES.txt');
+    if (!fs.existsSync(codesTxtPath) || !fs.readFileSync(codesTxtPath, 'utf8').includes('NOCTURNE-BETA-')) {
+      throw new Error('TESTER_CODES.txt not generated or missing beta codes');
+    }
+
+    console.log('  ✅ Passed: One-Time Tester Key redemption, single-use enforcement, alias endpoint & TESTER_CODES.txt verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Test 10 Error:', err.message);
     failed++;
   }
 

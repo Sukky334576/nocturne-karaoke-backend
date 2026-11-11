@@ -1,0 +1,176 @@
+{
+  "isActivated": true,
+  "activatedCode": "NOCTURNE-TEST-ALIAS-1794402601727",
+  "activatedAt": 1794402601727,
+  "activatedUser": "TesterCharlie",
+  "codes": {
+    "NOCTURNE-BETA-7K2X": {
+      "code": "NOCTURNE-BETA-7K2X",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-9M4Q": {
+      "code": "NOCTURNE-BETA-9M4Q",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-3V8P": {
+      "code": "NOCTURNE-BETA-3V8P",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-5W1L": {
+      "code": "NOCTURNE-BETA-5W1L",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-8R6Y": {
+      "code": "NOCTURNE-BETA-8R6Y",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-2J9D": {
+      "code": "NOCTURNE-BETA-2J9D",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-4H7N": {
+      "code": "NOCTURNE-BETA-4H7N",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-6F3T": {
+      "code": "NOCTURNE-BETA-6F3T",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-1C5Z": {
+      "code": "NOCTURNE-BETA-1C5Z",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-9B2S": {
+      "code": "NOCTURNE-BETA-9B2S",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-4G8K": {
+      "code": "NOCTURNE-BETA-4G8K",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-7D3M": {
+      "code": "NOCTURNE-BETA-7D3M",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-2P9W": {
+      "code": "NOCTURNE-BETA-2P9W",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-6L4V": {
+      "code": "NOCTURNE-BETA-6L4V",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-8T1R": {
+      "code": "NOCTURNE-BETA-8T1R",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-3Y7H": {
+      "code": "NOCTURNE-BETA-3Y7H",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-5X2C": {
+      "code": "NOCTURNE-BETA-5X2C",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-1N9F": {
+      "code": "NOCTURNE-BETA-1N9F",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-4Q6J": {
+      "code": "NOCTURNE-BETA-4Q6J",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-BETA-8S5B": {
+      "code": "NOCTURNE-BETA-8S5B",
+      "used": false,
+      "usedBy": null,
+      "usedAt": null,
+      "createdAt": 1729000000000
+    },
+    "NOCTURNE-TEST-1794402454524": {
+      "code": "NOCTURNE-TEST-1794402454524",
+      "used": true,
+      "usedBy": "TesterAlice",
+      "usedAt": 1794402454524,
+      "createdAt": 1794402454524
+    },
+    "NOCTURNE-TEST-ALIAS-1794402454529": {
+      "code": "NOCTURNE-TEST-ALIAS-1794402454529",
+      "used": true,
+      "usedBy": "TesterCharlie",
+      "usedAt": 1794402454529,
+      "createdAt": 1794402454529
+    },
+    "NOCTURNE-TEST-1794402601719": {
+      "code": "NOCTURNE-TEST-1794402601719",
+      "used": true,
+      "usedBy": "TesterAlice",
+      "usedAt": 1794402601719,
+      "createdAt": 1794402601719
+    },
+    "NOCTURNE-TEST-ALIAS-1794402601727": {
+      "code": "NOCTURNE-TEST-ALIAS-1794402601727",
+      "used": true,
+      "usedBy": "TesterCharlie",
+      "usedAt": 1794402601727,
+      "createdAt": 1794402601727
+    }
+  }
+}

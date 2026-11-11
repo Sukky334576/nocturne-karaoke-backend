@@ -227,6 +227,12 @@
           <span class="hotkey-pill-mini"><kbd>F8</kbd></span>
         </button>
 
+        <!-- 4.5 Tester License Key Redeem Button / VIP Badge -->
+        <button id="redeemTesterBtn" class="btn btn-nav-glass btn-tester-key" title="กรอกโค้ดทดลองใช้งาน หรือ ตรวจสอบสถานะ VIP Tester">
+          <span id="testerBadgeIcon">🔑</span>
+          <span id="testerBadgeLabel">กรอกโค้ดทดลอง</span>
+        </button>
+
         <!-- 5. User Profile / Auth Button -->
         <button id="userProfileBtn" class="btn btn-nav-glass" title="เข้าสู่ระบบ / จัดการโปรไฟล์">
           <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
@@ -409,7 +415,7 @@
           <div class="module-header">
             <div style="display: flex; align-items: center; gap: 8px;">
               <h2>Key Calibration</h2>
-              <span class="badge-pro-tag">PRO 49฿</span>
+              <span class="badge-pro-tag" style="display: none;">PRO</span>
               <span class="key-hint-pill" title="คีย์ลัด: กด [ เพื่อลดคีย์, กด ] เพื่อเพิ่มคีย์">Hotkeys: <kbd>[</kbd> <kbd>]</kbd></span>
             </div>
             <span id="pitchDisplay" class="pitch-badge mono-num">0 SEMITONES</span>
@@ -645,7 +651,7 @@
               <input type="range" id="cableSyncOffset" min="0" max="300" step="10" value="120" aria-label="ปรับชดเชยดีเลย์">
             </div>
 
-            <!-- Smart Voice Ducking (PRO 49฿) -->
+            <!-- Smart Voice Ducking (VIP TESTER) -->
             <div class="control-group" style="padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 6px; margin-top: 10px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -817,13 +823,13 @@
           </div>
         </div>
 
-        <!-- 1.5 3-Band Studio Vocal EQ (PRO 49฿) -->
+        <!-- 1.5 3-Band Studio Vocal EQ -->
         <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h2>3-Band Studio Vocal EQ <span class="accordion-toggle-icon">▼</span></h2>
-                <span class="badge-pro-tag">PRO 49฿</span>
+                <span class="badge-pro-tag" style="display: none;">PRO</span>
               </div>
               <p class="module-desc">ตัดเสียงลมปะทะไมค์ & ปรับเนื้อเสียงร้องให้คมชัดใสแบบไมค์แพง</p>
             </div>
@@ -862,13 +868,13 @@
           </div>
         </div>
 
-        <!-- 1.8 Analog Tube Warmth & Dynamic De-Esser (PRO 49฿) -->
+        <!-- 1.8 Analog Tube Warmth & Dynamic De-Esser -->
         <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h2>Analog Tube Warmth & De-Esser <span class="accordion-toggle-icon">▼</span></h2>
-                <span class="badge-pro-tag">PRO 49฿</span>
+                <span class="badge-pro-tag" style="display: none;">PRO</span>
               </div>
               <p class="module-desc">ปรีแอมป์หลอดสุญญากาศจำลองเพิ่มความอุ่นหนา & ลดเสียงซี่ฟันบาดหู (ส, ซ, ช)</p>
             </div>
@@ -911,7 +917,7 @@
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h2>Vocal Auto-Tune <span class="accordion-toggle-icon">▼</span></h2>
-                <span class="badge-pro-tag">PRO 49฿</span>
+                <span class="badge-pro-tag" style="display: none;">PRO</span>
               </div>
               <p class="module-desc">YIN Pitch Quantization & Scale Snapping</p>
             </div>
@@ -983,13 +989,13 @@
           </div>
         </div>
 
-        <!-- 2.5 Vocal Harmony & Doubler (PRO 49฿) -->
+        <!-- 2.5 Vocal Harmony & Doubler -->
         <div class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h2>Vocal Doubler & Harmony <span class="accordion-toggle-icon">▼</span></h2>
-                <span class="badge-pro-tag">PRO 49฿</span>
+                <span class="badge-pro-tag" style="display: none;">PRO</span>
               </div>
               <p class="module-desc">สร้างมิติเสียงร้องคู่และเสียงประสานสเตอริโอ เพิ่มความหนาในท่อนฮุก</p>
             </div>
@@ -1027,13 +1033,13 @@
           </div>
         </div>
 
-        <!-- 5.5 DJ Soundboard & Mic SFX (PRO 49฿) -->
+        <!-- 5.5 DJ Soundboard & Mic SFX -->
         <div id="soundboardModule" class="studio-module collapsible">
           <div class="module-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h2>DJ Soundboard & Mic SFX <span class="accordion-toggle-icon">▼</span></h2>
-                <span class="badge-pro-tag">PRO 49฿</span>
+                <span class="badge-pro-tag" style="display: none;">PRO</span>
               </div>
               <p class="module-desc">ส่งเสียงเอฟเฟกต์ดีเจสดเข้า FiveM & Discord ผ่านสายไมค์ทันที</p>
             </div>
@@ -1257,7 +1263,7 @@
               <span style="font-size: 10px; background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); padding: 1px 6px; border-radius: 4px; font-weight: 600;">FREE ตลอดชีพ</span>
             </div>
             <span>• <b>Free Tier:</b> ค้นหาเพลง YouTube, ส่งเสียงเข้า FiveM/Discord, ตรวจวัดดีเลย์ Sonar 1ms ฟรีทุกคน</span><br>
-            <span>• <b>Pro Pack (49.-/เดือน):</b> Studio Vocal Reverb (เสียงก้องละมุน), Live Auto-Tune, เลื่อนคีย์เพลง +/- 6st, Studio Dynamics</span>
+            <span>• <b>VIP Tester Pro:</b> Studio Vocal Reverb (เสียงก้องละมุน), Live Auto-Tune, เลื่อนคีย์เพลง +/- 6st, Studio Dynamics</span>
           </div>
 
           <div class="modal-actions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
@@ -1305,21 +1311,21 @@
             </div>
           </div>
 
-          <!-- Pro Pack Subscription Box (49 THB / Month) -->
+          <!-- One-Time Tester Key Box -->
           <div id="profileProBox" style="padding: 14px; background: linear-gradient(135deg, rgba(216,177,93,0.14), rgba(216,177,93,0.04)); border: 1px solid rgba(216,177,93,0.35); border-radius: 8px; margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <div style="font-weight: 700; color: #f4e6c3; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                <span>⭐ NOCTURNE PRO PACK</span>
-                <span style="font-size: 11px; color: #d8b15d; font-weight: 600;">(49.- / เดือน)</span>
+                <span>✨ NOCTURNE VIP TESTER</span>
+                <span id="profileTesterCodeTag" style="font-size: 11px; color: #d8b15d; font-weight: 600;">(Single-Use Key)</span>
               </div>
-              <span id="profileProStatusPill" style="font-size: 10px; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 9999px; color: #cfd3dc; border: 1px solid rgba(255,255,255,0.15);">Free Version</span>
+              <span id="profileProStatusPill" style="font-size: 10px; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 9999px; color: #cfd3dc; border: 1px solid rgba(255,255,255,0.15);">รอการเปิดสิทธิ์</span>
             </div>
-            <p style="font-size: 11px; color: #cfd3dc; margin: 0 0 10px 0; line-height: 1.5;">
-              • <b>ฟรีตลอดชีพ:</b> ร้องเพลง YouTube, ส่งเสียงเข้า FiveM/Discord, วัดดีเลย์ Sonar 1ms ฟรีทุกคน<br>
-              • <b>Pro Pack:</b> Studio Vocal Reverb (เสียงก้องละมุน), Live Auto-Tune, เลื่อนคีย์เพลง +/- 6st, Studio Dynamics
+            <p id="profileTesterDesc" style="font-size: 11px; color: #cfd3dc; margin: 0 0 10px 0; line-height: 1.5;">
+              • <b>สิทธิ์ VIP Tester:</b> ปลดล็อกฟังก์ชันเสียงร้องสตูดิโอระดับ Pro ทั้งหมดด้วยโค้ดทดลองใช้ครั้งเดียว<br>
+              • <b>ครอบคลุม:</b> Studio Vocal Reverb, Live Auto-Tune, 3-Band EQ, Tube Saturation, Doubler และ Soundboard
             </p>
             <button id="upgradeProBtn" type="button" class="btn btn-primary" style="width: 100%; padding: 8px; font-weight: 700; background: linear-gradient(135deg, #d8b15d, #b8933b); color: #08090d; font-size: 12px;">
-              ⭐ ทดลอง / ปลดล็อก Pro Pack (49.- / เดือน)
+              🔑 กรอกโค้ดทดลอง (Redeem Tester Key)
             </button>
           </div>
 
@@ -1690,8 +1696,8 @@
       </div>
     </div>
 
-    <!-- PromptPay QR Code Payment Modal (Pro Pack 49 THB) -->
-    <div id="promptPayModal" class="modal-overlay hidden">
+    <!-- PromptPay QR Code Payment Modal (Hidden for Tester Phase) -->
+    <div id="promptPayModal" class="modal-overlay hidden" style="display: none !important;">
       <div class="modal-card" style="max-width: 440px; text-align: center;">
         <div class="modal-header" style="justify-content: center; position: relative;">
           <div class="modal-title-group" style="text-align: center;">
@@ -1747,6 +1753,42 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- One-Time Tester Key Redemption Modal -->
+    <div id="redeemModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 440px; text-align: center;">
+        <div class="modal-header" style="justify-content: center; position: relative;">
+          <div class="modal-title-group" style="text-align: center;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(216,177,93,0.15); border: 1px solid #d8b15d; border-radius: 20px; color: #f4e6c3; font-size: 11px; font-weight: 700; margin-bottom: 6px;">
+              🔑 VIP TESTER ACTIVATION
+            </div>
+            <h3 style="font-family: 'Cinzel', serif; font-size: 18px; margin: 0; color: #fff;">กรอกโค้ดทดลองใช้งาน</h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 0 0;">ใส่รหัส Single-Use Tester Key เพื่อปลดล็อกฟังก์ชันระดับ Pro ทั้งหมด</p>
+          </div>
+          <button id="closeRedeemModalBtn" class="btn-icon-close" style="position: absolute; right: 16px; top: 16px;" aria-label="ปิด">✕</button>
+        </div>
+
+        <div class="modal-body" style="padding: 20px;">
+          <div style="margin-bottom: 16px; text-align: left;">
+            <label for="redeemCodeInput" style="font-size: 12px; color: #f4e6c3; font-weight: 600; display: block; margin-bottom: 6px;">รหัสทดลองใช้งาน (One-Time Activation Code):</label>
+            <input type="text" id="redeemCodeInput" placeholder="NOCTURNE-BETA-XXXX" style="width: 100%; box-sizing: border-box; padding: 12px; font-size: 15px; font-weight: 700; text-align: center; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid #d8b15d; color: #f4e6c3;" maxlength="32">
+            <div id="redeemErrorMsg" style="color: #f87171; font-size: 12px; margin-top: 6px; min-height: 16px; display: none;"></div>
+          </div>
+
+          <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 11px; text-align: left; line-height: 1.6; color: #cfd3dc;">
+            <div style="color: #f4e6c3; font-weight: 600; margin-bottom: 4px;">✨ สิทธิพิเศษสำหรับผู้ทดสอบ (Tester Pro):</div>
+            <div>• ปลดล็อก Auto-Tune, 3-Band Vocal EQ, Analog Saturation</div>
+            <div>• ปลดล็อก Smart Voice Ducking & DJ Soundboard ทั้งหมด</div>
+            <div>• ปรับคีย์เพลงและจำคีย์เพลงสำหรับ FiveM ไม่จำกัด</div>
+          </div>
+
+          <button id="submitRedeemBtn" type="button" class="btn btn-primary" style="padding: 11px; font-weight: 700; width: 100%; background: linear-gradient(135deg, #d8b15d, #b8933b); color: #08090d; font-size: 13px; border: none; box-shadow: 0 4px 15px rgba(216,177,93,0.3); cursor: pointer;">
+            🔓 ยืนยันรหัส & ปลดล็อก Pro ทันที
+          </button>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- Hidden Audio Sink for Virtual Cable -->
