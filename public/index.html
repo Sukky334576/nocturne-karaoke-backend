@@ -9,6 +9,140 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Cinzel:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Sleek Host Hotkey Badges & Dock */
+    .hotkey-pill-mini {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 4px;
+    }
+    .hotkey-pill-mini kbd {
+      background: rgba(216, 177, 93, 0.15);
+      border: 1px solid rgba(216, 177, 93, 0.4);
+      color: var(--gold-bright);
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .key-hint-pill {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 6px;
+    }
+    .key-hint-pill kbd {
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      color: var(--gold-bright);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .playback-controls-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .transport-hotkey-hints {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .transport-hotkey-hints .hint-tag {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .transport-hotkey-hints kbd {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-secondary);
+      font-size: 9.5px;
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+    .host-shortcuts-dock {
+      background: linear-gradient(135deg, rgba(16, 18, 26, 0.95), rgba(21, 24, 36, 0.95));
+      border: 1px solid rgba(216, 177, 93, 0.25);
+      border-radius: var(--radius-md);
+      padding: 10px 18px;
+      max-width: 900px;
+      width: 100%;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .shortcuts-dock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(216, 177, 93, 0.12);
+      padding-bottom: 6px;
+    }
+    .shortcuts-dock-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .shortcuts-dock-badge {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--gold-bright);
+      background: rgba(216, 177, 93, 0.18);
+      border: 1px solid rgba(216, 177, 93, 0.35);
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      letter-spacing: 0.05em;
+    }
+    .shortcuts-dock-title {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--gold-bright);
+    }
+    .shortcuts-dock-tip {
+      font-size: 10.5px;
+      color: var(--text-muted);
+    }
+    .shortcuts-dock-grid {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .shortcut-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(28, 32, 48, 0.7);
+      border: 1px solid rgba(216, 177, 93, 0.15);
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11.5px;
+      transition: all 0.15s ease;
+    }
+    .shortcut-chip:hover {
+      border-color: rgba(216, 177, 93, 0.4);
+      background: rgba(216, 177, 93, 0.08);
+    }
+    .chip-label {
+      color: var(--text-gold);
+      font-weight: 600;
+    }
+    .chip-sep {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+  </style>
 </head>
 <body class="mode-karaoke">
   <div class="app-container">
@@ -90,6 +224,7 @@
         <button id="duckingBtn" class="ducking-badge" title="กดเพื่อเบาเสียงเพลงเวลาพูดคุย (Hotkey: F8 หรือ Numpad -)">
           <span class="status-indicator"></span>
           <span id="duckingStatusText">SINGING MODE</span>
+          <span class="hotkey-pill-mini"><kbd>F8</kbd></span>
         </button>
 
         <!-- 5. User Profile / Auth Button -->
@@ -199,16 +334,21 @@
                 <p id="currentTrackArtist">เลือกเพลงจากช่องค้นหาหรือคิวเพลง</p>
               </div>
 
-              <div class="playback-controls">
-                <button id="prevBtn" class="btn-icon" title="เพลงก่อนหน้า">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="3"/></svg>
-                </button>
-                <button id="playPauseBtn" class="btn-icon btn-play" title="เล่น / หยุด">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                </button>
-                <button id="nextBtn" class="btn-icon" title="เพลงถัดไป">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="3"/></svg>
-                </button>
+              <div class="playback-controls-wrap">
+                <div class="playback-controls">
+                  <button id="prevBtn" class="btn-icon" title="เพลงก่อนหน้า">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="3"/></svg>
+                  </button>
+                  <button id="playPauseBtn" class="btn-icon btn-play" title="เล่น / หยุด (Hotkey: Space)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  </button>
+                  <button id="nextBtn" class="btn-icon" title="เพลงถัดไป (Hotkey: Shift + →)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="3"/></svg>
+                  </button>
+                </div>
+                <div class="transport-hotkey-hints">
+                  <span class="hint-tag"><kbd>Space</kbd> เล่น/หยุด</span>
+                </div>
               </div>
             </div>
 
@@ -242,10 +382,11 @@
               </div>
 
               <!-- Center Vocal Remover (Karaoke Mode) -->
-              <button id="vocalCutBtn" type="button" class="btn-vocal-cut" title="ตัดเสียงร้องนำตรงกลาง (Center Vocal Remover / Karaoke Mode)">
+              <button id="vocalCutBtn" type="button" class="btn-vocal-cut" title="ตัดเสียงร้องนำตรงกลาง (Hotkey: V)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line x1="2" y1="2" x2="22" y2="22" stroke="#ef4444" stroke-width="2.5"/></svg>
                 <span>ตัดเสียงร้อง:</span>
                 <span id="vocalCutStatusText" class="vocal-cut-badge mono-num">OFF</span>
+                <span class="hotkey-pill-mini"><kbd>V</kbd></span>
               </button>
 
               <!-- Synced Lyrics Toggle Button -->
@@ -269,6 +410,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <h2>Key Calibration</h2>
               <span class="badge-pro-tag">PRO 49฿</span>
+              <span class="key-hint-pill" title="คีย์ลัด: กด [ เพื่อลดคีย์, กด ] เพื่อเพิ่มคีย์">Hotkeys: <kbd>[</kbd> <kbd>]</kbd></span>
             </div>
             <span id="pitchDisplay" class="pitch-badge mono-num">0 SEMITONES</span>
           </div>
@@ -1612,8 +1754,36 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <div class="hotkey-guide">
-        <span><b>HOTKEY:</b> กด <kbd>F8</kbd> หรือ <kbd>Numpad -</kbd> หรือ <kbd>`</kbd> เพื่อสลับโหมด <b>Ducking (พูดคุย / ร้องเพลง)</b></span>
+      <div class="hotkey-guide host-shortcuts-dock" id="hostShortcutsDock">
+        <div class="shortcuts-dock-header">
+          <div class="shortcuts-dock-title-group">
+            <span class="shortcuts-dock-badge">⌨️ HOST HOTKEYS</span>
+            <span class="shortcuts-dock-title">คีย์ลัดสำหรับผู้จัดรายการ (Host Quick Navigation)</span>
+          </div>
+          <span class="shortcuts-dock-tip">กดปุ่มบนคีย์บอร์ดเพื่อสั่งงานได้ทันทีเมื่อไม่ได้พิมพ์</span>
+        </div>
+        <div class="shortcuts-dock-grid">
+          <div class="shortcut-chip" title="เบาเสียงเพลงดนตรีลงอัตโนมัติขณะคุย และคืนระดับเสียงตอนร้อง (F8 / Numpad - / `)">
+            <span class="chip-label">🎙️ Ducking:</span>
+            <kbd>F8</kbd> <span class="chip-sep">/</span> <kbd>Numpad -</kbd> <span class="chip-sep">/</span> <kbd>`</kbd>
+          </div>
+          <div class="shortcut-chip" title="เล่น หรือ หยุดเพลงชั่วคราว (Spacebar)">
+            <span class="chip-label">⏯️ เล่น/หยุด:</span>
+            <kbd>Space</kbd>
+          </div>
+          <div class="shortcut-chip" title="ปรับระดับคีย์เพลงทีละ 1 เซมิโทน (Key Shift: [ ลดคีย์, ] เพิ่มคีย์)">
+            <span class="chip-label">🎚️ Key Shift:</span>
+            <kbd>[</kbd> <kbd>]</kbd>
+          </div>
+          <div class="shortcut-chip" title="ตัดเสียงร้องนำตรงกลาง เพื่อร้องคาราโอเกะ (V)">
+            <span class="chip-label">✂️ ตัดเสียงร้อง:</span>
+            <kbd>V</kbd>
+          </div>
+          <div class="shortcut-chip" title="ข้ามไปเพลงถัดไปในคิว (Shift + Arrow Right)">
+            <span class="chip-label">⏭️ ถัดไป:</span>
+            <kbd>Shift</kbd>+<kbd>→</kbd>
+          </div>
+        </div>
       </div>
     </footer>
   </div>
@@ -1623,5 +1793,54 @@
   <script src="reverb-generator.js"></script>
   <script src="plugin-sdk.js"></script>
   <script src="app.js"></script>
+  <script>
+    // Global Host Keyboard Shortcuts Handler (Space for Play/Pause, [ ] for Key Shift, V for Vocal Cut, Shift+Right for Next)
+    window.addEventListener('keydown', (e) => {
+      // Ignore when user is actively typing in an input field or contenteditable element
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        const playBtn = document.getElementById('playPauseBtn');
+        if (playBtn) playBtn.click();
+      } else if (e.key === '[' || e.key === '{') {
+        e.preventDefault();
+        const slider = document.getElementById('pitchSlider');
+        if (slider) {
+          const cur = parseInt(slider.value, 10);
+          if (cur > -6) {
+            if (typeof setPitchShift === 'function') {
+              setPitchShift(cur - 1);
+            } else {
+              slider.value = cur - 1;
+              slider.dispatchEvent(new Event('input'));
+            }
+          }
+        }
+      } else if (e.key === ']' || e.key === '}') {
+        e.preventDefault();
+        const slider = document.getElementById('pitchSlider');
+        if (slider) {
+          const cur = parseInt(slider.value, 10);
+          if (cur < 6) {
+            if (typeof setPitchShift === 'function') {
+              setPitchShift(cur + 1);
+            } else {
+              slider.value = cur + 1;
+              slider.dispatchEvent(new Event('input'));
+            }
+          }
+        }
+      } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        const vCutBtn = document.getElementById('vocalCutBtn');
+        if (vCutBtn) vCutBtn.click();
+      } else if (e.shiftKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextBtnEl = document.getElementById('nextBtn');
+        if (nextBtnEl) nextBtnEl.click();
+      }
+    });
+  </script>
 </body>
 </html>

@@ -17,12 +17,13 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Access-Control-Expose-Headers', '*');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method === 'OPTIONS') return res.status(200).end();
   next();
 });
 
 app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(express.json({ limit: '256kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Determine path to local binaries
@@ -37,9 +38,13 @@ const searchCache = new Map();
 const streamCache = new Map();
 
 function setBoundedCache(map, key, value, maxEntries = 300) {
-  if (map.size >= maxEntries) {
+  if (map.has(key)) {
+    map.delete(key);
+  } else if (map.size >= maxEntries) {
     const firstKey = map.keys().next().value;
-    map.delete(firstKey);
+    if (firstKey !== undefined) {
+      map.delete(firstKey);
+    }
   }
   map.set(key, value);
 }
@@ -77,6 +82,10 @@ function isValidYouTubeIdOrUrl(str) {
 // Ultra-Fast YouTube Search via Direct InnerTube API (~150-300ms)
 function fastYoutubeSearch(query) {
   return new Promise((resolve, reject) => {
+    if (!query || typeof query !== 'string') {
+      return reject(new Error('Invalid search query'));
+    }
+    const cleanQuery = query.trim().slice(0, 150);
     const payload = JSON.stringify({
       context: {
         client: {
@@ -86,7 +95,7 @@ function fastYoutubeSearch(query) {
           gl: 'TH'
         }
       },
-      query: query
+      query: cleanQuery
     });
 
     const req = https.request({
@@ -154,6 +163,13 @@ const checkCandidate = (candidate) => new Promise((resolve, reject) => {
     } catch (err) {
       return reject(new Error('Redirect candidate failed: invalid URL ' + target));
     }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return reject(new Error('Redirect candidate failed: invalid protocol'));
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0' || host === '169.254.169.254' || host.endsWith('.internal')) {
+      return reject(new Error('Redirect candidate blocked: internal address'));
+    }
     const client = parsed.protocol === 'http:' ? http : https;
     const req = client.get(target, {
       headers: {
@@ -189,6 +205,7 @@ const checkCandidate = (candidate) => new Promise((resolve, reject) => {
 });
 
 async function fetchCobaltApiStream(videoId) {
+  const cleanId = extractValidYouTubeId(videoId) || videoId;
   const cobaltEndpoints = [
     process.env.COBALT_API_URL,
     'https://api.cobalt.tools',
@@ -197,7 +214,7 @@ async function fetchCobaltApiStream(videoId) {
   ].filter(Boolean);
 
   const payload = JSON.stringify({
-    url: `https://www.youtube.com/watch?v=${videoId}`,
+    url: `https://www.youtube.com/watch?v=${cleanId}`,
     downloadMode: 'audio',
     audioFormat: 'mp3'
   });
@@ -250,6 +267,7 @@ async function fetchCobaltApiStream(videoId) {
 }
 
 async function fetchInvidiousApiStream(videoId) {
+  const cleanId = extractValidYouTubeId(videoId) || videoId;
   const apiInstances = [
     'https://yt.chocolatemoo53.com',
     'https://invidious.tiekoetter.com',
@@ -257,7 +275,7 @@ async function fetchInvidiousApiStream(videoId) {
   ];
 
   const fetchFromBase = (base) => new Promise((resolve, reject) => {
-    const req = https.get(`${base}/api/v1/videos/${encodeURIComponent(videoId)}`, {
+    const req = https.get(`${base}/api/v1/videos/${encodeURIComponent(cleanId)}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       timeout: 4000
     }, (res) => {
@@ -296,6 +314,7 @@ async function fetchInvidiousApiStream(videoId) {
 }
 
 async function fetchPipedApiStream(videoId) {
+  const cleanId = extractValidYouTubeId(videoId) || videoId;
   const pipedInstances = [
     'https://pipedapi.kavin.rocks',
     'https://piped-api.lunar.icu'
@@ -303,7 +322,7 @@ async function fetchPipedApiStream(videoId) {
   for (const base of pipedInstances) {
     try {
       const streamUrl = await new Promise((resolve, reject) => {
-        const req = https.get(`${base}/streams/${encodeURIComponent(videoId)}`, {
+        const req = https.get(`${base}/streams/${encodeURIComponent(cleanId)}`, {
           headers: { 'User-Agent': 'Mozilla/5.0' },
           timeout: 4000
         }, (res) => {
@@ -334,21 +353,22 @@ async function fetchPipedApiStream(videoId) {
 }
 
 async function fetchUpstreamFallbackStream(videoId) {
+  const cleanId = extractValidYouTubeId(videoId) || videoId;
   const upstreamInstances = [
-    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=140`,
-    `https://yt.chocolatemoo53.com/latest_version?id=${videoId}&itag=251`,
-    `https://invidious.tiekoetter.com/latest_version?id=${videoId}&itag=140`,
-    `https://inv.zzls.xyz/latest_version?id=${videoId}&itag=140`,
-    `https://inv.nadeko.net/latest_version?id=${videoId}&itag=140`,
-    `https://invidious.nerdvpn.de/latest_version?id=${videoId}&itag=140`
+    `https://yt.chocolatemoo53.com/latest_version?id=${cleanId}&itag=140`,
+    `https://yt.chocolatemoo53.com/latest_version?id=${cleanId}&itag=251`,
+    `https://invidious.tiekoetter.com/latest_version?id=${cleanId}&itag=140`,
+    `https://inv.zzls.xyz/latest_version?id=${cleanId}&itag=140`,
+    `https://inv.nadeko.net/latest_version?id=${cleanId}&itag=140`,
+    `https://invidious.nerdvpn.de/latest_version?id=${cleanId}&itag=140`
   ];
 
   try {
     const streamUrl = await Promise.any([
       Promise.any(upstreamInstances.map(checkCandidate)),
-      fetchInvidiousApiStream(videoId),
-      fetchPipedApiStream(videoId),
-      fetchCobaltApiStream(videoId)
+      fetchInvidiousApiStream(cleanId),
+      fetchPipedApiStream(cleanId),
+      fetchCobaltApiStream(cleanId)
     ]);
     if (streamUrl && streamUrl.startsWith('http')) {
       return streamUrl;
@@ -361,11 +381,11 @@ async function fetchUpstreamFallbackStream(videoId) {
         if (streamUrl && streamUrl.startsWith('http')) return streamUrl;
       } catch (_) {}
     }
-    const apiStream = await fetchInvidiousApiStream(videoId);
+    const apiStream = await fetchInvidiousApiStream(cleanId);
     if (apiStream) return apiStream;
-    const pipedStream = await fetchPipedApiStream(videoId);
+    const pipedStream = await fetchPipedApiStream(cleanId);
     if (pipedStream) return pipedStream;
-    const cobaltStream = await fetchCobaltApiStream(videoId);
+    const cobaltStream = await fetchCobaltApiStream(cleanId);
     if (cobaltStream) return cobaltStream;
   }
   return null;
@@ -373,6 +393,10 @@ async function fetchUpstreamFallbackStream(videoId) {
 
 function runYtDlpExtract(clientArgs, targetUrl) {
   return new Promise((resolve, reject) => {
+    if (!targetUrl || typeof targetUrl !== 'string' || (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://'))) {
+      return reject(new Error('Invalid target URL'));
+    }
+
     const args = [
       '--no-update',
       '--js-runtimes', 'node',
@@ -396,9 +420,10 @@ function runYtDlpExtract(clientArgs, targetUrl) {
       args.push('--cookies', process.env.COOKIES_FILE);
     }
 
+    // Explicit '--' barrier against command-line argument injection for tricky IDs starting with '-'
     args.push('--', targetUrl);
 
-    execFile(ytDlpPath, args, { timeout: 8000 }, (error, stdout, stderr) => {
+    execFile(ytDlpPath, args, { timeout: 8000, maxBuffer: 5 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) return reject(stderr || error.message);
       const streamUrl = stdout.trim().split('\n').filter(l => l.startsWith('http'))[0];
       if (!streamUrl) return reject(new Error('No stream URL returned'));
@@ -413,6 +438,9 @@ async function extractStreamUrl(targetUrl) {
 
   const cached = streamCache.get(cacheKey);
   if (cached && (Date.now() - cached.time < 4 * 60 * 60 * 1000)) {
+    // Refresh LRU order on hit
+    streamCache.delete(cacheKey);
+    streamCache.set(cacheKey, cached);
     return cached.url;
   }
 
@@ -498,17 +526,23 @@ app.get('/api/search', async (req, res) => {
     return res.status(429).json({ error: 'Too many search requests. Please slow down.' });
   }
   const rawQuery = req.query.q;
-  if (!rawQuery) return res.status(400).json({ error: 'Query parameter q is required' });
-  const query = rawQuery.trim().toLowerCase();
+  if (!rawQuery || typeof rawQuery !== 'string' || !rawQuery.trim()) {
+    return res.status(400).json({ error: 'Query parameter q is required' });
+  }
+  const query = rawQuery.trim().slice(0, 150).toLowerCase();
+  const searchPrompt = rawQuery.trim().slice(0, 150);
 
   const cached = searchCache.get(query);
   if (cached && (Date.now() - cached.time < 4 * 60 * 60 * 1000)) {
+    // Refresh LRU order on hit
+    searchCache.delete(query);
+    searchCache.set(query, cached);
     return res.json({ videos: cached.videos });
   }
 
   // 1. Try Fast InnerTube API first (~150-300ms)
   try {
-    const videos = await fastYoutubeSearch(rawQuery);
+    const videos = await fastYoutubeSearch(searchPrompt);
     if (videos && videos.length > 0) {
       setBoundedCache(searchCache, query, { videos, time: Date.now() }, 300);
       return res.json({ videos });
@@ -519,7 +553,7 @@ app.get('/api/search', async (req, res) => {
 
   // 2. Fallback to yt-search if InnerTube fails
   try {
-    const results = await yts(rawQuery);
+    const results = await yts(searchPrompt);
     const videos = (results.videos || []).slice(0, 15).map(v => ({
       id: v.videoId,
       title: v.title,
@@ -538,9 +572,44 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-function pipeDirectAudioStream(url, res) {
+function pipeDirectAudioStream(url, res, hops = 0) {
+  if (hops > 5) {
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: 'Direct audio pipe exceeded maximum redirect hops',
+        fallback: 'direct_iframe'
+      });
+    }
+    return;
+  }
+
   try {
-    const protocol = url.startsWith('https') ? https : http;
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch (e) {
+      if (!res.headersSent) {
+        res.status(400).json({ error: 'Invalid stream URL', fallback: 'direct_iframe' });
+      }
+      return;
+    }
+
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      if (!res.headersSent) {
+        res.status(400).json({ error: 'Unsupported protocol for audio streaming', fallback: 'direct_iframe' });
+      }
+      return;
+    }
+
+    const host = parsedUrl.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0' || host === '169.254.169.254' || host.endsWith('.internal')) {
+      if (!res.headersSent) {
+        res.status(403).json({ error: 'Access to internal address blocked', fallback: 'direct_iframe' });
+      }
+      return;
+    }
+
+    const protocol = parsedUrl.protocol === 'https:' ? https : http;
     const reqAudio = protocol.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -548,8 +617,18 @@ function pipeDirectAudioStream(url, res) {
       timeout: 10000
     }, (resp) => {
       if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
-        const redirected = new URL(resp.headers.location, url).href;
-        return pipeDirectAudioStream(redirected, res);
+        try {
+          const redirected = new URL(resp.headers.location, url).href;
+          return pipeDirectAudioStream(redirected, res, hops + 1);
+        } catch (e) {
+          if (!res.headersSent) {
+            res.status(503).json({
+              error: 'Invalid redirect location: ' + e.message,
+              fallback: 'direct_iframe'
+            });
+          }
+          return;
+        }
       }
       if (resp.statusCode !== 200 && resp.statusCode !== 206) {
         if (!res.headersSent) {
@@ -615,11 +694,21 @@ function pipeDirectAudioStream(url, res) {
 
 // API: Audio Stream (Direct Pipe via FFmpeg or Direct HTTP Stream)
 app.get('/api/audio', async (req, res) => {
+  if (!checkRateLimit(req, 'audio', 30, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many audio requests. Please slow down.' });
+  }
+
   const idOrUrl = req.query.id || req.query.url;
-  const startTime = Math.max(0, parseFloat(req.query.t || req.query.start || 0));
+  const rawTime = parseFloat(req.query.t || req.query.start || 0);
+  const startTime = (Number.isFinite(rawTime) && rawTime > 0) ? Math.min(rawTime, 86400) : 0;
   
   if (!idOrUrl || !isValidYouTubeIdOrUrl(idOrUrl)) {
     return res.status(400).send('Valid YouTube video ID or URL required');
+  }
+
+  // Prevent socket timeout during audio playback
+  if (req.socket && req.socket.setTimeout) {
+    req.socket.setTimeout(0);
   }
 
   const videoId = extractValidYouTubeId(idOrUrl);
@@ -627,6 +716,9 @@ app.get('/api/audio', async (req, res) => {
 
   try {
     const directUrl = await extractStreamUrl(targetUrl);
+    if (!directUrl || (!directUrl.startsWith('http://') && !directUrl.startsWith('https://'))) {
+      throw new Error('Extracted direct stream URL is not a valid HTTP URL');
+    }
 
     const ffmpegArgs = [
       '-fflags', 'nobuffer',
@@ -656,8 +748,22 @@ app.get('/api/audio', async (req, res) => {
     });
 
     let hasReceivedData = false;
+
+    // Timeout guard: terminate stalled ffmpeg spawn if no data emitted within 12 seconds
+    const ffmpegSpawnTimeout = setTimeout(() => {
+      if (!hasReceivedData) {
+        if (ffmpegProcess && !ffmpegProcess.killed) {
+          try { ffmpegProcess.kill(); } catch (_) {}
+        }
+        if (!res.headersSent) {
+          pipeDirectAudioStream(directUrl, res);
+        }
+      }
+    }, 12000);
+
     ffmpegProcess.stdout.once('data', (firstChunk) => {
       hasReceivedData = true;
+      clearTimeout(ffmpegSpawnTimeout);
       if (!res.headersSent) {
         res.writeHead(200, {
           'Content-Type': 'audio/mpeg',
@@ -669,13 +775,18 @@ app.get('/api/audio', async (req, res) => {
       ffmpegProcess.stdout.pipe(res);
     });
 
-    req.on('close', () => {
+    const cleanupFfmpeg = () => {
+      clearTimeout(ffmpegSpawnTimeout);
       if (ffmpegProcess && !ffmpegProcess.killed) {
-        ffmpegProcess.kill();
+        try { ffmpegProcess.kill(); } catch (_) {}
       }
-    });
+    };
+
+    req.on('close', cleanupFfmpeg);
+    res.on('close', cleanupFfmpeg);
 
     ffmpegProcess.on('error', (err) => {
+      clearTimeout(ffmpegSpawnTimeout);
       console.error('FFmpeg process error, falling back to direct pipe:', err);
       if (!hasReceivedData && !res.headersSent) {
         pipeDirectAudioStream(directUrl, res);
@@ -683,6 +794,7 @@ app.get('/api/audio', async (req, res) => {
     });
 
     ffmpegProcess.on('close', (code) => {
+      clearTimeout(ffmpegSpawnTimeout);
       if (code !== 0 && !hasReceivedData && !res.headersSent) {
         console.warn('FFmpeg closed with code', code, 'before streaming data, trying direct pipe...');
         pipeDirectAudioStream(directUrl, res);
@@ -721,13 +833,15 @@ function getLocalIpAddresses() {
 // 📱 SHARED ROOM REMOTE QUEUEING ENGINE (Real-Time SSE + REST)
 // ==========================================================================
 const rooms = new Map(); // roomCode -> Room Object
+const MAX_ROOMS = 500;
 
-// In-Memory Lightweight Rate Limiter for DDoS & Spam Mitigation
+// In-Memory Lightweight Rate Limiter for DDoS & Spam Mitigation with Max LRU Bound
 const ipRateLimits = new Map();
+const MAX_RATE_LIMIT_ENTRIES = 5000;
 
 function checkRateLimit(req, action, maxRequests, windowMs) {
   const forwarded = req.headers['x-forwarded-for'];
-  const rawIp = (forwarded ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || '127.0.0.1'));
+  const rawIp = (forwarded ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || '127.0.0.1')).slice(0, 64);
   const ip = rawIp.replace(/^::ffff:/, '');
 
   // Local loopback host requests on desktop are exempt from remote rate limits
@@ -739,6 +853,10 @@ function checkRateLimit(req, action, maxRequests, windowMs) {
   const now = Date.now();
   let record = ipRateLimits.get(key);
   if (!record || now > record.resetTime) {
+    if (ipRateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
+      const oldestKey = ipRateLimits.keys().next().value;
+      if (oldestKey !== undefined) ipRateLimits.delete(oldestKey);
+    }
     record = { count: 1, resetTime: now + windowMs };
     ipRateLimits.set(key, record);
     return true;
@@ -780,6 +898,18 @@ function getOrCreateRoom(code, hostName = null, hostTier = null) {
   const norm = normalizeRoomCode(code) || generateRoomCode();
   let room = rooms.get(norm);
   if (!room) {
+    if (rooms.size >= MAX_ROOMS) {
+      const now = Date.now();
+      for (const [c, r] of rooms.entries()) {
+        if (r.clients.size === 0 && (now - r.lastActive > 15 * 60 * 1000)) {
+          rooms.delete(c);
+        }
+      }
+      if (rooms.size >= MAX_ROOMS) {
+        const oldestKey = rooms.keys().next().value;
+        if (oldestKey !== undefined) rooms.delete(oldestKey);
+      }
+    }
     room = {
       code: norm,
       hostName: sanitizeText(hostName, 32) || 'Host',
@@ -812,6 +942,10 @@ function broadcastRoomEvent(room, eventName, data) {
   const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
   room.clients.forEach(clientRes => {
     try {
+      if (clientRes.writableEnded || clientRes.destroyed) {
+        room.clients.delete(clientRes);
+        return;
+      }
       clientRes.write(payload);
     } catch (e) {
       room.clients.delete(clientRes);
@@ -863,6 +997,7 @@ app.post('/api/open-sound-settings', (req, res) => {
 
 // --- In-Memory & File-Backed User Profiles Database ---
 const usersDb = new Map();
+const MAX_USERS_DB_SIZE = 2000;
 
 function getUserDbFilePath() {
   if (process.env.NOCTURNE_DATA_DIR) {
@@ -942,8 +1077,12 @@ app.post('/api/auth/register', (req, res) => {
   if (!username || username.length < 2) {
     return res.status(400).json({ error: 'ชื่อผู้ใช้งานต้องมีความยาวอย่างน้อย 2 ตัวอักษร' });
   }
-  if (!password || password.length < 3) {
-    return res.status(400).json({ error: 'รหัสผ่านต้องมีความยาวอย่างน้อย 3 ตัวอักษร' });
+  if (!password || typeof password !== 'string' || password.length < 3 || password.length > 128) {
+    return res.status(400).json({ error: 'รหัสผ่านต้องมีความยาวอย่างน้อย 3 ตัวอักษร (ไม่เกิน 128 ตัวอักษร)' });
+  }
+
+  if (usersDb.size >= MAX_USERS_DB_SIZE) {
+    return res.status(503).json({ error: 'ฐานข้อมูลผู้ใช้งานเต็ม กรุณาลองใหม่ภายหลัง' });
   }
 
   const lower = username.toLowerCase();
@@ -951,12 +1090,14 @@ app.post('/api/auth/register', (req, res) => {
     return res.status(409).json({ error: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเข้าสู่ระบบ' });
   }
 
+  const safePreset = (initialPreset && typeof initialPreset === 'object') ? initialPreset : {};
+
   const user = {
     username,
     password, // In-memory/simple file persistence
     tier: 'free', // 'free' | 'pro'
     proExpiresAt: null,
-    preset: initialPreset || {},
+    preset: safePreset,
     songKeys: {},
     hasCompletedOnboarding: false,
     createdAt: Date.now(),
@@ -986,7 +1127,7 @@ app.post('/api/auth/login', (req, res) => {
   const username = sanitizeText(req.body && req.body.username, 30);
   const password = req.body && req.body.password;
 
-  if (!username || !password) {
+  if (!username || !password || typeof password !== 'string') {
     return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' });
   }
 
@@ -1021,6 +1162,10 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.post('/api/auth/save-profile', (req, res) => {
+  if (!checkRateLimit(req, 'save_profile', 60, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many profile save requests' });
+  }
+
   const username = sanitizeText(req.body && req.body.username, 30);
   const preset = req.body && req.body.preset;
   const songKeys = req.body && req.body.songKeys;
@@ -1037,8 +1182,8 @@ app.post('/api/auth/save-profile', (req, res) => {
     usersDb.set(lower, user);
   }
 
-  if (preset) user.preset = preset;
-  if (songKeys) user.songKeys = songKeys;
+  if (preset && typeof preset === 'object') user.preset = preset;
+  if (songKeys && typeof songKeys === 'object') user.songKeys = songKeys;
   if (typeof hasCompletedOnboarding === 'boolean') user.hasCompletedOnboarding = hasCompletedOnboarding;
   if (tier) user.tier = tier;
   if (proExpiresAt !== undefined) user.proExpiresAt = proExpiresAt;
@@ -1060,8 +1205,11 @@ app.post('/api/auth/save-profile', (req, res) => {
   res.json({ success: true, tier: user.tier, proExpiresAt: user.proExpiresAt });
 });
 
-
 app.get('/api/auth/profile', (req, res) => {
+  if (!checkRateLimit(req, 'profile', 60, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many profile requests' });
+  }
+
   const username = sanitizeText(req.query.username, 30);
   if (!username) return res.status(400).json({ error: 'Username required' });
   const lower = username.toLowerCase();
@@ -1090,6 +1238,10 @@ app.get('/api/auth/profile', (req, res) => {
 });
 
 app.post('/api/auth/upgrade-pro', (req, res) => {
+  if (!checkRateLimit(req, 'upgrade_pro', 20, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many upgrade requests' });
+  }
+
   const username = sanitizeText(req.body && req.body.username, 30);
   if (!username) return res.status(400).json({ error: 'Username required' });
   const lower = username.toLowerCase();
@@ -1159,6 +1311,10 @@ function generatePromptPayPayload(target, amount) {
 
 // PromptPay QR Code Generation for Pro Pack (49 THB)
 app.get('/api/payment/promptpay-qr', (req, res) => {
+  if (!checkRateLimit(req, 'payment', 30, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many payment requests' });
+  }
+
   const parsedAmt = parseFloat(req.query.amount);
   const amount = (isNaN(parsedAmt) || parsedAmt <= 0) ? 49.00 : Math.min(100000, parsedAmt);
   const username = sanitizeText(req.query.username, 30) || 'Guest';
@@ -1181,6 +1337,10 @@ app.get('/api/payment/promptpay-qr', (req, res) => {
 
 // PromptPay Slip / Auto-Approval Verification
 app.post('/api/payment/verify', (req, res) => {
+  if (!checkRateLimit(req, 'payment_verify', 20, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many verification attempts' });
+  }
+
   const username = sanitizeText(req.body && req.body.username, 30);
   const ref = sanitizeText(req.body && req.body.ref, 20) || `PRO-${Date.now().toString().slice(-6)}`;
   if (!username) return res.status(400).json({ error: 'Username is required' });
@@ -1208,6 +1368,10 @@ app.post('/api/payment/verify', (req, res) => {
 
 // Social OAuth Login (Google, Facebook, Discord)
 app.post('/api/auth/oauth', (req, res) => {
+  if (!checkRateLimit(req, 'oauth', 30, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many authentication attempts' });
+  }
+
   const provider = sanitizeText(req.body && req.body.provider, 20) || 'google';
   const profile = req.body && req.body.profile ? req.body.profile : {};
   let name = sanitizeText(profile.name || profile.username, 30);
@@ -1265,6 +1429,10 @@ app.post('/api/auth/oauth', (req, res) => {
 
 // Create or Register Room
 app.post('/api/room/create', (req, res) => {
+  if (!checkRateLimit(req, 'create_room', 20, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many rooms created. Please slow down.' });
+  }
+
   const requestedCode = req.body && req.body.roomCode ? req.body.roomCode : generateRoomCode();
   const hostName = (req.body && req.body.hostName) ? req.body.hostName : 'Host';
   const hostTier = (req.body && req.body.hostTier) ? req.body.hostTier : 'free';
@@ -1290,8 +1458,23 @@ app.get('/api/room/:code', (req, res) => {
 
 // Real-Time Server-Sent Events (SSE) stream for instant sync
 app.get('/api/room/:code/events', (req, res) => {
+  if (!checkRateLimit(req, 'room_events', 60, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many event stream connections' });
+  }
+
   const norm = normalizeRoomCode(req.params.code);
   const room = getOrCreateRoom(norm);
+
+  // Bound active SSE clients per room to prevent socket starvation
+  if (room.clients.size >= 50) {
+    return res.status(429).json({ error: 'Room client connection limit reached (max 50)' });
+  }
+
+  // Prevent socket timeout during SSE event stream
+  if (req.socket && req.socket.setTimeout) {
+    req.socket.setTimeout(0);
+    req.socket.setKeepAlive(true, 15000);
+  }
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -1319,11 +1502,15 @@ app.get('/api/room/:code/events', (req, res) => {
     }
   }, 25000);
 
-  req.on('close', () => {
+  const cleanupClient = () => {
     clearInterval(heartbeat);
     room.clients.delete(res);
     broadcastRoomEvent(room, 'client_count', { clientCount: room.clients.size });
-  });
+  };
+
+  req.on('close', cleanupClient);
+  res.on('close', cleanupClient);
+  res.on('error', cleanupClient);
 });
 
 // Add Song to Room Queue (from Mobile or Host)
@@ -1347,14 +1534,22 @@ app.post('/api/room/:code/queue', (req, res) => {
     return res.status(400).json({ error: 'Song queue is full (max 100 tracks)' });
   }
 
+  const rawSeconds = parseInt(track.seconds, 10);
+  const boundedSeconds = (Number.isFinite(rawSeconds) && rawSeconds > 0) ? Math.min(86400, Math.max(10, rawSeconds)) : 240;
+
+  let safeThumb = `https://i.ytimg.com/vi/${validTrackId}/hqdefault.jpg`;
+  if (typeof track.thumbnail === 'string' && (track.thumbnail.startsWith('https://') || track.thumbnail.startsWith('http://'))) {
+    safeThumb = track.thumbnail.slice(0, 500);
+  }
+
   const queueItem = {
     id: validTrackId,
     title: sanitizeText(track.title, 120) || 'YouTube Track',
     author: sanitizeText(track.author, 60) || 'YouTube',
     duration: sanitizeText(track.duration, 15) || '4:00',
-    seconds: Math.max(10, parseInt(track.seconds) || 240),
-    thumbnail: track.thumbnail || `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`,
-    url: track.url || `https://youtube.com/watch?v=${track.id}`,
+    seconds: boundedSeconds,
+    thumbnail: safeThumb,
+    url: `https://youtube.com/watch?v=${validTrackId}`,
     addedBy: addedBy,
     addedAt: Date.now()
   };
@@ -1362,9 +1557,12 @@ app.post('/api/room/:code/queue', (req, res) => {
   // Priority Queue insertion requires VIP PRO host room or FastPass
   const isFastPass = !!(req.body && req.body.isFastPass);
   const isPriority = isFastPass || !!(req.body && req.body.priority && room.hostTier === 'pro');
-  if (req.body && req.body.tipAmount) {
-    queueItem.tipAmount = parseFloat(req.body.tipAmount);
-    queueItem.tipMessage = sanitizeText(req.body.tipMessage, 100);
+  if (req.body && req.body.tipAmount !== undefined) {
+    const rawTip = parseFloat(req.body.tipAmount);
+    if (Number.isFinite(rawTip) && rawTip > 0) {
+      queueItem.tipAmount = Math.min(100000, rawTip);
+      queueItem.tipMessage = sanitizeText(req.body.tipMessage, 100);
+    }
   }
   if (isPriority) {
     room.queue.unshift(queueItem);
@@ -1417,7 +1615,7 @@ app.post('/api/room/:code/queue/move', (req, res) => {
 
   const { fromIndex, toIndex } = req.body || {};
   if (
-    typeof fromIndex !== 'number' || typeof toIndex !== 'number' ||
+    !Number.isInteger(fromIndex) || !Number.isInteger(toIndex) ||
     fromIndex < 0 || fromIndex >= room.queue.length ||
     toIndex < 0 || toIndex >= room.queue.length
   ) {
@@ -1447,13 +1645,47 @@ app.post('/api/room/:code/queue/clear', (req, res) => {
 
 // Host pushes state update (current track, play status, queue sync, audio DSP state)
 app.post('/api/room/:code/sync', (req, res) => {
+  if (!checkRateLimit(req, 'room_sync', 120, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many sync requests' });
+  }
+
   const norm = normalizeRoomCode(req.params.code);
   const room = getOrCreateRoom(norm);
   const { currentTrack, isPlaying, queue, allowRemoteControl, hostName, hostTier, isVocalCutEnabled, isDucked } = req.body || {};
 
-  if (currentTrack !== undefined) room.currentTrack = currentTrack;
+  if (currentTrack !== undefined) {
+    if (currentTrack && typeof currentTrack === 'object') {
+      const vId = extractValidYouTubeId(currentTrack.id);
+      room.currentTrack = {
+        id: vId || sanitizeText(currentTrack.id, 16),
+        title: sanitizeText(currentTrack.title, 120) || 'YouTube Track',
+        author: sanitizeText(currentTrack.author, 60) || 'YouTube',
+        duration: sanitizeText(currentTrack.duration, 15) || '4:00',
+        seconds: Math.min(86400, Math.max(10, parseInt(currentTrack.seconds, 10) || 240)),
+        thumbnail: typeof currentTrack.thumbnail === 'string' && (currentTrack.thumbnail.startsWith('http://') || currentTrack.thumbnail.startsWith('https://')) ? currentTrack.thumbnail.slice(0, 500) : (vId ? `https://i.ytimg.com/vi/${vId}/hqdefault.jpg` : ''),
+        url: vId ? `https://youtube.com/watch?v=${vId}` : ''
+      };
+    } else {
+      room.currentTrack = null;
+    }
+  }
   if (isPlaying !== undefined) room.isPlaying = Boolean(isPlaying);
-  if (Array.isArray(queue)) room.queue = queue.slice(0, 100);
+  if (Array.isArray(queue)) {
+    room.queue = queue.slice(0, 100).map(t => {
+      const vId = t && t.id ? extractValidYouTubeId(t.id) : null;
+      return {
+        id: vId || (t && t.id ? sanitizeText(t.id, 16) : ''),
+        title: sanitizeText(t && t.title, 120) || 'YouTube Track',
+        author: sanitizeText(t && t.author, 60) || 'YouTube',
+        duration: sanitizeText(t && t.duration, 15) || '4:00',
+        seconds: Math.min(86400, Math.max(10, parseInt(t && t.seconds, 10) || 240)),
+        thumbnail: typeof (t && t.thumbnail) === 'string' && (t.thumbnail.startsWith('http://') || t.thumbnail.startsWith('https://')) ? t.thumbnail.slice(0, 500) : (vId ? `https://i.ytimg.com/vi/${vId}/hqdefault.jpg` : ''),
+        url: vId ? `https://youtube.com/watch?v=${vId}` : '',
+        addedBy: sanitizeText(t && t.addedBy, 32) || 'Guest',
+        addedAt: Number.isFinite(t && t.addedAt) ? t.addedAt : Date.now()
+      };
+    });
+  }
   if (allowRemoteControl !== undefined) room.allowRemoteControl = Boolean(allowRemoteControl);
   if (hostName) room.hostName = sanitizeText(hostName, 32);
   if (hostTier) room.hostTier = hostTier;
@@ -1466,7 +1698,7 @@ app.post('/api/room/:code/sync', (req, res) => {
   res.json({ success: true });
 });
 
-// Remote triggers playback action (Play/Pause, Skip, Ducking)
+// Remote triggers playback action (Play/Pause, Skip, Ducking, Vocal Cut)
 app.post('/api/room/:code/control', (req, res) => {
   if (!checkRateLimit(req, 'control', 45, 10 * 1000)) {
     return res.status(429).json({ error: 'Too many control requests. Please slow down.' });
@@ -1492,15 +1724,27 @@ app.post('/api/room/:code/control', (req, res) => {
     if (!payload || !payload.id || !validPlayId) {
       return res.status(400).json({ error: 'Valid YouTube video track required for play_now' });
     }
+    const rawSec = parseInt(payload.seconds, 10);
+    const boundedSec = (Number.isFinite(rawSec) && rawSec > 0) ? Math.min(86400, Math.max(10, rawSec)) : 240;
+    let safeThumb = `https://i.ytimg.com/vi/${validPlayId}/hqdefault.jpg`;
+    if (typeof payload.thumbnail === 'string' && (payload.thumbnail.startsWith('https://') || payload.thumbnail.startsWith('http://'))) {
+      safeThumb = payload.thumbnail.slice(0, 500);
+    }
     safePayload = {
       id: validPlayId,
       title: sanitizeText(payload.title, 120) || 'YouTube Track',
       author: sanitizeText(payload.author, 60) || 'YouTube',
       duration: sanitizeText(payload.duration, 15) || '4:00',
-      seconds: Math.max(10, parseInt(payload.seconds) || 240),
-      thumbnail: payload.thumbnail || `https://i.ytimg.com/vi/${payload.id}/hqdefault.jpg`,
-      url: payload.url || `https://youtube.com/watch?v=${payload.id}`
+      seconds: boundedSec,
+      thumbnail: safeThumb,
+      url: `https://youtube.com/watch?v=${validPlayId}`
     };
+  } else if (payload && typeof payload === 'object') {
+    // Sanitize non-play_now payload to prevent prototype pollution or large arbitrary payloads
+    const sanitizedObj = {};
+    if (payload.isDucked !== undefined) sanitizedObj.isDucked = Boolean(payload.isDucked);
+    if (payload.isVocalCutEnabled !== undefined) sanitizedObj.isVocalCutEnabled = Boolean(payload.isVocalCutEnabled);
+    safePayload = sanitizedObj;
   }
 
   broadcastRoomEvent(room, 'host_command', {
@@ -1643,7 +1887,8 @@ app.post('/api/room/:code/tip', (req, res) => {
   if (!room) return res.status(404).json({ error: 'Room not found' });
 
   const sender = sanitizeText(req.body && req.body.sender, 32) || 'VIP Fan';
-  const amount = parseFloat(req.body && req.body.amount) || 20.00;
+  const rawAmt = parseFloat(req.body && req.body.amount);
+  const amount = (Number.isFinite(rawAmt) && rawAmt > 0) ? Math.min(100000, rawAmt) : 20.00;
   const message = sanitizeText(req.body && req.body.message, 140) || 'ขอเพลงเพราะๆ หน่อยค้าบ!';
 
   broadcastRoomEvent(room, 'tip_received', {
@@ -1664,6 +1909,9 @@ setInterval(() => {
   }
   for (const [k, v] of streamCache.entries()) {
     if (now - v.time > 4 * 60 * 60 * 1000) streamCache.delete(k);
+  }
+  for (const [k, v] of lyricsCache.entries()) {
+    if (now - v.time > 24 * 60 * 60 * 1000) lyricsCache.delete(k);
   }
   for (const [code, r] of rooms.entries()) {
     // Sweep rooms with 0 connected clients inactive for > 1 hour
@@ -1691,8 +1939,20 @@ setTimeout(() => {
   });
 }, 2000);
 
+// Global Express Error Handler Middleware (Prevents stack trace leaks in responses)
+app.use((err, req, res, next) => {
+  console.error('[Global Server Error]', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Internal server error', message: err.message || 'Unknown error' });
+});
+
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`⚡ NOCTURNE Studio Engine listening on port ${PORT}`);
 });
+
+// Configure robust HTTP socket timeouts for Cloud and Local resilience
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+server.requestTimeout = 30000;
 
 module.exports = server;

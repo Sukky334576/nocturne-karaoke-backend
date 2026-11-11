@@ -24,8 +24,13 @@
       --gold-tint: rgba(216, 177, 93, 0.08);
       --garnet-accent: #9e2a2b;
       --garnet-bright: #c13334;
-      --emerald-accent: #1b998b;
-      --emerald-bright: #2ec4b6;
+      --garnet-glow: rgba(193, 51, 52, 0.35);
+      --purple-accent: #7c3aed;
+      --purple-bright: #a78bfa;
+      --purple-glow: rgba(124, 58, 237, 0.35);
+      --emerald-accent: #10b981;
+      --emerald-bright: #34d399;
+      --emerald-glow: rgba(16, 185, 129, 0.3);
       --text-primary: #f5f6fa;
       --text-secondary: #9aa0b4;
       --text-muted: #585d70;
@@ -80,6 +85,7 @@
       border-radius: var(--radius-md);
       padding: 10px 14px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
     }
 
     .top-brand {
@@ -119,53 +125,59 @@
       align-items: center;
       gap: 6px;
       background: var(--bg-card);
-      border: 1px solid var(--border-medium);
-      padding: 5px 10px;
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-pill);
+      padding: 5px 12px;
       font-size: 11px;
+      font-weight: 600;
+      color: var(--gold-primary);
       cursor: pointer;
+      transition: all 0.2s ease;
     }
+    .room-badge:active { transform: scale(0.96); }
 
     .status-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #777;
+      display: inline-block;
     }
-    .status-dot.online { background: var(--emerald-bright); box-shadow: 0 0 8px var(--emerald-bright); }
-    .status-dot.connecting { background: var(--gold-primary); animation: pulse 1.2s infinite; }
-    .status-dot.offline { background: var(--garnet-bright); }
+    .status-dot.online { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+    .status-dot.connecting { background-color: #f59e0b; box-shadow: 0 0 8px #f59e0b; animation: pulseDot 1.2s infinite; }
+    .status-dot.offline { background-color: #ef4444; }
 
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
 
     /* Pairing Screen */
     .pairing-card {
       background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
+      border: 1px solid var(--border-medium);
       border-radius: var(--radius-lg);
-      padding: 24px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
+      padding: 28px 20px;
+      text-align: center;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       margin-top: 20px;
-      text-align: center;
     }
 
     .pairing-icon {
-      font-size: 42px;
-      margin-bottom: 4px;
+      font-size: 40px;
+      margin-bottom: 12px;
     }
 
     .pairing-card h2 {
       font-family: 'Cinzel', serif;
+      font-size: 18px;
       color: var(--gold-bright);
-      font-size: 20px;
+      margin-bottom: 6px;
     }
 
     .pairing-card p {
       color: var(--text-secondary);
       font-size: 13px;
+      margin-bottom: 20px;
     }
 
     .form-group {
@@ -173,64 +185,51 @@
       flex-direction: column;
       gap: 6px;
       text-align: left;
+      margin-bottom: 14px;
     }
 
     .form-group label {
       font-size: 12px;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      font-weight: 600;
+      color: var(--text-gold);
     }
 
     .input-field {
-      width: 100%;
       background: var(--bg-input);
-      border: 1px solid var(--border-medium);
-      border-radius: var(--radius-sm);
-      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
       padding: 12px 14px;
-      font-size: 15px;
+      color: var(--text-primary);
+      font-size: 14px;
       outline: none;
-      transition: all 0.2s ease;
+      transition: border-color 0.2s ease;
+      width: 100%;
     }
-
-    .input-field:focus {
-      border-color: var(--gold-primary);
-      box-shadow: 0 0 12px rgba(216, 177, 93, 0.25);
-    }
+    .input-field:focus { border-color: var(--gold-primary); box-shadow: 0 0 10px rgba(216,177,93,0.2); }
 
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
+      gap: 6px;
+      font-family: inherit;
       font-weight: 600;
-      font-size: 14px;
       cursor: pointer;
+      border-radius: var(--radius-md);
+      transition: all 0.15s ease;
       border: none;
-      transition: all 0.2s ease;
+      padding: 10px 16px;
+      font-size: 13px;
     }
+    .btn:active { transform: scale(0.97); }
 
     .btn-primary {
       background: linear-gradient(135deg, var(--gold-primary), var(--gold-deep));
       color: #08090d;
-      box-shadow: 0 4px 14px rgba(216, 177, 93, 0.25);
-    }
-    .btn-primary:active { transform: scale(0.98); }
-
-    .btn-outline {
-      background: transparent;
-      border: 1px solid var(--border-medium);
-      color: var(--text-primary);
-    }
-    .btn-outline:active { background: rgba(255,255,255,0.05); }
-
-    .btn-xs {
-      padding: 5px 9px;
-      font-size: 11px;
-      border-radius: var(--radius-sm);
+      box-shadow: 0 4px 16px rgba(216, 177, 93, 0.35);
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
     }
 
     .btn-gold {
@@ -238,51 +237,52 @@
       color: #08090d;
     }
 
-    .btn-danger {
-      background: var(--garnet-accent);
-      color: #fff;
-    }
-
-    /* Tabs */
-    .tab-bar {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 4px;
-      gap: 4px;
-    }
-
-    .tab-btn {
+    .btn-outline {
       background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      font-size: 13px;
-      font-weight: 500;
-      padding: 8px 6px;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+    }
+
+    .btn-xs {
+      padding: 4px 8px;
+      font-size: 11px;
       border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all 0.15s ease;
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-danger {
+      color: #f87171 !important;
+      border-color: rgba(248, 113, 113, 0.3) !important;
+    }
+    .btn-danger:active {
+      background: rgba(248, 113, 113, 0.15) !important;
+    }
+
+    /* VIP Mobile Remote Banner & Priority Buttons */
+    .vip-room-banner {
+      background: linear-gradient(135deg, rgba(216, 177, 93, 0.2), rgba(216, 177, 93, 0.05));
+      border: 1px solid rgba(216, 177, 93, 0.4);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #f4e6c3;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     }
 
-    .tab-btn.active {
-      background: var(--bg-card);
-      color: var(--gold-bright);
-      border: 1px solid var(--border-subtle);
+    .btn-priority {
+      background: rgba(216, 177, 93, 0.15) !important;
+      border-color: var(--gold-primary) !important;
+      color: var(--gold-bright) !important;
     }
-
-    .badge-count {
-      background: var(--gold-primary);
-      color: #08090d;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 1px 6px;
-      border-radius: var(--radius-pill);
+    .btn-priority:active {
+      background: var(--gold-primary) !important;
+      color: #08090d !important;
     }
 
     /* Now Playing Card */
@@ -290,21 +290,24 @@
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 12px 14px;
+      padding: 12px;
       display: flex;
-      align-items: center;
       gap: 12px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
     }
 
     .track-thumb-box {
-      width: 54px;
-      height: 54px;
+      width: 68px;
+      height: 68px;
       border-radius: var(--radius-sm);
       overflow: hidden;
-      background: #000;
       flex-shrink: 0;
-      border: 1px solid var(--border-subtle);
+      background: #000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.08);
     }
 
     .track-thumb-box img {
@@ -316,119 +319,234 @@
     .track-info-box {
       flex: 1;
       min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
     }
 
     .track-status-pill {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--gold-primary);
-      font-weight: 600;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-gold);
+      font-weight: 600;
     }
 
     .eq-wave {
-      display: inline-flex;
+      display: flex;
       align-items: flex-end;
       gap: 2px;
-      height: 10px;
+      height: 12px;
     }
+
     .eq-bar {
-      width: 2px;
-      background: var(--gold-primary);
+      width: 2.5px;
+      background-color: var(--gold-primary);
+      border-radius: 1px;
       animation: eqBounce 0.8s ease-in-out infinite alternate;
     }
-    .eq-bar:nth-child(2) { animation-delay: 0.2s; height: 100%; }
-    .eq-bar:nth-child(3) { animation-delay: 0.4s; height: 60%; }
-    @keyframes eqBounce { 0% { height: 20%; } 100% { height: 100%; } }
+    .eq-bar:nth-child(1) { height: 6px; animation-delay: 0.1s; }
+    .eq-bar:nth-child(2) { height: 11px; animation-delay: 0.3s; }
+    .eq-bar:nth-child(3) { height: 8px; animation-delay: 0.2s; }
+
+    @keyframes eqBounce {
+      0% { height: 3px; }
+      100% { height: 12px; }
+    }
 
     .track-title {
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 13.5px;
+      font-weight: 700;
       color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-top: 2px;
     }
 
     .track-artist {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    /* Live Audio Mode Badges inside Now Playing */
+    .np-mode-indicators {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .mode-pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-pill);
+      letter-spacing: 0.02em;
+      transition: all 0.2s ease;
+    }
+
+    .mode-pill-badge .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulseDot 1s infinite alternate;
+    }
+
+    .pill-ducking {
+      background: rgba(193, 51, 52, 0.2);
+      border: 1px solid var(--garnet-bright);
+      color: #fca5a5;
+      box-shadow: 0 0 10px var(--garnet-glow);
+    }
+    .pill-ducking .pulse-dot { background: #ef4444; }
+
+    .pill-vocalcut {
+      background: rgba(124, 58, 237, 0.2);
+      border: 1px solid var(--purple-bright);
+      color: #ddd6fe;
+      box-shadow: 0 0 10px var(--purple-glow);
+    }
+    .pill-vocalcut .pulse-dot { background: #8b5cf6; }
+
+    .pill-lyrics {
+      background: rgba(16, 185, 129, 0.18);
+      border: 1px solid var(--emerald-bright);
+      color: #a7f3d0;
+      box-shadow: 0 0 10px var(--emerald-glow);
+    }
+    .pill-lyrics .pulse-dot { background: #10b981; }
+
     /* Remote Playback Controls */
     .playback-bar {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 12px;
+      justify-content: space-between;
+      gap: 8px;
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 10px 14px;
+      padding: 10px 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    .ctrl-media-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .ctrl-btn {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: var(--text-primary);
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       border-radius: var(--radius-pill);
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
     }
     .ctrl-btn:active { transform: scale(0.92); border-color: var(--gold-primary); }
 
     .ctrl-btn-play {
-      width: 52px;
-      height: 52px;
+      width: 48px;
+      height: 48px;
       background: linear-gradient(135deg, var(--gold-primary), var(--gold-deep));
       color: #08090d;
       border: none;
-      box-shadow: 0 4px 14px rgba(216, 177, 93, 0.3);
+      box-shadow: 0 4px 14px rgba(216, 177, 93, 0.35);
+      font-size: 16px;
+    }
+    .ctrl-btn-play:active {
+      transform: scale(0.92);
+      box-shadow: 0 2px 8px rgba(216, 177, 93, 0.2);
     }
 
+    .ctrl-modes-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    /* Enhanced Ducking & Vocal Cut Mode Buttons with glowing LED */
     .ctrl-btn-ducking {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: var(--text-gold);
-      padding: 0 14px;
+      padding: 0 10px;
       width: auto;
-      height: 44px;
-      font-size: 12px;
+      height: 42px;
+      font-size: 11px;
       font-weight: 600;
+      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .ctrl-btn-ducking .led-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #585d70;
+      transition: all 0.2s ease;
     }
     .ctrl-btn-ducking.active {
-      background: var(--garnet-accent);
+      background: linear-gradient(135deg, rgba(193, 51, 52, 0.4), rgba(158, 42, 43, 0.75));
       color: #fff;
       border-color: var(--garnet-bright);
+      box-shadow: 0 0 14px var(--garnet-glow);
+    }
+    .ctrl-btn-ducking.active .led-dot {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
     }
 
     .ctrl-btn-vocalcut {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: #b39ddb;
-      padding: 0 12px;
+      padding: 0 10px;
       width: auto;
-      font-size: 12px;
+      height: 42px;
+      font-size: 11px;
       font-weight: 600;
+      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .ctrl-btn-vocalcut .led-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #585d70;
       transition: all 0.2s ease;
     }
     .ctrl-btn-vocalcut.active {
-      background: #5e35b1;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.45), rgba(94, 53, 177, 0.8));
       color: #fff;
-      border-color: #b39ddb;
-      box-shadow: 0 0 12px rgba(179, 157, 219, 0.4);
+      border-color: var(--purple-bright);
+      box-shadow: 0 0 14px var(--purple-glow);
+    }
+    .ctrl-btn-vocalcut.active .led-dot {
+      background: #a78bfa;
+      box-shadow: 0 0 8px #a78bfa;
     }
 
     /* Floating Reaction Dock at bottom */
@@ -440,8 +558,9 @@
       border: 1px solid rgba(216, 177, 93, 0.25);
       border-radius: 30px;
       padding: 6px 14px;
-      margin: 12px 0 6px 0;
+      margin: 6px 0;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
     }
 
     .reaction-emoji-btn {
@@ -452,67 +571,53 @@
       padding: 4px;
       transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-
     .reaction-emoji-btn:active {
       transform: scale(1.4);
     }
 
-    /* Remote Lyrics Panel */
-    .remote-lyrics-box {
-      max-height: 55vh;
-      overflow-y: auto;
-      padding: 20px 14px;
+    /* Tab Bar Navigation */
+    .tab-bar {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      scroll-behavior: smooth;
-    }
-
-    .remote-lyrics-line {
-      font-size: 15px;
-      color: rgba(255, 255, 255, 0.4);
-      text-align: center;
-      transition: all 0.2s ease;
-      padding: 4px 8px;
-    }
-
-    .remote-lyrics-line.active {
-      font-size: 19px;
-      font-weight: 700;
-      color: #fbbf24;
-      text-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
-      transform: scale(1.05);
-    }
-
-    /* Soundboard Grid */
-    .remote-sfx-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .remote-sfx-btn {
-      background: var(--bg-card);
+      background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
-      color: #fff;
-      padding: 12px;
-      border-radius: 12px;
-      display: flex;
+      border-radius: var(--radius-md);
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 8px 4px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      gap: 5px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:active { transform: scale(0.96); }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--gold-bright);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border: 1px solid var(--border-subtle);
     }
 
-    .remote-sfx-btn:active {
-      background: rgba(216, 177, 93, 0.25);
-      border-color: #d8b15d;
-      transform: scale(0.96);
+    .badge-count {
+      font-size: 9.5px;
+      background: var(--gold-primary);
+      color: #08090d;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: var(--radius-pill);
     }
 
     /* Search View */
@@ -540,16 +645,18 @@
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: var(--text-secondary);
-      font-size: 12px;
-      padding: 5px 10px;
+      font-size: 11.5px;
+      padding: 5px 11px;
       border-radius: var(--radius-pill);
       white-space: nowrap;
       cursor: pointer;
+      transition: all 0.15s ease;
     }
     .chip:active {
       background: var(--gold-tint);
       color: var(--gold-bright);
       border-color: var(--gold-primary);
+      transform: scale(0.95);
     }
 
     .search-results-list, .queue-items-list {
@@ -566,7 +673,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      transition: background 0.15s ease;
+      transition: all 0.15s ease;
     }
     .song-card:active { background: var(--bg-card); }
 
@@ -577,6 +684,7 @@
       object-fit: cover;
       flex-shrink: 0;
       background: #000;
+      border: 1px solid rgba(255,255,255,0.08);
     }
 
     .song-card-info {
@@ -601,11 +709,12 @@
 
     .song-actions {
       display: flex;
-      gap: 6px;
+      align-items: center;
+      gap: 5px;
       flex-shrink: 0;
     }
 
-    /* Queue View */
+    /* Queue View & Smooth Reordering */
     .queue-panel {
       display: flex;
       flex-direction: column;
@@ -616,15 +725,25 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 4px;
+      padding: 2px 4px;
+    }
+
+    .queue-header-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .queue-header-row h3 {
       font-size: 13px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      font-weight: 700;
+      color: var(--text-gold);
+      letter-spacing: 0.03em;
+    }
+
+    .queue-est-time {
+      font-size: 11px;
+      color: var(--text-muted);
     }
 
     .empty-state {
@@ -641,18 +760,51 @@
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 10px 12px;
+      padding: 9px 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+      position: relative;
+      touch-action: pan-y;
+    }
+    .queue-item-card.queue-next-card {
+      border-color: rgba(216, 177, 93, 0.45);
+      background: linear-gradient(135deg, rgba(216, 177, 93, 0.08), rgba(16, 18, 26, 0.95));
+    }
+    .queue-item-card.dragging {
+      opacity: 0.4;
+      border: 1px dashed var(--gold-primary);
+    }
+    .queue-item-card.drag-over {
+      border-top: 2px solid var(--gold-primary);
+      transform: translateY(-2px);
+    }
+
+    .drag-handle {
+      color: var(--text-muted);
+      cursor: grab;
+      font-size: 14px;
+      padding: 2px 4px;
+      user-select: none;
+      display: flex;
+      align-items: center;
     }
 
     .queue-num {
-      width: 20px;
-      font-size: 13px;
+      width: 24px;
+      font-size: 12.5px;
       font-weight: 700;
-      color: var(--gold-primary);
+      color: var(--text-secondary);
       text-align: center;
+      flex-shrink: 0;
+    }
+    .queue-num.queue-num-next {
+      color: var(--gold-primary);
+      font-size: 11px;
+      background: rgba(216, 177, 93, 0.15);
+      border-radius: var(--radius-pill);
+      padding: 2px 4px;
     }
 
     .queue-tag {
@@ -662,56 +814,200 @@
       border-radius: var(--radius-pill);
       color: var(--gold-bright);
       display: inline-block;
-      margin-top: 3px;
+    }
+    .queue-tag.tag-priority {
+      background: rgba(216, 177, 93, 0.25);
+      border: 1px solid var(--gold-primary);
+      color: #fff;
+      font-weight: 700;
+    }
+    .queue-tag.tag-next {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      font-weight: 700;
+    }
+
+    .queue-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .btn-move-up, .btn-move-down {
+      width: 26px;
+      height: 26px;
+      padding: 0 !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px !important;
+    }
+
+    /* Synced Lyrics Teleprompter Panel */
+    .remote-lyrics-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .lyrics-top-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 10px;
+    }
+
+    .lyrics-track-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 280px;
+    }
+
+    .lyrics-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+    }
+    .lyrics-live-badge .status-indicator-live {
+      color: #10b981;
+      font-size: 9px;
+    }
+
+    .lyrics-controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+    }
+
+    .lyrics-offset-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .remote-lyrics-box {
+      max-height: 48vh;
+      min-height: 240px;
+      overflow-y: auto;
+      padding: 24px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      scroll-behavior: smooth;
+      background: var(--bg-space);
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .remote-lyrics-line {
+      font-size: 14.5px;
+      color: rgba(255, 255, 255, 0.42);
+      text-align: center;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      line-height: 1.4;
+      max-width: 90%;
+    }
+    .remote-lyrics-line:hover {
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .remote-lyrics-line.passed {
+      color: rgba(255, 255, 255, 0.22);
+      transform: scale(0.96);
+    }
+
+    .remote-lyrics-line.active {
+      font-size: 18.5px;
+      font-weight: 700;
+      color: #fbbf24;
+      text-shadow: 0 0 16px rgba(251, 191, 36, 0.6);
+      transform: scale(1.08);
+      background: rgba(216, 177, 93, 0.12);
+      border: 1px solid rgba(216, 177, 93, 0.3);
+    }
+
+    /* Soundboard Grid */
+    .remote-sfx-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .remote-sfx-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .remote-sfx-btn:active {
+      background: rgba(216, 177, 93, 0.25);
+      border-color: #d8b15d;
+      transform: scale(0.96);
     }
 
     /* Toast Notification */
     .toast-banner {
       position: fixed;
-      bottom: 20px;
+      bottom: 24px;
       left: 50%;
       transform: translateX(-50%) translateY(100px);
-      background: rgba(20, 23, 34, 0.95);
+      background: rgba(20, 23, 34, 0.96);
       border: 1px solid var(--gold-primary);
       color: var(--gold-bright);
       padding: 10px 18px;
       border-radius: var(--radius-pill);
       font-size: 13px;
       font-weight: 600;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.65);
+      backdrop-filter: blur(10px);
       transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 9999;
       pointer-events: none;
       display: flex;
       align-items: center;
       gap: 8px;
+      max-width: 90%;
+      text-align: center;
     }
     .toast-banner.show { transform: translateX(-50%) translateY(0); }
-
-    /* VIP Mobile Remote Banner & Priority Buttons */
-    .vip-room-banner {
-      background: linear-gradient(135deg, rgba(216, 177, 93, 0.2), rgba(216, 177, 93, 0.05));
-      border: 1px solid rgba(216, 177, 93, 0.4);
-      border-radius: var(--radius-md);
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #f4e6c3;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    }
-
-    .btn-priority {
-      background: rgba(216, 177, 93, 0.15) !important;
-      border-color: var(--gold-primary) !important;
-      color: var(--gold-bright) !important;
-    }
-    .btn-priority:active {
-      background: var(--gold-primary) !important;
-      color: #08090d !important;
-    }
 
     .hidden { display: none !important; }
   </style>
@@ -727,7 +1023,7 @@
           <p>Karaoke Mobile Remote</p>
         </div>
       </div>
-      <div id="roomBadge" class="room-badge" title="คลิกเพื่อออกจากห้อง">
+      <div id="roomBadge" class="room-badge" title="คลิกเพื่อดูข้อมูลห้องหรือออกจากห้อง">
         <span id="statusDot" class="status-dot connecting"></span>
         <span id="roomCodeText" class="mono-num">กำลังเชื่อมต่อ...</span>
       </div>
@@ -765,7 +1061,7 @@
         <span style="font-size: 10px; background: rgba(216,177,93,0.25); border: 1px solid #d8b15d; padding: 2px 8px; border-radius: 9999px; color: #f4e6c3; font-weight: 700;">PRO ⭐</span>
       </div>
 
-      <!-- Now Playing Card -->
+      <!-- Now Playing Card with Real-Time Audio Mode Indicators -->
       <section class="now-playing-card">
         <div class="track-thumb-box">
           <img id="currentThumb" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'></svg>" alt="">
@@ -781,16 +1077,39 @@
           </div>
           <div id="npTitle" class="track-title">ยังไม่มีเพลงที่เล่น</div>
           <div id="npArtist" class="track-artist">เลือกเพลงหรือเพิ่มเข้าคิวด้านล่าง</div>
+
+          <!-- Live Audio Mode Badges (Vocal Cut, Ducking, Synced Lyrics) -->
+          <div class="np-mode-indicators">
+            <span id="npVocalCutBadge" class="mode-pill-badge pill-vocalcut hidden" title="ตัดเสียงร้องนำตรงกลางกำลังเปิดอยู่">
+              <span class="pulse-dot"></span> ✂️ ตัดเสียงร้อง ON
+            </span>
+            <span id="npDuckingBadge" class="mode-pill-badge pill-ducking hidden" title="โหมดพูดคุยเบาเสียงเพลงกำลังเปิดอยู่">
+              <span class="pulse-dot"></span> 🎙️ Ducking ON
+            </span>
+            <span id="npLyricsBadge" class="mode-pill-badge pill-lyrics hidden" title="มีเนื้อเพลงซิงค์สดสำหรับเพลงนี้ (แตะแท็บเนื้อเพลงเพื่อดู)">
+              <span class="pulse-dot"></span> 📜 เนื้อเพลงซิงค์
+            </span>
+          </div>
         </div>
       </section>
 
-      <!-- Quick Playback Controls -->
+      <!-- Quick Playback Controls (Media + Ducking & Vocal Cut) -->
       <section class="playback-bar">
-        <button id="btnPrev" class="ctrl-btn" title="เพลงก่อนหน้า">⏮</button>
-        <button id="btnPlayPause" class="ctrl-btn ctrl-btn-play" title="เล่น/หยุด">▶</button>
-        <button id="btnNext" class="ctrl-btn" title="เพลงถัดไป">⏭</button>
-        <button id="btnDucking" class="ctrl-btn ctrl-btn-ducking" title="กดเพื่อเบาเสียงเพลงเวลาคุย">🎙️ Ducking</button>
-        <button id="btnVocalCut" class="ctrl-btn ctrl-btn-vocalcut" title="ตัดเสียงร้องนำตรงกลาง (Karaoke Mode)">✂️ ตัดเสียงร้อง</button>
+        <div class="ctrl-media-group">
+          <button id="btnPrev" class="ctrl-btn" title="เพลงก่อนหน้า">⏮</button>
+          <button id="btnPlayPause" class="ctrl-btn ctrl-btn-play" title="เล่น/หยุด">▶</button>
+          <button id="btnNext" class="ctrl-btn" title="เพลงถัดไป">⏭</button>
+        </div>
+        <div class="ctrl-modes-group">
+          <button id="btnDucking" class="ctrl-btn ctrl-btn-ducking" title="กดเพื่อเบาเสียงเพลงเวลาคุย (Ducking)">
+            <span class="led-dot"></span>
+            <span class="btn-label">🎙️ Ducking</span>
+          </button>
+          <button id="btnVocalCut" class="ctrl-btn ctrl-btn-vocalcut" title="ตัดเสียงร้องนำตรงกลาง (Karaoke Mode)">
+            <span class="led-dot"></span>
+            <span class="btn-label">✂️ ตัดเสียงร้อง</span>
+          </button>
+        </div>
       </section>
 
       <!-- Floating Reaction Dock -->
@@ -816,7 +1135,7 @@
           <span>📜 เนื้อเพลง</span>
         </button>
         <button id="tabReactions" class="tab-btn">
-          <span>🎉 เอฟเฟกต์ & ซาวด์</span>
+          <span>🎉 เอฟเฟกต์</span>
         </button>
         <button id="tabSettings" class="tab-btn">
           <span>⚙️ ข้อมูลห้อง</span>
@@ -846,11 +1165,17 @@
         </div>
       </section>
 
-      <!-- TAB 2: Queue Section -->
+      <!-- TAB 2: Queue Section with Smooth Sorting & Reordering -->
       <section id="panelQueue" class="queue-panel hidden">
         <div class="queue-header-row">
-          <h3>คิวเพลงที่รอเล่น (<span id="queueCountText">0</span>)</h3>
-          <button id="clearQueueBtn" class="btn btn-outline btn-xs btn-danger">ล้างคิว</button>
+          <div class="queue-header-left">
+            <h3>คิวเพลง (<span id="queueCountText">0</span>)</h3>
+            <span id="queueEstTime" class="queue-est-time"></span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-outline btn-xs" onclick="switchTab('search')" title="ค้นหาเพลงเพิ่ม">+ เพิ่มเพลง</button>
+            <button id="clearQueueBtn" class="btn btn-outline btn-xs btn-danger">ล้างคิว</button>
+          </div>
         </div>
 
         <div id="queueList" class="queue-items-list">
@@ -858,18 +1183,36 @@
         </div>
       </section>
 
-      <!-- TAB 4: Synced Lyrics Section -->
+      <!-- TAB 3: Synced Lyrics Teleprompter Section -->
       <section id="panelLyrics" class="queue-panel hidden">
-        <div class="panel-header" style="text-align: center; margin-bottom: 8px;">
-          <h2 style="font-size: 15px; color: #fff; margin: 0;">📜 เนื้อเพลงวิ่งสด (Live Synced Lyrics)</h2>
-          <p id="remoteLyricsTrackTitle" style="font-size: 12px; color: var(--text-gold); margin: 3px 0 0 0;">กำลังซิงค์กับหน้าจอหลัก...</p>
-        </div>
-        <div id="remoteLyricsBox" class="remote-lyrics-box">
-          <div class="remote-lyrics-line active">พร้อมแสดงเนื้อเพลงอัตโนมัติเมื่อเริ่มร้อง</div>
+        <div class="remote-lyrics-container">
+          <div class="lyrics-top-status">
+            <div>
+              <div id="remoteLyricsTrackTitle" class="lyrics-track-title">พร้อมซิงค์เนื้อเพลง</div>
+              <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">เลื่อนเนื้อเพลงตามจังหวะอัตโนมัติ (แตะบรรทัดเพื่อข้ามไปอ่าน)</p>
+            </div>
+            <div id="lyricsLiveStatus" class="lyrics-live-badge">
+              <span class="status-indicator-live">●</span> LIVE SYNCED
+            </div>
+          </div>
+
+          <div class="lyrics-controls-bar">
+            <div class="lyrics-offset-ctrl">
+              <span>จูนไทม์มิ่ง:</span>
+              <button id="btnLyricsNudgeBack" class="btn btn-outline btn-xs" title="ขยับเนื้อเพลงเร็วขึ้น 1 วินาที">◀ -1s</button>
+              <button id="btnLyricsResetOffset" class="btn btn-outline btn-xs" title="รีเซ็ตไทม์มิ่ง">0s</button>
+              <button id="btnLyricsNudgeForward" class="btn btn-outline btn-xs" title="ขยับเนื้อเพลงช้าลง 1 วินาที">+1s ▶</button>
+            </div>
+            <button id="btnCopyLyrics" class="btn btn-outline btn-xs" title="คัดลอกเนื้อเพลงทั้งหมด">📋 คัดลอก</button>
+          </div>
+
+          <div id="remoteLyricsBox" class="remote-lyrics-box">
+            <div class="remote-lyrics-line active">พร้อมแสดงเนื้อเพลงอัตโนมัติเมื่อเริ่มร้อง</div>
+          </div>
         </div>
       </section>
 
-      <!-- TAB 5: Reaction & Mobile Soundboard Section -->
+      <!-- TAB 4: Reaction & Mobile Soundboard Section -->
       <section id="panelReactions" class="queue-panel hidden">
         <div class="panel-header">
           <h2 style="font-size: 15px; color: #fff; margin: 0;">🎉 ส่ง Reaction & ซาวด์เอฟเฟกต์ขึ้นจอ</h2>
@@ -887,7 +1230,7 @@
         </div>
       </section>
 
-      <!-- TAB 3: Room Settings & Info -->
+      <!-- TAB 5: Room Settings & Info -->
       <section id="panelSettings" class="search-panel hidden">
         <div class="pairing-card" style="margin-top: 0; text-align: left;">
           <h3 style="color: var(--gold-bright); font-size: 16px;">ข้อมูลห้อง (Room Details)</h3>
@@ -896,7 +1239,7 @@
           <p style="font-size: 13px;">อุปกรณ์ที่เชื่อมต่อ: <b id="infoClientsCount">1 เครื่อง</b></p>
           <p style="font-size: 13px;">ชื่อเล่นของคุณ: <b id="infoMyNick">-</b></p>
 
-          <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 6px 0;">
+          <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 10px 0;">
           <button id="leaveRoomBtn" class="btn btn-outline btn-danger" style="width: 100%;">
             ออกจากห้องนี้ (Disconnect)
           </button>
@@ -920,9 +1263,19 @@
       isPlaying: false,
       queue: [],
       allowRemoteControl: true,
-      hostName: 'Host'
+      hostName: 'Host',
+      hostTier: 'free',
+      isVocalCutEnabled: false,
+      isDucked: false
     };
     let activeTab = 'search';
+    let currentTrackId = null;
+
+    // Synced Lyrics Tracking
+    let remoteCurrentLyrics = [];
+    let simulatedPlaybackSeconds = 0;
+    let lyricsOffsetSeconds = 0;
+    let lyricsTicker = null;
 
     // DOM Elements
     const pairingScreen = document.getElementById('pairingScreen');
@@ -938,6 +1291,9 @@
     const npArtist = document.getElementById('npArtist');
     const npStatusText = document.getElementById('npStatusText');
     const currentThumb = document.getElementById('currentThumb');
+    const npVocalCutBadge = document.getElementById('npVocalCutBadge');
+    const npDuckingBadge = document.getElementById('npDuckingBadge');
+    const npLyricsBadge = document.getElementById('npLyricsBadge');
 
     const btnPlayPause = document.getElementById('btnPlayPause');
     const btnNext = document.getElementById('btnNext');
@@ -957,6 +1313,11 @@
     const panelSettings = document.getElementById('panelSettings');
     const remoteLyricsBox = document.getElementById('remoteLyricsBox');
     const remoteLyricsTrackTitle = document.getElementById('remoteLyricsTrackTitle');
+    const lyricsLiveStatus = document.getElementById('lyricsLiveStatus');
+    const btnLyricsNudgeBack = document.getElementById('btnLyricsNudgeBack');
+    const btnLyricsResetOffset = document.getElementById('btnLyricsResetOffset');
+    const btnLyricsNudgeForward = document.getElementById('btnLyricsNudgeForward');
+    const btnCopyLyrics = document.getElementById('btnCopyLyrics');
 
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
@@ -964,6 +1325,7 @@
     const queueList = document.getElementById('queueList');
     const queueCountBadge = document.getElementById('queueCountBadge');
     const queueCountText = document.getElementById('queueCountText');
+    const queueEstTime = document.getElementById('queueEstTime');
     const clearQueueBtn = document.getElementById('clearQueueBtn');
     const leaveRoomBtn = document.getElementById('leaveRoomBtn');
 
@@ -977,7 +1339,7 @@
     function showToast(text, duration = 2500) {
       toastMsg.innerText = text;
       toast.classList.add('show');
-      if (navigator.vibrate) navigator.vibrate(25);
+      if (navigator.vibrate) navigator.vibrate(20);
       setTimeout(() => toast.classList.remove('show'), duration);
     }
 
@@ -1007,6 +1369,10 @@
       if (panelLyrics) panelLyrics.classList.toggle('hidden', tab !== 'lyrics');
       if (panelReactions) panelReactions.classList.toggle('hidden', tab !== 'reactions');
       panelSettings.classList.toggle('hidden', tab !== 'settings');
+
+      if (tab === 'lyrics' && remoteCurrentLyrics.length > 0) {
+        syncLyricsToTime(simulatedPlaybackSeconds + lyricsOffsetSeconds);
+      }
     }
 
     tabSearch.addEventListener('click', () => switchTab('search'));
@@ -1022,7 +1388,7 @@
         await fetch('/api/room/' + encodeURIComponent(currentRoomCode) + '/reaction', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emoji, sfx, sender: (userNicknameInput ? userNicknameInput.value : 'Mobile Singer') })
+          body: JSON.stringify({ emoji, sfx, sender: (myNickname || 'Mobile Singer') })
         });
         showToast(emoji ? (emoji + ' ส่งไปยังจอหลักแล้ว!') : '🔊 ส่งซาวด์เอฟเฟกต์แล้ว!');
       } catch (e) {}
@@ -1042,22 +1408,32 @@
       });
     });
 
-    // Remote Synced Lyrics Sync
-    let remoteCurrentLyrics = [];
+    // Remote Synced Lyrics System
     async function fetchRemoteLyrics(track) {
       if (!track || !track.title) return;
-      if (remoteLyricsTrackTitle) remoteLyricsTrackTitle.innerText = track.title;
+      if (remoteLyricsTrackTitle) remoteLyricsTrackTitle.innerText = `${track.title} • ${track.author || ''}`;
+      simulatedPlaybackSeconds = 0;
+      lyricsOffsetSeconds = 0;
+
       try {
-        const res = await fetch('/api/lyrics?title=' + encodeURIComponent(track.title) + '&artist=' + encodeURIComponent(track.author || ''));
+        const cleanArtist = (track.author || '').replace(/- Topic$/i, '').trim();
+        const res = await fetch('/api/lyrics?title=' + encodeURIComponent(track.title) + '&artist=' + encodeURIComponent(cleanArtist));
         const data = await res.json();
         if (data.success && data.lyrics && data.lyrics.length > 0) {
           remoteCurrentLyrics = data.lyrics;
           renderRemoteLyrics(data.lyrics);
+          if (npLyricsBadge) npLyricsBadge.classList.remove('hidden');
+          if (lyricsLiveStatus) lyricsLiveStatus.innerHTML = '<span class="status-indicator-live">●</span> LIVE SYNCED';
         } else {
           remoteCurrentLyrics = [];
-          if (remoteLyricsBox) remoteLyricsBox.innerHTML = '<div class="remote-lyrics-line">ไม่พบเนื้อเพลงซิงค์สำหรับเพลงนี้</div>';
+          if (remoteLyricsBox) remoteLyricsBox.innerHTML = '<div class="remote-lyrics-line">ไม่พบเนื้อเพลงซิงค์สำหรับเพลงนี้ (ร้องสดได้เลย)</div>';
+          if (npLyricsBadge) npLyricsBadge.classList.add('hidden');
+          if (lyricsLiveStatus) lyricsLiveStatus.innerText = 'ไม่พบเนื้อเพลงซิงค์';
         }
-      } catch (e) {}
+      } catch (e) {
+        remoteCurrentLyrics = [];
+        if (remoteLyricsBox) remoteLyricsBox.innerHTML = '<div class="remote-lyrics-line">พร้อมแสดงเนื้อเพลงอัตโนมัติเมื่อเริ่มร้อง</div>';
+      }
     }
 
     function renderRemoteLyrics(lyrics) {
@@ -1068,8 +1444,95 @@
         div.className = 'remote-lyrics-line' + (idx === 0 ? ' active' : '');
         div.id = 'rline-' + idx;
         div.innerText = line.text;
+        div.setAttribute('data-time', line.time);
+        div.addEventListener('click', () => {
+          simulatedPlaybackSeconds = line.time;
+          syncLyricsToTime(line.time);
+          showToast(`ข้ามไปยังเวลา ${formatSeconds(line.time)}`);
+        });
         remoteLyricsBox.appendChild(div);
       });
+    }
+
+    function syncLyricsToTime(currTime) {
+      if (!remoteCurrentLyrics || remoteCurrentLyrics.length === 0 || !remoteLyricsBox) return;
+      let activeIdx = -1;
+      for (let i = 0; i < remoteCurrentLyrics.length; i++) {
+        if (currTime >= remoteCurrentLyrics[i].time) {
+          activeIdx = i;
+        } else {
+          break;
+        }
+      }
+
+      if (activeIdx !== -1) {
+        const lines = remoteLyricsBox.querySelectorAll('.remote-lyrics-line');
+        lines.forEach((lineEl, idx) => {
+          lineEl.classList.toggle('active', idx === activeIdx);
+          lineEl.classList.toggle('passed', idx < activeIdx);
+        });
+
+        const activeLineEl = document.getElementById('rline-' + activeIdx);
+        if (activeLineEl) {
+          activeLineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+
+    function startLyricsTicker() {
+      if (lyricsTicker) clearInterval(lyricsTicker);
+      lyricsTicker = setInterval(() => {
+        if (!roomState.isPlaying || remoteCurrentLyrics.length === 0) return;
+        simulatedPlaybackSeconds += 0.25;
+        syncLyricsToTime(simulatedPlaybackSeconds + lyricsOffsetSeconds);
+      }, 250);
+    }
+
+    if (btnLyricsNudgeBack) {
+      btnLyricsNudgeBack.addEventListener('click', () => {
+        lyricsOffsetSeconds -= 1.0;
+        syncLyricsToTime(simulatedPlaybackSeconds + lyricsOffsetSeconds);
+        showToast(`ปรับเนื้อเพลงเร็วขึ้น 1 วิ (${lyricsOffsetSeconds > 0 ? '+' : ''}${lyricsOffsetSeconds.toFixed(1)}s)`);
+      });
+    }
+
+    if (btnLyricsResetOffset) {
+      btnLyricsResetOffset.addEventListener('click', () => {
+        lyricsOffsetSeconds = 0;
+        syncLyricsToTime(simulatedPlaybackSeconds);
+        showToast('รีเซ็ตไทม์มิ่งเนื้อเพลง (0.0s)');
+      });
+    }
+
+    if (btnLyricsNudgeForward) {
+      btnLyricsNudgeForward.addEventListener('click', () => {
+        lyricsOffsetSeconds += 1.0;
+        syncLyricsToTime(simulatedPlaybackSeconds + lyricsOffsetSeconds);
+        showToast(`ปรับเนื้อเพลงช้าลง 1 วิ (${lyricsOffsetSeconds > 0 ? '+' : ''}${lyricsOffsetSeconds.toFixed(1)}s)`);
+      });
+    }
+
+    if (btnCopyLyrics) {
+      btnCopyLyrics.addEventListener('click', async () => {
+        if (!remoteCurrentLyrics || remoteCurrentLyrics.length === 0) {
+          showToast('ไม่มีเนื้อเพลงให้คัดลอก');
+          return;
+        }
+        const text = remoteCurrentLyrics.map(l => l.text).join('\n');
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('📋 คัดลอกเนื้อเพลงทั้งหมดแล้ว!');
+        } catch (_) {
+          showToast('คัดลอกไม่สำเร็จ');
+        }
+      });
+    }
+
+    function formatSeconds(sec) {
+      sec = Math.max(0, Math.floor(sec || 0));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
     // Join Room
@@ -1105,6 +1568,7 @@
 
         connectSSE(code);
         showToast(`เชื่อมต่อกับห้อง ${code} เรียบร้อย!`);
+        startLyricsTicker();
       } catch (err) {
         showToast('เชื่อมต่อล้มเหลว กรุณาตรวจเช็กเน็ตเวิร์ก');
         statusDot.className = 'status-dot offline';
@@ -1191,10 +1655,18 @@
         npArtist.innerText = state.currentTrack.author || '-';
         if (state.currentTrack.thumbnail) currentThumb.src = state.currentTrack.thumbnail;
         npStatusText.innerText = state.isPlaying ? 'กำลังเล่นบนหน้าจอหลัก' : 'หยุดชั่วคราว';
+
+        // Auto-fetch lyrics when track changes
+        if (!currentTrackId || currentTrackId !== state.currentTrack.id) {
+          currentTrackId = state.currentTrack.id;
+          fetchRemoteLyrics(state.currentTrack);
+        }
       } else {
+        currentTrackId = null;
         npTitle.innerText = 'ยังไม่มีเพลงที่เล่น';
         npArtist.innerText = 'กดค้นหาเพื่อเพิ่มเพลงเข้าคิว';
         npStatusText.innerText = 'พร้อมเริ่มเล่นเพลง';
+        if (npLyricsBadge) npLyricsBadge.classList.add('hidden');
       }
 
       // Play/Pause button
@@ -1203,11 +1675,13 @@
       // Reflect Vocal Cut state from Host
       if (btnVocalCut && state.isVocalCutEnabled !== undefined) {
         btnVocalCut.classList.toggle('active', !!state.isVocalCutEnabled);
+        if (npVocalCutBadge) npVocalCutBadge.classList.toggle('hidden', !state.isVocalCutEnabled);
       }
 
       // Reflect Ducking state from Host
       if (btnDucking && state.isDucked !== undefined) {
         btnDucking.classList.toggle('active', !!state.isDucked);
+        if (npDuckingBadge) npDuckingBadge.classList.toggle('hidden', !state.isDucked);
       }
 
       // Reflect allowRemoteControl state
@@ -1226,59 +1700,136 @@
       renderQueueUI(state.queue || []);
     }
 
+    // Render Queue UI with Smooth Sorting, Reordering & Touch Handles
     function renderQueueUI(queue) {
       const len = queue.length;
       queueCountBadge.innerText = len;
       queueCountText.innerText = len;
 
+      // Calculate total duration estimation
+      const totalSeconds = queue.reduce((acc, t) => {
+        const parts = (t.duration || '0:00').split(':').map(Number);
+        if (parts.length === 2) return acc + parts[0] * 60 + parts[1];
+        if (parts.length === 3) return acc + parts[0] * 3600 + parts[1] * 60 + parts[2];
+        return acc + 180;
+      }, 0);
+      const estMin = Math.round(totalSeconds / 60);
+      if (queueEstTime) {
+        queueEstTime.innerText = len > 0 ? `• ประมาณ ${estMin} นาที` : '';
+      }
+
       if (len === 0) {
-        queueList.innerHTML = '<div class="empty-state">ยังไม่มีเพลงในคิว กดค้นหาเพื่อเพิ่มเพลง</div>';
+        queueList.innerHTML = `
+          <div class="empty-state">
+            <div style="font-size: 28px; margin-bottom: 8px;">🎵</div>
+            <div style="font-weight: 600; color: var(--gold-bright); margin-bottom: 4px;">ยังไม่มีเพลงในคิว</div>
+            <div style="font-size: 12px; margin-bottom: 14px;">ค้นหาเพลงโปรดแล้วกดเพิ่มเข้าคิวได้ทันที</div>
+            <button class="btn btn-gold btn-sm" onclick="switchTab('search')">🔍 ค้นหาเพลงตอนนี้</button>
+          </div>
+        `;
         return;
       }
 
       queueList.innerHTML = '';
       queue.forEach((track, idx) => {
+        const isNext = (idx === 0);
         const item = document.createElement('div');
-        item.className = 'queue-item-card';
+        item.className = 'queue-item-card' + (isNext ? ' queue-next-card' : '');
+        item.setAttribute('draggable', 'true');
+        item.setAttribute('data-idx', idx);
+
         item.innerHTML = `
-          <div class="queue-num">${idx + 1}</div>
-          <img src="${escapeHtml(track.thumbnail)}" alt="" class="song-card-thumb">
+          <div class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</div>
+          <div class="queue-num ${isNext ? 'queue-num-next' : ''}">${isNext ? '★ 1' : (idx + 1)}</div>
+          <img src="${escapeHtml(track.thumbnail)}" alt="" class="song-card-thumb" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23333\\'></svg>'">
           <div class="song-card-info">
             <div class="song-card-title">${escapeHtml(track.title)}</div>
             <div class="song-card-meta">${escapeHtml(track.author)} • ${escapeHtml(track.duration)}</div>
-            <span class="queue-tag">👤 ${escapeHtml(track.addedBy || 'Mobile')}</span>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:2px;">
+              <span class="queue-tag">👤 ${escapeHtml(track.addedBy || 'Mobile')}</span>
+              ${track.priority || track.isPriority ? '<span class="queue-tag tag-priority">⚡ VIP แซงคิว</span>' : ''}
+              ${isNext ? '<span class="queue-tag tag-next">▶ คิวถัดไป</span>' : ''}
+            </div>
           </div>
-          <div class="song-actions">
-            ${roomState && roomState.hostTier === 'pro' && idx > 0 ? `<button class="btn btn-outline btn-xs btn-priority btn-jump-top" data-idx="${idx}" title="⚡ [VIP] แซงขึ้นเป็นคิวแรก">⚡</button>` : ''}
+          <div class="song-actions queue-item-actions">
+            ${idx > 0 ? `<button class="btn btn-outline btn-xs btn-priority btn-jump-top" data-idx="${idx}" title="⚡ แซงขึ้นเป็นคิวแรก">⚡</button>` : ''}
             ${idx > 0 ? `<button class="btn btn-outline btn-xs btn-move-up" data-idx="${idx}" title="เลื่อนขึ้น">▲</button>` : ''}
+            ${idx < len - 1 ? `<button class="btn btn-outline btn-xs btn-move-down" data-idx="${idx}" title="เลื่อนลง">▼</button>` : ''}
             <button class="btn btn-outline btn-xs btn-remove btn-danger" data-idx="${idx}" title="ลบออก">✕</button>
           </div>
         `;
         queueList.appendChild(item);
       });
+
+      setupQueueDragAndDrop();
     }
 
-    // Queue Item Actions (Remove, Priority Move & Reorder)
+    // Drag and Drop Queue Sorting
+    function setupQueueDragAndDrop() {
+      const items = queueList.querySelectorAll('.queue-item-card');
+      let dragStartIndex = -1;
+
+      items.forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+          dragStartIndex = parseInt(card.getAttribute('data-idx'), 10);
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', dragStartIndex);
+        });
+
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          items.forEach(c => c.classList.remove('drag-over'));
+        });
+
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          card.classList.add('drag-over');
+        });
+
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over');
+        });
+
+        card.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          const dropIndex = parseInt(card.getAttribute('data-idx'), 10);
+          if (dragStartIndex !== -1 && dropIndex !== -1 && dragStartIndex !== dropIndex) {
+            if (navigator.vibrate) navigator.vibrate(20);
+            const item = roomState.queue.splice(dragStartIndex, 1)[0];
+            roomState.queue.splice(dropIndex, 0, item);
+            renderQueueUI(roomState.queue);
+            showToast(`ย้ายไปที่คิว #${dropIndex + 1}`);
+            await fetch(`/api/room/${currentRoomCode}/queue/move`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fromIndex: dragStartIndex, toIndex: dropIndex })
+            });
+          }
+        });
+      });
+    }
+
+    // Queue Item Actions (Remove, Jump Top & Reorder)
     queueList.addEventListener('click', async (e) => {
       const btnJump = e.target.closest('.btn-jump-top');
       if (btnJump) {
         const idx = parseInt(btnJump.getAttribute('data-idx'), 10);
         if (idx > 0) {
+          if (navigator.vibrate) navigator.vibrate(25);
+          // Optimistic local update
+          const [moved] = roomState.queue.splice(idx, 1);
+          roomState.queue.unshift(moved);
+          renderQueueUI(roomState.queue);
+          showToast(`⚡ แซง "${(moved.title || '').slice(0, 18)}..." เป็นคิวแรกแล้ว!`);
           await fetch(`/api/room/${currentRoomCode}/queue/move`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fromIndex: idx, toIndex: 0 })
           });
-          showToast('⚡ [VIP] แซงขึ้นเป็นคิวแรกแล้ว!');
         }
-        return;
-      }
-
-      const btnRemove = e.target.closest('.btn-remove');
-      if (btnRemove) {
-        const idx = btnRemove.getAttribute('data-idx');
-        await fetch(`/api/room/${currentRoomCode}/queue/${idx}`, { method: 'DELETE' });
-        showToast('ลบเพลงออกจากคิวแล้ว');
         return;
       }
 
@@ -1286,17 +1837,58 @@
       if (btnUp) {
         const idx = parseInt(btnUp.getAttribute('data-idx'), 10);
         if (idx > 0) {
+          if (navigator.vibrate) navigator.vibrate(15);
+          // Optimistic local update
+          const temp = roomState.queue[idx];
+          roomState.queue[idx] = roomState.queue[idx - 1];
+          roomState.queue[idx - 1] = temp;
+          renderQueueUI(roomState.queue);
           await fetch(`/api/room/${currentRoomCode}/queue/move`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fromIndex: idx, toIndex: idx - 1 })
           });
         }
+        return;
+      }
+
+      const btnDown = e.target.closest('.btn-move-down');
+      if (btnDown) {
+        const idx = parseInt(btnDown.getAttribute('data-idx'), 10);
+        if (idx < roomState.queue.length - 1) {
+          if (navigator.vibrate) navigator.vibrate(15);
+          // Optimistic local update
+          const temp = roomState.queue[idx];
+          roomState.queue[idx] = roomState.queue[idx + 1];
+          roomState.queue[idx + 1] = temp;
+          renderQueueUI(roomState.queue);
+          await fetch(`/api/room/${currentRoomCode}/queue/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fromIndex: idx, toIndex: idx + 1 })
+          });
+        }
+        return;
+      }
+
+      const btnRemove = e.target.closest('.btn-remove');
+      if (btnRemove) {
+        const idx = parseInt(btnRemove.getAttribute('data-idx'), 10);
+        if (idx >= 0 && idx < roomState.queue.length) {
+          if (navigator.vibrate) navigator.vibrate(20);
+          const [removed] = roomState.queue.splice(idx, 1);
+          renderQueueUI(roomState.queue);
+          showToast(`ลบ "${(removed.title || '').slice(0, 18)}..." ออกจากคิวแล้ว`);
+          await fetch(`/api/room/${currentRoomCode}/queue/${idx}`, { method: 'DELETE' });
+        }
+        return;
       }
     });
 
     clearQueueBtn.addEventListener('click', async () => {
       if (confirm('คุณต้องการล้างคิวเพลงทั้งหมดใช่หรือไม่?')) {
+        roomState.queue = [];
+        renderQueueUI([]);
         await fetch(`/api/room/${currentRoomCode}/queue/clear`, { method: 'POST' });
         showToast('ล้างคิวเรียบร้อย');
       }
@@ -1346,7 +1938,9 @@
       const ok = await sendControl('ducking');
       if (ok) {
         btnDucking.classList.toggle('active');
-        showToast(btnDucking.classList.contains('active') ? 'โหมดพูดคุย (Ducked)' : 'โหมดร้องเพลง');
+        const isDucked = btnDucking.classList.contains('active');
+        if (npDuckingBadge) npDuckingBadge.classList.toggle('hidden', !isDucked);
+        showToast(isDucked ? '🎙️ โหมดพูดคุย (เสียงเพลงหรี่)' : '🎤 โหมดร้องเพลง (ระดับเสียงปกติ)');
       }
     });
 
@@ -1355,7 +1949,9 @@
         const ok = await sendControl('toggle_vocal_cut');
         if (ok) {
           btnVocalCut.classList.toggle('active');
-          showToast(btnVocalCut.classList.contains('active') ? '🎙️ เปิดโหมดตัดเสียงร้อง' : '🎵 คืนค่าเสียงเพลงปกติ');
+          const isVocalCut = btnVocalCut.classList.contains('active');
+          if (npVocalCutBadge) npVocalCutBadge.classList.toggle('hidden', !isVocalCut);
+          showToast(isVocalCut ? '✂️ เปิดโหมดตัดเสียงร้อง (Karaoke)' : '🎵 คืนค่าเสียงเพลงปกติ');
         }
       });
     }
@@ -1404,7 +2000,7 @@
         const card = document.createElement('div');
         card.className = 'song-card';
         card.innerHTML = `
-          <img src="${escapeHtml(v.thumbnail)}" alt="" class="song-card-thumb">
+          <img src="${escapeHtml(v.thumbnail)}" alt="" class="song-card-thumb" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23333\\'></svg>'">
           <div class="song-card-info">
             <div class="song-card-title">${escapeHtml(v.title)}</div>
             <div class="song-card-meta">${escapeHtml(v.author)} • ${escapeHtml(v.duration)}</div>
@@ -1474,6 +2070,7 @@
     leaveRoomBtn.addEventListener('click', () => {
       if (confirm('ต้องการออกจากห้องคาราโอเกะนี้ใช่หรือไม่?')) {
         if (eventSource) eventSource.close();
+        if (lyricsTicker) clearInterval(lyricsTicker);
         currentRoomCode = '';
         localStorage.removeItem('nocturne_remote_room');
         remoteMain.classList.add('hidden');
