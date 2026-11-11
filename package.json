@@ -2,7 +2,7 @@
   "name": "nocturne-studio",
   "version": "1.0.0",
   "description": "Nocturne Studio Precision Karaoke & Vocal Engine",
-  "author": "Nocturne Acoustics",
+  "author": "",
   "main": "main.js",
   "scripts": {
     "start": "node server.js",
@@ -41,10 +41,8 @@
     ]
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "dependencies": {
-    "@distube/ytdl-core": "^4.16.12",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "yt-search": "^2.13.1"

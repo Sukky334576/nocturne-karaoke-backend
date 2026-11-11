@@ -240,8 +240,9 @@ async function runTests() {
   }
 
   // Test 5: Shared Room Remote Queueing REST API & Network Info
+  const testRoomCode = 'TEST-' + Math.floor(1000 + Math.random() * 9000);
   try {
-    console.log('\n[Test 5] Testing Shared Room Remote Queueing & Network Info APIs...');
+    console.log(`\n[Test 5] Testing Shared Room Remote Queueing & Network Info APIs (${testRoomCode})...`);
     // 5a. Network info
     const netRes = await fetchJson(`http://127.0.0.1:${testPort}/api/network-info`);
     if (netRes.status !== 200 || !netRes.data.port) {
@@ -250,15 +251,15 @@ async function runTests() {
 
     // 5b. Create Room
     const createRes = await postJson(`http://127.0.0.1:${testPort}/api/room/create`, {
-      roomCode: 'TEST-999',
+      roomCode: testRoomCode,
       hostName: 'TestHost'
     });
-    if (createRes.status !== 200 || createRes.data.roomCode !== 'TEST-999') {
+    if (createRes.status !== 200 || createRes.data.roomCode !== testRoomCode) {
       throw new Error(`Room creation failed: ${JSON.stringify(createRes)}`);
     }
 
     // 5c. Add Song to Queue from Remote
-    const queueRes1 = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/queue`, {
+    const queueRes1 = await postJson(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/queue`, {
       track: {
         id: 'dQw4w9WgXcQ',
         title: 'Rick Astley - Never Gonna Give You Up',
@@ -274,7 +275,7 @@ async function runTests() {
     }
 
     // 5d. Add 2nd Song
-    await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/queue`, {
+    await postJson(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/queue`, {
       track: {
         id: 'oJ7cV4LcYQg',
         title: 'Song 2',
@@ -286,7 +287,7 @@ async function runTests() {
     });
 
     // 5e. Move Song
-    const moveRes = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/queue/move`, {
+    const moveRes = await postJson(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/queue/move`, {
       fromIndex: 1,
       toIndex: 0
     });
@@ -295,13 +296,13 @@ async function runTests() {
     }
 
     // 5f. Delete Song
-    const delRes = await deleteReq(`http://127.0.0.1:${testPort}/api/room/TEST-999/queue/0`);
+    const delRes = await deleteReq(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/queue/0`);
     if (delRes.status !== 200 || delRes.data.queue.length !== 1) {
       throw new Error(`Queue delete failed: ${JSON.stringify(delRes)}`);
     }
 
     // 5g. Host Sync
-    const syncRes = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/sync`, {
+    const syncRes = await postJson(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/sync`, {
       currentTrack: { id: 'dQw4w9WgXcQ', title: 'Rick Astley' },
       isPlaying: true,
       allowRemoteControl: true
@@ -311,7 +312,7 @@ async function runTests() {
     }
 
     // 5h. Remote Control
-    const ctrlRes = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/control`, {
+    const ctrlRes = await postJson(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/control`, {
       action: 'next',
       sender: 'MobileGuest1'
     });
@@ -328,9 +329,9 @@ async function runTests() {
 
   // Test 6: Server-Sent Events (SSE) Real-Time Stream Verification
   try {
-    console.log('\n[Test 6] Testing Room Real-Time SSE Stream (/api/room/TEST-999/events)...');
+    console.log(`\n[Test 6] Testing Room Real-Time SSE Stream (/api/room/${testRoomCode}/events)...`);
     const sseOk = await new Promise((resolve) => {
-      const req = http.get(`http://127.0.0.1:${testPort}/api/room/TEST-999/events`, (res) => {
+      const req = http.get(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/events`, (res) => {
         if (res.statusCode !== 200 || !res.headers['content-type']?.includes('text/event-stream')) {
           req.destroy();
           return resolve(false);
@@ -408,7 +409,7 @@ async function runTests() {
     }
 
     // 8b. Room Live Reaction Broadcast
-    const reactionRes = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/reaction`, {
+    const reactionRes = await postJson(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/reaction`, {
       emoji: '🔥',
       sender: 'MobileRocker'
     });
@@ -417,7 +418,7 @@ async function runTests() {
     }
 
     // 8c. VIP Fast-Pass Tip & Superchat
-    const tipRes = await postJson(`http://127.0.0.1:${testPort}/api/room/TEST-999/tip`, {
+    const tipRes = await postJson(`http://127.0.0.1:${testPort}/api/room/${testRoomCode}/tip`, {
       sender: 'VIP Fan',
       amount: 50,
       message: 'ขอเพลงร็อคหน่อยค้าบ!'
