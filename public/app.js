@@ -351,6 +351,7 @@ const gateConfirmPasswordGroup = document.getElementById('gateConfirmPasswordGro
 const gateConfirmPasswordInput = document.getElementById('gateConfirmPasswordInput');
 const gateSubmitBtn = document.getElementById('gateSubmitBtn');
 const gateGuestBtn = document.getElementById('gateGuestBtn');
+const gateRedeemBtn = document.getElementById('gateRedeemBtn');
 const gateProVipBtn = document.getElementById('gateProVipBtn');
 
 // User Profile Modal DOM (with Close Button)
@@ -695,9 +696,9 @@ function loadUserProfile() {
 
   // Automatic Pro activation for Owner/Developer accounts, and expiry check
   const unameLower = (currentUser.username || '').toLowerCase();
-  if (['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(unameLower)) {
+  if (['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(unameLower) || currentUser.isTesterPro) {
     currentUser.tier = 'pro';
-    currentUser.proExpiresAt = 253402300799000;
+    if (!currentUser.isTesterPro) currentUser.proExpiresAt = 253402300799000;
   } else if (currentUser.tier === 'pro' && currentUser.proExpiresAt && currentUser.proExpiresAt < Date.now()) {
     currentUser.tier = 'free';
   }
@@ -1082,7 +1083,7 @@ function applyVocalPreset(presetKey) {
 function updateAuthUI() {
   const unameLower = (currentUser.username || '').toLowerCase();
   let tierExpired = false;
-  if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(unameLower)) {
+  if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(unameLower) && !currentUser.isTesterPro) {
     if (currentUser.tier === 'pro' && currentUser.proExpiresAt && currentUser.proExpiresAt < Date.now()) {
       currentUser.tier = 'free';
       tierExpired = true;
@@ -1259,13 +1260,23 @@ if (gateGuestBtn) {
     currentUser.username = 'Guest';
     currentUser.isGuest = true;
     currentUser.isLoggedIn = true;
-    currentUser.tier = 'free';
+    if (currentUser.isTesterPro) {
+      currentUser.tier = 'pro';
+    } else {
+      currentUser.tier = 'free';
+    }
     saveUserProfile();
     updateAuthUI();
     if (landingGate) landingGate.classList.add('hidden');
     if (!currentUser.hasCompletedOnboarding) {
       openOnboardingWizard();
     }
+  });
+}
+
+if (gateRedeemBtn) {
+  gateRedeemBtn.addEventListener('click', () => {
+    openRedeemModal();
   });
 }
 
@@ -1408,8 +1419,8 @@ let promptPayTimerInterval = null;
 let currentPromptPayRef = null;
 
 async function openPromptPayModal() {
-  if (!promptPayModal) return;
-  promptPayModal.classList.remove('hidden');
+  openRedeemModal();
+  return;
 
   if (promptPayTimerInterval) {
     clearInterval(promptPayTimerInterval);
@@ -1593,6 +1604,7 @@ async function submitRedeemCode() {
       saveUserProfile();
       updateAuthUI();
       closeRedeemModal();
+      if (landingGate) landingGate.classList.add('hidden');
       showHostToast('🎉 ปลดล็อกสิทธิ์ VIP Tester สำเร็จแล้ว! ยินดีต้อนรับสู่ Nocturne Pro');
       alert(`🎉 ปลดล็อกสิทธิ์ VIP Tester สำเร็จ!\nรหัส: ${data.code}\n\nปลดล็อก Studio Reverb, Auto-Tune, 3-Band EQ, Doubler, Ducking และ Soundboard ครบทุกฟังก์ชันเรียบร้อยแล้ว!`);
     } else {

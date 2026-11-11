@@ -6,6 +6,7 @@ const fs = require('fs');
 
 let testPort = 3300;
 let testProcess = null;
+let tempTestDataDir = null;
 
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
@@ -133,9 +134,15 @@ async function isPortOpen(port) {
 
 async function startEphemeralServer() {
   testPort = 3399;
+  const os = require('os');
+  tempTestDataDir = path.join(os.tmpdir(), 'nocturne-test-' + Date.now());
+  fs.mkdirSync(tempTestDataDir, { recursive: true });
+  fs.copyFileSync(path.join(__dirname, 'licenses.json'), path.join(tempTestDataDir, 'licenses.json'));
+  fs.copyFileSync(path.join(__dirname, 'users.json'), path.join(tempTestDataDir, 'users.json'));
+
   testProcess = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
     cwd: __dirname,
-    env: { ...process.env, PORT: '3399' },
+    env: { ...process.env, PORT: '3399', NOCTURNE_DATA_DIR: tempTestDataDir },
     stdio: 'inherit'
   });
   // Wait up to 5s for server to boot
@@ -457,7 +464,7 @@ async function runTests() {
     
     // 10a. License Status Check (Pre-Activation)
     const statusBefore = await fetchJson(`http://127.0.0.1:${testPort}/api/license/status`);
-    if (statusBefore.status !== 200 || !statusBefore.data.success || typeof statusBefore.data.availableCodes !== 'number') {
+    if (statusBefore.status !== 200 || !statusBefore.data.success || statusBefore.data.isActivated !== false || typeof statusBefore.data.availableCodes !== 'number') {
       throw new Error(`License status check failed: ${JSON.stringify(statusBefore)}`);
     }
 
@@ -506,7 +513,7 @@ async function runTests() {
     }
 
     // 10g. Verify TESTER_CODES.txt exists
-    const codesTxtPath = path.join(__dirname, 'TESTER_CODES.txt');
+    const codesTxtPath = tempTestDataDir ? path.join(tempTestDataDir, 'TESTER_CODES.txt') : path.join(__dirname, 'TESTER_CODES.txt');
     if (!fs.existsSync(codesTxtPath) || !fs.readFileSync(codesTxtPath, 'utf8').includes('NOCTURNE-BETA-')) {
       throw new Error('TESTER_CODES.txt not generated or missing beta codes');
     }
@@ -518,9 +525,12 @@ async function runTests() {
     failed++;
   }
 
-  // Cleanup ephemeral process
+  // Cleanup ephemeral process & temp directory
   if (testProcess) {
     testProcess.kill();
+  }
+  if (tempTestDataDir && fs.existsSync(tempTestDataDir)) {
+    try { fs.rmSync(tempTestDataDir, { recursive: true, force: true }); } catch (_) {}
   }
 
   console.log('\n====================================================');

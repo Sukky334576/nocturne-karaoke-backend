@@ -2103,6 +2103,10 @@ kbd {
   display: none !important;
 }
 
+#redeemModal {
+  z-index: 10001;
+}
+
 .btn-tester-key {
   display: inline-flex;
   align-items: center;

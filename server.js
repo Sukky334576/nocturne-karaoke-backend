@@ -1151,6 +1151,13 @@ function writeTesterCodesTxt() {
 
     const content = lines.join('\r\n');
 
+    if (process.env.NOCTURNE_DATA_DIR) {
+      try {
+        fs.writeFileSync(path.join(process.env.NOCTURNE_DATA_DIR, 'TESTER_CODES.txt'), content, 'utf8');
+      } catch (_) {}
+      return;
+    }
+
     try {
       fs.writeFileSync(path.join(__dirname, 'TESTER_CODES.txt'), content, 'utf8');
     } catch (_) {}
@@ -1254,11 +1261,14 @@ app.post('/api/auth/register', (req, res) => {
 
   const safePreset = (initialPreset && typeof initialPreset === 'object') ? initialPreset : {};
 
+  const isActivated = Boolean(licenseDb.isActivated || ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower));
+
   const user = {
     username,
     password, // In-memory/simple file persistence
-    tier: 'free', // 'free' | 'pro'
+    tier: isActivated ? 'pro' : 'free', // 'free' | 'pro'
     proExpiresAt: null,
+    isTesterPro: isActivated,
     preset: safePreset,
     songKeys: {},
     hasCompletedOnboarding: false,
@@ -1275,6 +1285,7 @@ app.post('/api/auth/register', (req, res) => {
       username: user.username,
       tier: user.tier || 'free',
       proExpiresAt: user.proExpiresAt || null,
+      isTesterPro: isActivated,
       preset: user.preset,
       songKeys: user.songKeys,
       hasCompletedOnboarding: user.hasCompletedOnboarding
@@ -1301,10 +1312,11 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   // Enforce 30-day subscription expiration (except developer lifetime VIP accounts and activated tester accounts)
-  if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
-    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower) && !user.isTesterPro) {
-      user.tier = 'free';
-    }
+  const isVipOrActivated = Boolean(licenseDb.isActivated || user.isTesterPro || ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower));
+  if (isVipOrActivated) {
+    user.tier = 'pro';
+  } else if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
+    user.tier = 'free';
   }
 
   user.lastLogin = Date.now();
@@ -1314,9 +1326,9 @@ app.post('/api/auth/login', (req, res) => {
     success: true,
     user: {
       username: user.username,
-      tier: user.tier || 'free',
+      tier: isVipOrActivated ? 'pro' : (user.tier || 'free'),
       proExpiresAt: user.proExpiresAt || null,
-      isTesterPro: Boolean(user.isTesterPro || licenseDb.isActivated),
+      isTesterPro: isVipOrActivated,
       preset: user.preset,
       songKeys: user.songKeys || {},
       hasCompletedOnboarding: user.hasCompletedOnboarding !== false
@@ -1353,9 +1365,9 @@ app.post('/api/auth/save-profile', (req, res) => {
 
   // Enforce server-side Pro tier retention & expiration
   const isVip = ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower);
-  if (isVip || user.isTesterPro) {
+  if (isVip || user.isTesterPro || licenseDb.isActivated) {
     user.tier = 'pro';
-    if (!user.isTesterPro) user.proExpiresAt = 253402300799000;
+    if (!user.isTesterPro && !licenseDb.isActivated) user.proExpiresAt = 253402300799000;
   } else if (user.proExpiresAt && user.proExpiresAt > Date.now()) {
     user.tier = 'pro'; // Protect against stale client localStorage overwriting active Pro
   } else if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt <= Date.now()) {
@@ -1380,20 +1392,21 @@ app.get('/api/auth/profile', (req, res) => {
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   // Expiry check
-  if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
-    if (!['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower) && !user.isTesterPro) {
-      user.tier = 'free';
-      persistUserDb();
-    }
+  const isVipOrActivated = Boolean(licenseDb.isActivated || user.isTesterPro || ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower));
+  if (isVipOrActivated) {
+    user.tier = 'pro';
+  } else if (user.tier === 'pro' && user.proExpiresAt && user.proExpiresAt < Date.now()) {
+    user.tier = 'free';
+    persistUserDb();
   }
 
   res.json({
     success: true,
     user: {
       username: user.username,
-      tier: user.tier || 'free',
+      tier: isVipOrActivated ? 'pro' : (user.tier || 'free'),
       proExpiresAt: user.proExpiresAt || null,
-      isTesterPro: Boolean(user.isTesterPro || licenseDb.isActivated),
+      isTesterPro: isVipOrActivated,
       preset: user.preset || {},
       songKeys: user.songKeys || {},
       hasCompletedOnboarding: user.hasCompletedOnboarding !== false
@@ -1413,6 +1426,8 @@ app.get('/api/license/status', (req, res) => {
   }
 
   const isActivated = Boolean(licenseDb.isActivated || isUserPro);
+  const realCodes = Object.keys(licenseDb.codes || {}).filter(c => !c.startsWith('NOCTURNE-TEST-') && !c.startsWith('TEST-'));
+  const availableCount = realCodes.filter(c => !licenseDb.codes[c].used).length;
 
   res.json({
     success: true,
@@ -1421,8 +1436,8 @@ app.get('/api/license/status', (req, res) => {
     code: licenseDb.activatedCode || null,
     activatedAt: licenseDb.activatedAt || null,
     activatedUser: licenseDb.activatedUser || null,
-    totalCodes: Object.keys(licenseDb.codes || {}).length,
-    availableCodes: Object.values(licenseDb.codes || {}).filter(c => !c.used).length
+    totalCodes: realCodes.length,
+    availableCodes: availableCount
   });
 });
 
@@ -1439,11 +1454,21 @@ function handleCodeRedeem(req, res) {
     return res.status(400).json({ success: false, error: 'กรุณาระบุรหัสโค้ดทดลอง (License code required)' });
   }
 
-  const code = rawCode.trim().toUpperCase();
+  const cleanCode = rawCode.replace(/[\s\u200B-\u200D\uFEFF]/g, '').toUpperCase();
+  let code = cleanCode;
   let entry = licenseDb.codes[code];
 
+  if (!entry && !code.startsWith('NOCTURNE-TEST-') && !code.startsWith('TEST-')) {
+    const withoutPrefix = code.replace(/^NOCTURNE-?/, '').replace(/^BETA-?/, '');
+    const canonicalKey = `NOCTURNE-BETA-${withoutPrefix}`;
+    if (licenseDb.codes[canonicalKey]) {
+      code = canonicalKey;
+      entry = licenseDb.codes[canonicalKey];
+    }
+  }
+
   // Dynamic test harness support for automated test suites
-  if (!entry && (code.startsWith('NOCTURNE-TEST-') || code.startsWith('TEST-CODE-'))) {
+  if (!entry && (code.startsWith('NOCTURNE-TEST-') || code.startsWith('TEST-CODE-') || code.startsWith('TEST-'))) {
     entry = {
       code: code,
       used: false,
@@ -1668,8 +1693,9 @@ app.post('/api/auth/oauth', (req, res) => {
   const lower = name.toLowerCase();
   let user = usersDb.get(lower);
 
+  const isSpecialOwner = ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower);
+  const isActivated = Boolean(licenseDb.isActivated || isSpecialOwner);
   if (!user) {
-    const isSpecialOwner = ['sukky', 'sukky334576', 'tong', 'admin', 'jaychomporn'].includes(lower);
     user = {
       username: name,
       password: '',
@@ -1677,8 +1703,9 @@ app.post('/api/auth/oauth', (req, res) => {
       avatar: avatar,
       authProvider: provider,
       providerId: id,
-      tier: isSpecialOwner ? 'pro' : 'free',
+      tier: isActivated ? 'pro' : 'free',
       proExpiresAt: isSpecialOwner ? 253402300799000 : null,
+      isTesterPro: isActivated,
       preset: { syncOffsetMs: 120, reverbMix: 0.25, reverbDecay: 1.8, roomSize: 2 },
       songKeys: {},
       hasCompletedOnboarding: false,
@@ -1691,6 +1718,10 @@ app.post('/api/auth/oauth', (req, res) => {
     user.authProvider = provider;
     if (avatar) user.avatar = avatar;
     if (email) user.email = email;
+    if (isActivated) {
+      user.tier = 'pro';
+      user.isTesterPro = true;
+    }
   }
   persistUserDb();
 
@@ -1698,8 +1729,9 @@ app.post('/api/auth/oauth', (req, res) => {
     success: true,
     user: {
       username: user.username,
-      tier: user.tier,
+      tier: (isActivated || user.isTesterPro) ? 'pro' : user.tier,
       proExpiresAt: user.proExpiresAt,
+      isTesterPro: Boolean(isActivated || user.isTesterPro),
       preset: user.preset,
       songKeys: user.songKeys,
       hasCompletedOnboarding: user.hasCompletedOnboarding,

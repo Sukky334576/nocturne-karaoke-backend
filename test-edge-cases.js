@@ -115,10 +115,17 @@ async function runEdgeCaseTests() {
 
   const userDbPath = path.join(__dirname, 'users.json');
   const originalUsersJson = fs.existsSync(userDbPath) ? fs.readFileSync(userDbPath, 'utf8') : null;
+  const os = require('os');
+  const tempEdgeDataDir = path.join(os.tmpdir(), 'nocturne-edge-test-' + Date.now());
+  fs.mkdirSync(tempEdgeDataDir, { recursive: true });
+  fs.copyFileSync(path.join(__dirname, 'licenses.json'), path.join(tempEdgeDataDir, 'licenses.json'));
+  if (originalUsersJson) {
+    fs.writeFileSync(path.join(tempEdgeDataDir, 'users.json'), originalUsersJson, 'utf8');
+  }
 
   testProcess = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
     cwd: __dirname,
-    env: { ...process.env, PORT: String(testPort) },
+    env: { ...process.env, PORT: String(testPort), NOCTURNE_DATA_DIR: tempEdgeDataDir },
     stdio: ['ignore', 'ignore', 'inherit']
   });
   testProcess.on('exit', (code, sig) => {
@@ -863,6 +870,7 @@ async function runEdgeCaseTests() {
 
     // 21c. Header redeem key button and modal in index.html
     const hasRedeemDom = indexHtmlContent.includes('id="redeemTesterBtn"') &&
+                         indexHtmlContent.includes('id="gateRedeemBtn"') &&
                          indexHtmlContent.includes('id="redeemModal"') &&
                          indexHtmlContent.includes('id="redeemCodeInput"') &&
                          indexHtmlContent.includes('id="submitRedeemBtn"');
@@ -871,6 +879,23 @@ async function runEdgeCaseTests() {
     const hasRedeemLogic = appJsContent.includes('openRedeemModal') &&
                            appJsContent.includes('/api/license/redeem') &&
                            appJsContent.includes('/api/license/status');
+
+    // 21e. Strict DOM tag integrity check (no broken div tags)
+    const openDivs = (indexHtmlContent.match(/<div[\s>]/gi) || []).length;
+    const closeDivs = (indexHtmlContent.match(/<\/div>/gi) || []).length;
+    if (openDivs !== closeDivs) {
+      throw new Error(`HTML div tag mismatch: ${openDivs} open vs ${closeDivs} close`);
+    }
+
+    // 21f. Seed licenses.json must be clean and unactivated
+    const seedLicenses = JSON.parse(fs.readFileSync(path.join(__dirname, 'licenses.json'), 'utf8'));
+    if (seedLicenses.isActivated !== false || seedLicenses.activatedCode !== null) {
+      throw new Error('Seed licenses.json is tainted or pre-activated');
+    }
+    const betaCodes = Object.keys(seedLicenses.codes || {});
+    if (betaCodes.length !== 20 || betaCodes.some(c => !c.startsWith('NOCTURNE-BETA-') || seedLicenses.codes[c].used)) {
+      throw new Error(`Seed licenses.json must have 20 unused NOCTURNE-BETA- codes, got ${betaCodes.length}`);
+    }
 
     if (hasLicenseEndpoints && hasLicenseDbPath && hasRedeemDom && hasRedeemLogic) {
       console.log('  ✅ Passed: One-Time Tester Key architecture, AppData persistence, UI redeem modal & API verified!');
@@ -881,6 +906,16 @@ async function runEdgeCaseTests() {
   } catch (err) {
     console.error('  ❌ Edge Case 21 Error:', err.message);
     failed++;
+  }
+
+  if (testProcess) {
+    try { testProcess.kill(); } catch (_) {}
+  }
+  if (tempEdgeDataDir && fs.existsSync(tempEdgeDataDir)) {
+    try { fs.rmSync(tempEdgeDataDir, { recursive: true, force: true }); } catch (_) {}
+  }
+  if (originalUsersJson) {
+    try { fs.writeFileSync(userDbPath, originalUsersJson, 'utf8'); } catch (_) {}
   }
 
   console.log('\n====================================================');

@@ -139,8 +139,8 @@
     "songKeys": {},
     "hasCompletedOnboarding": true,
     "createdAt": 1793289077718,
-    "proExpiresAt": 1796994597401,
-    "lastActive": 1794402597401
+    "proExpiresAt": 1796959028396,
+    "lastActive": 1794367028396
   },
   "oauth rocker": {
     "username": "OAuth Rocker",
@@ -160,7 +160,7 @@
     "songKeys": {},
     "hasCompletedOnboarding": false,
     "createdAt": 1793289077720,
-    "lastLogin": 1794402597405
+    "lastLogin": 1794367028399
   },
   "jaychomporn": {
     "username": "JayChomporn",
@@ -177,27 +177,5 @@
     "hasCompletedOnboarding": true,
     "createdAt": 1793378959193,
     "lastLogin": 1793378959193
-  },
-  "testeralice": {
-    "username": "TesterAlice",
-    "password": "",
-    "tier": "pro",
-    "proExpiresAt": null,
-    "isTesterPro": true,
-    "preset": {},
-    "songKeys": {},
-    "hasCompletedOnboarding": true,
-    "createdAt": 1794402312525
-  },
-  "testercharlie": {
-    "username": "TesterCharlie",
-    "password": "",
-    "tier": "pro",
-    "proExpiresAt": null,
-    "isTesterPro": true,
-    "preset": {},
-    "songKeys": {},
-    "hasCompletedOnboarding": true,
-    "createdAt": 1794402312531
   }
 }

@@ -1,8 +1,8 @@
 {
-  "isActivated": true,
-  "activatedCode": "NOCTURNE-TEST-ALIAS-1794402601727",
-  "activatedAt": 1794402601727,
-  "activatedUser": "TesterCharlie",
+  "isActivated": false,
+  "activatedCode": null,
+  "activatedAt": null,
+  "activatedUser": null,
   "codes": {
     "NOCTURNE-BETA-7K2X": {
       "code": "NOCTURNE-BETA-7K2X",
@@ -143,34 +143,6 @@
       "usedBy": null,
       "usedAt": null,
       "createdAt": 1729000000000
-    },
-    "NOCTURNE-TEST-1794402454524": {
-      "code": "NOCTURNE-TEST-1794402454524",
-      "used": true,
-      "usedBy": "TesterAlice",
-      "usedAt": 1794402454524,
-      "createdAt": 1794402454524
-    },
-    "NOCTURNE-TEST-ALIAS-1794402454529": {
-      "code": "NOCTURNE-TEST-ALIAS-1794402454529",
-      "used": true,
-      "usedBy": "TesterCharlie",
-      "usedAt": 1794402454529,
-      "createdAt": 1794402454529
-    },
-    "NOCTURNE-TEST-1794402601719": {
-      "code": "NOCTURNE-TEST-1794402601719",
-      "used": true,
-      "usedBy": "TesterAlice",
-      "usedAt": 1794402601719,
-      "createdAt": 1794402601719
-    },
-    "NOCTURNE-TEST-ALIAS-1794402601727": {
-      "code": "NOCTURNE-TEST-ALIAS-1794402601727",
-      "used": true,
-      "usedBy": "TesterCharlie",
-      "usedAt": 1794402601727,
-      "createdAt": 1794402601727
     }
   }
 }
