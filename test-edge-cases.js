@@ -1011,8 +1011,8 @@ async function runEdgeCaseTests() {
     if (!mainJs.includes('webSecurity: false')) {
       throw new Error('main.js must set webSecurity: false to prevent Chromium cross-origin iframe blocking');
     }
-    if (!mainJs.includes('adSkipperInterval') || !mainJs.includes('yt-seek')) {
-      throw new Error('main.js missing automated ad skipper or yt-seek direct hardware control');
+    if (!mainJs.includes('yt-seek') || !appJs.includes('isYouTubeAdCurrentlyShowing')) {
+      throw new Error('main.js missing yt-seek direct hardware control or app.js missing natural ad lifecycle synchronizer');
     }
 
     // 23c. Multi-Theme UI Selector in index.html

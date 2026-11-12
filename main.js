@@ -169,33 +169,7 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Automatic Ad Skipping & Real-Time Sync Subsystem for YouTube Karaoke Videos
-  const adSkipperInterval = setInterval(async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    try {
-      for (const frame of mainWindow.webContents.mainFrame.frames) {
-        if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
-          await frame.executeJavaScript(`
-            (() => {
-              const player = document.querySelector('.html5-video-player');
-              const isAdShowing = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-              const v = document.querySelector('video');
-              if (isAdShowing && v) {
-                v.muted = true;
-                v.playbackRate = 16.0;
-                v.currentTime = (v.duration && isFinite(v.duration)) ? v.duration : 9999;
-                const btn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
-                if (btn) btn.click();
-              }
-            })()
-          `).catch(() => {});
-        }
-      }
-    } catch (_) {}
-  }, 250);
-
   mainWindow.on('closed', () => {
-    clearInterval(adSkipperInterval);
     mainWindow = null;
   });
 }
@@ -207,8 +181,11 @@ ipcMain.on('yt-seek', (event, seekSec) => {
     if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
       frame.executeJavaScript(`
         (() => {
+          const player = document.querySelector('.html5-video-player');
+          const isAd = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+          if (isAd) return; // Invariant: Never seek directly during an active YouTube advertisement!
           const v = document.querySelector('video');
-          if (v) {
+          if (v && v.duration && ${Number(seekSec)} <= v.duration) {
             v.currentTime = ${Number(seekSec)};
             v.play().catch(() => {});
           }
@@ -216,6 +193,45 @@ ipcMain.on('yt-seek', (event, seekSec) => {
       `).catch(() => {});
     }
   }
+});
+
+ipcMain.on('yt-set-mute', (event, muted) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  for (const frame of mainWindow.webContents.mainFrame.frames) {
+    if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
+      frame.executeJavaScript(`
+        (() => {
+          const v = document.querySelector('video');
+          if (v) v.muted = ${Boolean(muted)};
+        })()
+      `).catch(() => {});
+    }
+  }
+});
+
+ipcMain.handle('yt-get-ad-state', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { isAd: false, duration: 0, currentTime: 0 };
+  for (const frame of mainWindow.webContents.mainFrame.frames) {
+    if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
+      try {
+        const state = await frame.executeJavaScript(`
+          (() => {
+            const player = document.querySelector('.html5-video-player');
+            const isAd = !!(player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting')));
+            const v = document.querySelector('video');
+            return {
+              isAd,
+              duration: v ? v.duration : 0,
+              currentTime: v ? v.currentTime : 0,
+              paused: v ? v.paused : true
+            };
+          })()
+        `);
+        if (state) return state;
+      } catch (_) {}
+    }
+  }
+  return { isAd: false, duration: 0, currentTime: 0 };
 });
 
 ipcMain.on('yt-play', () => {

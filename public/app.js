@@ -1959,8 +1959,46 @@ openRecordTestBtn.addEventListener('click', () => {
   }
 });
 
+// --- Natural YouTube Ad Lifecycle & Karaoke Sync Engine ---
+let isYouTubeAdActiveFlag = false;
+let adWatchTimer = null;
+
+function isYouTubeAdCurrentlyShowing() {
+  try {
+    const ifr = document.querySelector('#ytPlayerWrapper iframe, #ytPlayerDiv iframe, iframe.video-iframe, #ytPlayerDiv');
+    if (ifr) {
+      const doc = ifr.contentDocument || ifr.contentWindow?.document;
+      if (doc) {
+        const player = doc.querySelector('.html5-video-player');
+        if (player) {
+          return player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
+        }
+      }
+    }
+  } catch (_) {}
+  return false;
+}
+
+function getYouTubeVideoElement() {
+  try {
+    const ifr = document.querySelector('#ytPlayerWrapper iframe, #ytPlayerDiv iframe, iframe.video-iframe, #ytPlayerDiv');
+    if (ifr) {
+      const doc = ifr.contentDocument || ifr.contentWindow?.document;
+      if (doc) {
+        return doc.querySelector('video');
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
 // Universal YouTube Player Command Dispatcher (Guarantees playback, seek & volume control)
 function sendYtCommand(func, args = []) {
+  if (func === 'seekTo' && isYouTubeAdCurrentlyShowing()) {
+    console.log('⚡ YouTube ad is active, deferring seek.');
+    return;
+  }
+
   if (ytPlayer && typeof ytPlayer[func] === 'function') {
     try {
       ytPlayer[func].apply(ytPlayer, args);
@@ -1977,6 +2015,10 @@ function sendYtCommand(func, args = []) {
       window.desktopApp.ytPlay();
     } else if (func === 'pauseVideo' && typeof window.desktopApp.ytPause === 'function') {
       window.desktopApp.ytPause();
+    } else if (func === 'mute' && typeof window.desktopApp.ytSetMute === 'function') {
+      window.desktopApp.ytSetMute(true);
+    } else if (func === 'unMute' && typeof window.desktopApp.ytSetMute === 'function') {
+      window.desktopApp.ytSetMute(false);
     }
   }
 
@@ -2027,7 +2069,10 @@ function renderYtFallbackIframe(videoId, startSec = 0, muteFlag = 1) {
   const wrapper = document.getElementById('ytPlayerWrapper') || document.getElementById('ytPlayerDiv')?.parentElement || document.querySelector('.video-container');
   const fallbackSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.google.com`;
   if (wrapper) {
-    wrapper.innerHTML = `<iframe id="ytPlayerDiv" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+    const existingIframe = wrapper.querySelector('iframe');
+    if (!existingIframe) {
+      wrapper.innerHTML = `<iframe id="ytPlayerDiv" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+    }
   }
 }
 
@@ -2103,12 +2148,8 @@ function initYtPlayer(videoId, startSec = 0) {
           sendYtCommand('playVideo');
         },
         onError: (e) => {
-          console.warn('⚡ YouTube embed player notice (code ' + (e && e.data) + '). Audio continues cleanly through Nocturne DSP while retaining active lyrics video.');
+          console.warn('⚡ YouTube embed player notice (code ' + (e && e.data) + '). Retaining active video player without DOM reset.');
           ensurePlayerVisible();
-          const hasIframe = document.querySelector('#ytPlayerWrapper iframe, #ytPlayerDiv iframe, iframe.video-iframe');
-          if (!hasIframe) {
-            renderYtFallbackIframe(videoId, startSec, muteFlag);
-          }
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
@@ -2147,10 +2188,15 @@ function startYtProgressTracker() {
   ytProgressInterval = setInterval(() => {
     if (!isPlaying || isUserSeeking) return;
 
+    if (isYouTubeAdCurrentlyShowing()) {
+      if (currentTimeText) currentTimeText.innerText = 'โฆษณา YouTube';
+      return;
+    }
+
     let dur = trackDurationSeconds;
     if (ytPlayer && typeof ytPlayer.getDuration === 'function') {
       const ytDur = ytPlayer.getDuration();
-      if (ytDur && isFinite(ytDur) && ytDur > 0) {
+      if (ytDur && isFinite(ytDur) && ytDur > 60) {
         dur = ytDur;
         trackDurationSeconds = ytDur;
       }
@@ -4987,25 +5033,84 @@ async function playTrack(track, seekSeconds = 0) {
     // Stream through Web Audio DSP into VB-CABLE, Headphones, and Record Test Destination
     const streamUrl = await getBestAudioStreamUrl(track.id, seekSeconds);
     audioSourceElement.src = streamUrl;
-    try {
-      const playPromise = audioSourceElement.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          isPlaying = true;
-          playPauseBtn.innerHTML = SVG_PAUSE;
-        }).catch(err => {
-          console.warn('AudioSource play catch:', err);
-          if (err.name !== 'AbortError') {
-            setTimeout(() => {
-              if (currentTrack && currentTrack.id === track.id) {
-                audioSourceElement.play().catch(() => {});
-              }
-            }, 700);
+
+    if (seekSeconds > 0) {
+      audioSourceElement.play().catch(() => {});
+      isPlaying = true;
+      playPauseBtn.innerHTML = SVG_PAUSE;
+    } else {
+      // Natural YouTube Ad Lifecycle Synchronizer
+      // Let YouTube pre-roll ads play naturally with audio & Skip Ad button!
+      // Hold audioSourceElement until the ad finishes or user clicks "ข้ามโฆษณา / Skip Ad".
+      if (adWatchTimer) clearInterval(adWatchTimer);
+      let adWatchTicks = 0;
+      let songSyncDone = false;
+
+      adWatchTimer = setInterval(() => {
+        adWatchTicks++;
+        const isAd = isYouTubeAdCurrentlyShowing();
+        const v = getYouTubeVideoElement();
+
+        if (isAd) {
+          isYouTubeAdActiveFlag = true;
+          // Unmute YouTube player so user hears the ad naturally!
+          if (v && v.muted) v.muted = false;
+          if (window.desktopApp && typeof window.desktopApp.ytSetMute === 'function') {
+            window.desktopApp.ytSetMute(false);
           }
-        });
-      }
-    } catch (err) {
-      console.warn('AudioSource play sync note:', err);
+          // Pause song audio so vocals don't clash over the ad
+          if (audioSourceElement && !audioSourceElement.paused) {
+            audioSourceElement.pause();
+          }
+          if (currentTimeText) currentTimeText.innerText = 'โฆษณา YouTube';
+          return;
+        }
+
+        // Ad is not showing (or just finished / skipped)
+        const ytCur = v ? v.currentTime : (ytPlayer && ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0);
+        const ytDur = v ? v.duration : (ytPlayer && ytPlayer.getDuration ? ytPlayer.getDuration() : 0);
+        const ytState = ytPlayer && typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+
+        const isContentPlaying = (isYouTubeAdActiveFlag && !isAd) || (ytState === 1 && !isAd) || (ytCur > 0.1 && ytDur > 60);
+
+        if (isContentPlaying && !songSyncDone) {
+          songSyncDone = true;
+          isYouTubeAdActiveFlag = false;
+          clearInterval(adWatchTimer);
+          adWatchTimer = null;
+
+          console.log('⚡ Main YouTube song video active! Synchronizing Web Audio DSP...');
+          // Mute YouTube video to prevent double audio with Web Audio DSP
+          if (v) v.muted = true;
+          sendYtCommand('mute');
+
+          // Start audioSourceElement at exact frame sync
+          if (audioSourceElement && !isUsingDirectYtAudio) {
+            audioSourceElement.currentTime = (ytCur > 0 && ytCur < 5) ? ytCur : 0;
+            audioSourceElement.play().catch(err => {
+              console.warn('AudioSource play sync note:', err);
+            });
+          }
+          isPlaying = true;
+          if (playPauseBtn) playPauseBtn.innerHTML = SVG_PAUSE;
+          startYtProgressTracker();
+        }
+
+        // Safety fallback: if no ad after 5 seconds, start audio
+        if (adWatchTicks > 25 && !songSyncDone && !isAd) {
+          songSyncDone = true;
+          clearInterval(adWatchTimer);
+          adWatchTimer = null;
+          if (v) v.muted = true;
+          sendYtCommand('mute');
+          if (audioSourceElement && !isUsingDirectYtAudio) {
+            audioSourceElement.play().catch(() => {});
+          }
+          isPlaying = true;
+          if (playPauseBtn) playPauseBtn.innerHTML = SVG_PAUSE;
+          startYtProgressTracker();
+        }
+      }, 200);
     }
   }
 
@@ -5075,6 +5180,16 @@ function seekToSeconds(seconds) {
   if (!currentTrack) return;
   const dur = (trackDurationSeconds > 0) ? trackDurationSeconds : 240;
   const clamped = Math.max(0, Math.min(seconds, dur));
+
+  // Invariant: Never seek YouTube iframe while an ad is active to avoid crashing video pipeline into black screen
+  if (isYouTubeAdCurrentlyShowing()) {
+    console.log('⚡ YouTube ad is active; deferring seek until ad concludes.');
+    streamOffsetSeconds = clamped;
+    if (currentTimeText) currentTimeText.innerText = formatTime(clamped);
+    if (progressBar) progressBar.value = (clamped / dur) * 100;
+    return;
+  }
+
   streamOffsetSeconds = clamped;
 
   audioErrorRetries = 0;

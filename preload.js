@@ -10,6 +10,12 @@ contextBridge.exposeInMainWorld('desktopApp', {
   ytSeek: (sec) => {
     ipcRenderer.send('yt-seek', sec);
   },
+  ytSetMute: (muted) => {
+    ipcRenderer.send('yt-set-mute', muted);
+  },
+  ytGetAdState: () => {
+    return ipcRenderer.invoke('yt-get-ad-state');
+  },
   ytPlay: () => {
     ipcRenderer.send('yt-play');
   },
