@@ -6418,7 +6418,7 @@ if (playerCardEl) {
 })();
 
 // ==========================================================================
-// ONE MUSIC HEADER TOOLS DROPDOWN CONTROLLER
+// NOCTURNE STUDIO HEADER TOOLS DROPDOWN CONTROLLER
 // ==========================================================================
 (function initHeaderToolsDropdown() {
   const headerToolsMenuBtn = document.getElementById('headerToolsMenuBtn');

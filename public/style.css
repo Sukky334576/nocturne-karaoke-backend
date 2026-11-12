@@ -2834,7 +2834,7 @@ body.drawer-open #studioDspModulesContainer {
 
 
 /* ==========================================================================
-   ONE MUSIC SIGNATURE THEME & DESIGN SYSTEM (THEMEWAGON INSPIRATION)
+   NOCTURNE STUDIO SIGNATURE THEME & DESIGN SYSTEM
    Dark Luxury Concert Vibe: Deep Obsidian, Cyber Wave, Neon Mint & Champagne Gold
    ========================================================================== */
 
@@ -2852,7 +2852,7 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* 2. One Music Navigation Bar */
+/* 2. Nocturne Studio Navigation Bar */
 .app-header {
   background: rgba(13, 15, 23, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2902,7 +2902,7 @@ body.is-desktop-app .web-only-fallback {
   text-shadow: 0 0 20px rgba(0, 223, 162, 0.3);
 }
 
-/* 3. One Music Workspace Tabs */
+/* 3. Nocturne Studio Workspace Tabs */
 .workspace-mode-bar {
   background: rgba(13, 15, 23, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2928,7 +2928,7 @@ body.is-desktop-app .web-only-fallback {
   box-shadow: 0 2px 14px rgba(0, 223, 162, 0.25);
 }
 
-/* 4. One Music Tracklist Styling (Song Queue & Search) */
+/* 4. Nocturne Studio Tracklist Styling (Song Queue & Search) */
 .queue-item {
   background: rgba(255, 255, 255, 0.02);
   border-radius: 8px;
@@ -2954,7 +2954,7 @@ body.is-desktop-app .web-only-fallback {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* 5. One Music Persistent Player Dock */
+/* 5. Nocturne Studio Persistent Player Dock */
 .now-playing-bar {
   background: rgba(10, 12, 18, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2965,7 +2965,7 @@ body.is-desktop-app .web-only-fallback {
   padding: 10px 16px;
 }
 
-/* 6. One Music Action Buttons */
+/* 6. Nocturne Studio Action Buttons */
 .btn-primary {
   background: linear-gradient(135deg, #00dfa2 0%, #00b4d8 100%);
   color: #06080d;
@@ -3006,7 +3006,7 @@ body.is-desktop-app .web-only-fallback {
   box-shadow: 0 0 14px rgba(0, 223, 162, 0.4);
 }
 
-/* 8. One Music High-End Card Surfaces */
+/* 8. Nocturne Studio High-End Card Surfaces */
 .studio-module {
   background: rgba(14, 16, 25, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -3019,7 +3019,7 @@ body.is-desktop-app .web-only-fallback {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* 9. One Music Login & VIP Modal Styling */
+/* 9. Nocturne Studio Login & VIP Modal Styling */
 .landing-gate-overlay .modal-card {
   background: rgba(14, 16, 25, 0.94);
   border: 1px solid rgba(0, 223, 162, 0.3);
@@ -3031,24 +3031,30 @@ body.is-desktop-app .web-only-fallback {
 
 
 /* ==========================================================================
-   AUTHENTIC ONE MUSIC TEMPLATE ENGINE (THEMEWAGON & COLORLIB)
-   Concert Stage Photography, Hero Typography, High-Contrast Buttons & Glass Cards
+   NOCTURNE STUDIO DARK LUXURY ACOUSTIC ENGINE
+   Haute Horlogerie Acoustics: Procedural Acoustic Mesh, Hero Typography, High-Contrast Buttons & Glass Cards
    ========================================================================== */
 
-/* 1. Global Concert Stage Background with bg-1.jpg */
+/* 1. Global Dark Luxury Studio Acoustic Mesh Background (Procedural Radial Gradients + Acoustic Waves) */
 body {
-  background-color: #07070b !important;
+  background-color: #07080c !important;
   background-image: 
-    linear-gradient(180deg, rgba(7, 7, 11, 0.62) 0%, rgba(7, 7, 11, 0.82) 450px, rgba(7, 7, 11, 0.94) 900px, #07070b 100%),
-    url('img/bg-1.jpg') !important;
-  background-size: 100% auto, cover !important;
-  background-position: center top !important;
+    /* Acoustic soundwave resonance rings centered in upper soundstage */
+    repeating-radial-gradient(circle at 50% 160px, rgba(216, 177, 93, 0.025) 0, rgba(216, 177, 93, 0.025) 1px, transparent 1px, transparent 48px),
+    /* Studio acoustic micro-mesh texture (diffuser grid) */
+    radial-gradient(rgba(216, 177, 93, 0.06) 1px, transparent 1px),
+    /* Top champagne gold luxury overhead studio spotlight */
+    radial-gradient(ellipse 90% 55% at 50% -5%, rgba(216, 177, 93, 0.12) 0%, rgba(13, 16, 26, 0.45) 55%, transparent 100%),
+    /* Obsidian deep depth gradient */
+    linear-gradient(180deg, rgba(8, 9, 14, 0.5) 0%, rgba(10, 12, 18, 0.85) 450px, #07080c 100%) !important;
+  background-size: auto, 32px 32px, 100% 100%, 100% 100% !important;
+  background-position: center top, center top, center top, center top !important;
   background-attachment: fixed !important;
-  background-repeat: no-repeat !important;
+  background-repeat: no-repeat, repeat, no-repeat, no-repeat !important;
   font-family: 'Poppins', 'Outfit', 'Kanit', sans-serif !important;
 }
 
-/* 2. One Music Hero Banner Area */
+/* 2. Studio Acoustic Hero Banner Area */
 .onemusic-hero-banner {
   position: relative;
   width: 100%;
@@ -3056,10 +3062,14 @@ body {
   margin-bottom: 20px;
   padding: 45px 30px;
   background: 
-    linear-gradient(135deg, rgba(13, 15, 26, 0.82) 0%, rgba(20, 24, 38, 0.75) 100%),
-    url('img/bg-2.jpg') center center / cover no-repeat;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    /* Champagne gold acoustic focal glow */
+    radial-gradient(circle at 50% 20%, rgba(216, 177, 93, 0.16) 0%, transparent 65%),
+    /* Studio acoustic diffuser ribs */
+    repeating-linear-gradient(45deg, rgba(216, 177, 93, 0.025) 0, rgba(216, 177, 93, 0.025) 1px, transparent 1px, transparent 24px),
+    /* Deep obsidian acoustic chamber gradient */
+    linear-gradient(135deg, rgba(14, 17, 28, 0.95) 0%, rgba(9, 10, 16, 0.98) 100%) !important;
+  border: 1px solid rgba(216, 177, 93, 0.25) !important;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(244, 230, 195, 0.15) !important;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -3172,7 +3182,7 @@ body {
   transform: translateY(-2px);
 }
 
-/* 3. One Music Navigation Bar Enhancement */
+/* 3. Nocturne Studio Navigation Bar Enhancement */
 .app-header {
   background: rgba(10, 11, 18, 0.88) !important;
   backdrop-filter: blur(24px) !important;
@@ -3184,7 +3194,7 @@ body {
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
 }
 
-/* 4. One Music Glass Cards with Stage Sheen */
+/* 4. Nocturne Studio Glass Cards with Stage Sheen */
 .studio-module {
   background: rgba(13, 15, 24, 0.88) !important;
   backdrop-filter: blur(16px) !important;
@@ -3197,7 +3207,7 @@ body {
   border-color: rgba(216, 177, 93, 0.35) !important;
 }
 
-/* 5. One Music Tracklist Item */
+/* 5. Nocturne Studio Tracklist Item */
 .queue-item {
   background: rgba(255, 255, 255, 0.03) !important;
   border: 1px solid rgba(255, 255, 255, 0.06) !important;
@@ -3212,7 +3222,7 @@ body {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
 }
 
-/* 6. One Music Audio Dock */
+/* 6. Nocturne Studio Audio Dock */
 .now-playing-bar {
   background: rgba(8, 9, 14, 0.95) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -3221,20 +3231,22 @@ body {
 
 
 /* ==========================================================================
-   TRANSLUCENT FROSTED GLASS THEME (ONE MUSIC LUXURY GLASSMORPHISM)
-   Transparent Frames, Relaxing Stage Aesthetics, Ambient Concert Lighting
+   TRANSLUCENT FROSTED GLASS THEME (NOCTURNE STUDIO LUXURY GLASSMORPHISM)
+   Transparent Frames, Relaxing Studio Aesthetics, Ambient Acoustic Lighting
    ========================================================================== */
 
-/* 1. Global Concert Stage Background (Subtle Overlay so Stage Glows Through) */
+/* 1. Global Dark Luxury Studio Acoustic Mesh (Procedural) */
 body {
-  background-color: #07070b !important;
+  background-color: #07080c !important;
   background-image: 
-    linear-gradient(180deg, rgba(7, 8, 14, 0.38) 0%, rgba(7, 8, 14, 0.48) 450px, rgba(7, 8, 14, 0.58) 900px, rgba(7, 8, 14, 0.68) 100%),
-    url('img/bg-1.jpg') !important;
-  background-size: cover !important;
-  background-position: center top !important;
+    repeating-radial-gradient(circle at 50% 160px, rgba(216, 177, 93, 0.03) 0, rgba(216, 177, 93, 0.03) 1px, transparent 1px, transparent 48px),
+    radial-gradient(rgba(216, 177, 93, 0.07) 1px, transparent 1px),
+    radial-gradient(ellipse 90% 55% at 50% -5%, rgba(216, 177, 93, 0.14) 0%, rgba(13, 16, 26, 0.4) 55%, transparent 100%),
+    linear-gradient(180deg, rgba(7, 8, 14, 0.35) 0%, rgba(9, 11, 17, 0.65) 450px, #07080c 100%) !important;
+  background-size: auto, 32px 32px, 100% 100%, 100% 100% !important;
+  background-position: center top, center top, center top, center top !important;
   background-attachment: fixed !important;
-  background-repeat: no-repeat !important;
+  background-repeat: no-repeat, repeat, no-repeat, no-repeat !important;
 }
 
 /* 2. Translucent Navigation Header */
@@ -3246,15 +3258,16 @@ body {
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* 3. Translucent Hero Banner */
+/* 3. Translucent Hero Banner (Acoustic Mesh) */
 .onemusic-hero-banner {
   background: 
-    linear-gradient(135deg, rgba(12, 15, 26, 0.42) 0%, rgba(18, 22, 36, 0.32) 100%),
-    url('img/bg-2.jpg') center center / cover no-repeat !important;
+    radial-gradient(circle at 50% 20%, rgba(216, 177, 93, 0.15) 0%, transparent 65%),
+    repeating-linear-gradient(45deg, rgba(216, 177, 93, 0.02) 0, rgba(216, 177, 93, 0.02) 1px, transparent 1px, transparent 24px),
+    linear-gradient(135deg, rgba(14, 17, 28, 0.75) 0%, rgba(9, 10, 16, 0.85) 100%) !important;
   backdrop-filter: blur(14px) saturate(140%) !important;
   -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(216, 177, 93, 0.28) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45) !important;
 }
 
 .hero-overlay-dark {
@@ -3488,7 +3501,7 @@ body {
 
 
 /* ==========================================================================
-   STREAMLINED ONE MUSIC HEADER & HARMONIZED BUTTON SYSTEM
+   STREAMLINED NOCTURNE STUDIO HEADER & HARMONIZED BUTTON SYSTEM
    Single Sleek Row, Translucent Glass, Signature Gold & Pure Harmony
    ========================================================================== */
 
@@ -3555,7 +3568,7 @@ body {
   flex-wrap: nowrap !important;
 }
 
-/* Unified One Music Glass Nav Buttons */
+/* Unified Nocturne Studio Glass Nav Buttons */
 .btn-nav-glass {
   background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -3582,8 +3595,8 @@ body {
   transform: translateY(-1px);
 }
 
-/* One Music Primary CTA (Gold) */
-.btn-onemusic-primary {
+/* Nocturne Studio Primary CTA (Gold) */
+.btn-onemusic-primary, .btn-nocturne-primary {
   background: #d8b15d !important;
   color: #08090d !important;
   border: 1px solid #d8b15d !important;
@@ -3602,7 +3615,7 @@ body {
   white-space: nowrap;
 }
 
-.btn-onemusic-primary:hover {
+.btn-onemusic-primary:hover, .btn-nocturne-primary:hover {
   background: #ffffff !important;
   border-color: #ffffff !important;
   color: #08090d !important;
@@ -3748,7 +3761,7 @@ body {
 
 
 /* ==========================================================================
-   ONE MUSIC AUDIO DOCK LAYOUT & OVERFLOW CONTAINMENT
+   NOCTURNE STUDIO AUDIO DOCK LAYOUT & OVERFLOW CONTAINMENT
    Prevents any overflow across card borders, multi-tiered responsive layout
    ========================================================================== */
 
