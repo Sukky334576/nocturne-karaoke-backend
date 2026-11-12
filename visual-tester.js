@@ -8,6 +8,9 @@ const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-site-isolation-trials');
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
 
 let serverProcess = null;
 let mainWindow = null;
@@ -108,9 +111,14 @@ app.whenReady().then(async () => {
       if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
         frame.executeJavaScript(`
           (() => {
-            const player = document.querySelector('.html5-video-player');
+            const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
             const isAd = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-            if (isAd) return;
+            if (isAd) return; // Invariant: Never seek directly during an active YouTube advertisement!
+            if (player && typeof player.seekTo === 'function') {
+              player.seekTo(${Number(seekSec)}, true);
+              if (typeof player.playVideo === 'function') player.playVideo();
+              return;
+            }
             const v = document.querySelector('video');
             if (v && v.duration && ${Number(seekSec)} <= v.duration) {
               v.currentTime = ${Number(seekSec)};
@@ -128,6 +136,11 @@ app.whenReady().then(async () => {
       if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
         frame.executeJavaScript(`
           (() => {
+            const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+            if (player) {
+              if (${Boolean(muted)} && typeof player.mute === 'function') player.mute();
+              if (!${Boolean(muted)} && typeof player.unMute === 'function') player.unMute();
+            }
             const v = document.querySelector('video');
             if (v) v.muted = ${Boolean(muted)};
           })()
@@ -143,13 +156,13 @@ app.whenReady().then(async () => {
         try {
           const state = await frame.executeJavaScript(`
             (() => {
-              const player = document.querySelector('.html5-video-player');
+              const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
               const isAd = !!(player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting')));
               const v = document.querySelector('video');
               return {
                 isAd,
-                duration: v ? v.duration : 0,
-                currentTime: v ? v.currentTime : 0,
+                duration: v ? v.duration : (player && player.getDuration ? player.getDuration() : 0),
+                currentTime: v ? v.currentTime : (player && player.getCurrentTime ? player.getCurrentTime() : 0),
                 paused: v ? v.paused : true
               };
             })()
@@ -202,6 +215,11 @@ app.whenReady().then(async () => {
       if (wizardModal) wizardModal.classList.add('hidden');
       const authModal = document.getElementById('authModal');
       if (authModal) authModal.classList.add('hidden');
+
+      // Explicitly set Nocturne Dark theme to match the user's reproduction environment
+      if (typeof applyStudioTheme === 'function') {
+        applyStudioTheme('nocturne-dark');
+      }
     })()
   `);
 

@@ -1962,8 +1962,21 @@ openRecordTestBtn.addEventListener('click', () => {
 // --- Natural YouTube Ad Lifecycle & Karaoke Sync Engine ---
 let isYouTubeAdActiveFlag = false;
 let adWatchTimer = null;
+let lastKnownIpcAdState = false;
+
+if (window.desktopApp && typeof window.desktopApp.ytGetAdState === 'function') {
+  setInterval(async () => {
+    try {
+      const res = await window.desktopApp.ytGetAdState();
+      if (res && typeof res.isAd === 'boolean') {
+        lastKnownIpcAdState = res.isAd;
+      }
+    } catch (_) {}
+  }, 250);
+}
 
 function isYouTubeAdCurrentlyShowing() {
+  if (lastKnownIpcAdState) return true;
   try {
     const ifr = document.querySelector('#ytPlayerWrapper iframe, #ytPlayerDiv iframe, iframe.video-iframe, #ytPlayerDiv');
     if (ifr) {
@@ -2072,6 +2085,8 @@ function renderYtFallbackIframe(videoId, startSec = 0, muteFlag = 1) {
     const existingIframe = wrapper.querySelector('iframe');
     if (!existingIframe) {
       wrapper.innerHTML = `<iframe id="ytPlayerDiv" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+    } else if (existingIframe.src !== fallbackSrc) {
+      existingIframe.src = fallbackSrc;
     }
   }
 }
@@ -5074,8 +5089,9 @@ async function playTrack(track, seekSeconds = 0) {
         const ytCur = v ? v.currentTime : (ytPlayer && ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0);
         const ytDur = v ? v.duration : (ytPlayer && ytPlayer.getDuration ? ytPlayer.getDuration() : 0);
         const ytState = ytPlayer && typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+        const isVideoActive = (v && !v.paused && v.currentTime > 0.05);
 
-        const isContentPlaying = (isYouTubeAdActiveFlag && !isAd) || (ytState === 1 && !isAd) || (ytCur > 0.1 && ytDur > 60);
+        const isContentPlaying = (isYouTubeAdActiveFlag && !isAd) || (ytState === 1 && !isAd) || (ytCur > 0.1 && ytDur > 60) || (isVideoActive && !isAd);
 
         if (isContentPlaying && !songSyncDone) {
           songSyncDone = true;
@@ -5100,8 +5116,8 @@ async function playTrack(track, seekSeconds = 0) {
           startYtProgressTracker();
         }
 
-        // Safety fallback: if no ad after 5 seconds, start audio
-        if (adWatchTicks > 25 && !songSyncDone && !isAd) {
+        // Safety fallback: if no ad after 1.6s, start audio smoothly without 5s delay
+        if (adWatchTicks > 8 && !songSyncDone && !isAd) {
           songSyncDone = true;
           clearInterval(adWatchTimer);
           adWatchTimer = null;
