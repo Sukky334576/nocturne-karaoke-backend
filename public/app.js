@@ -2002,8 +2002,17 @@ function initYtPlayer(videoId, startSec = 0) {
   const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
   const volInt = isHpMusicMuted ? 0 : Math.min(100, Math.round(hpVol * 100));
 
+  // Invariant: Always ensure the video player screen is unhidden so karaoke lyrics are visible
+  if (ytPlayerDiv) {
+    ytPlayerDiv.classList.remove('hidden');
+    ytPlayerDiv.style.display = 'block';
+  }
+  if (videoPlaceholder) {
+    videoPlaceholder.classList.add('hidden');
+  }
+
   if (!window.YT || !window.YT.Player) {
-    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
     return;
   }
 
@@ -2030,6 +2039,7 @@ function initYtPlayer(videoId, startSec = 0) {
     ytPlayer = new YT.Player('ytPlayerDiv', {
       height: '100%',
       width: '100%',
+      host: 'https://www.youtube-nocookie.com',
       videoId: videoId,
       playerVars: {
         autoplay: 1,
@@ -2038,11 +2048,18 @@ function initYtPlayer(videoId, startSec = 0) {
         enablejsapi: 1,
         origin: origin,
         widget_referrer: 'https://www.youtube.com',
-        start: Math.floor(startSec)
+        start: Math.floor(startSec),
+        playsinline: 1,
+        rel: 0
       },
       events: {
         onReady: (e) => {
           isYtReady = true;
+          if (ytPlayerDiv) {
+            ytPlayerDiv.classList.remove('hidden');
+            ytPlayerDiv.style.display = 'block';
+          }
+          if (videoPlaceholder) videoPlaceholder.classList.add('hidden');
           const currentDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
           const curHpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
           const curVolInt = isHpMusicMuted ? 0 : Math.min(100, Math.round(curHpVol * 100));
@@ -2055,23 +2072,18 @@ function initYtPlayer(videoId, startSec = 0) {
           sendYtCommand('playVideo');
         },
         onError: (e) => {
-          console.warn('⚡ YouTube embed restricted (code ' + (e && e.data) + '). Audio continues cleanly through Nocturne DSP.');
-          // Error 101/150: Video owner does not allow embedding
-          // Fall back gracefully to Studio Stage Audio view with album art & lyrics
-          if (videoPlaceholder && currentTrack) {
-            videoPlaceholder.innerHTML = `
-              <div class="placeholder-content" style="padding: 20px; text-align: center;">
-                <div style="width: 140px; height: 140px; margin: 0 auto 16px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 2px solid rgba(245,158,11,0.4);">
-                  <img src="${currentTrack.thumbnail || ''}" style="width: 100%; height: 100%; object-fit: cover;" alt="Artwork" onerror="this.style.display='none'">
-                </div>
-                <h3 style="font-size: 18px; color: #fff; margin-bottom: 6px;">${escapeHtml(currentTrack.title || 'Karaoke Track')}</h3>
-                <p style="font-size: 13px; color: #f59e0b; margin-bottom: 8px;">🎙️ สตรีมเสียงผ่าน Nocturne DSP Engine • ไร้เสียงสะท้อน</p>
-                <span style="font-size: 11px; padding: 4px 10px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: 20px; color: #fde68a;">โหมดสตูดิโอเสียงคมชัด 100%</span>
-              </div>
-            `;
-            videoPlaceholder.classList.remove('hidden');
-            ytPlayerDiv.classList.add('hidden');
+          console.warn('⚡ YouTube embed player notice (code ' + (e && e.data) + '). Audio continues cleanly through Nocturne DSP while retaining active lyrics video.');
+          // NEVER aggressively hide ytPlayerDiv! Karaoke video frames contain on-screen lyrics that users sing along to!
+          if (ytPlayerDiv) {
+            ytPlayerDiv.classList.remove('hidden');
+            ytPlayerDiv.style.display = 'block';
           }
+          if (videoPlaceholder) {
+            videoPlaceholder.classList.add('hidden');
+          }
+          // Direct fallback to clean nocookie iframe so the user can always see the video & lyrics
+          const fallbackSrc = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com`;
+          ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
@@ -2100,7 +2112,7 @@ function initYtPlayer(videoId, startSec = 0) {
     });
   } catch (err) {
     console.warn('YT.Player init fallback:', err);
-    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&origin=${encodeURIComponent(origin)}&widget_referrer=https%3A%2F%2Fwww.youtube.com" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
   }
   startYtProgressTracker();
 }
@@ -6439,6 +6451,122 @@ if (playerCardEl) {
       if (!e.target.closest('#headerToolsDropdownWrap')) {
         headerToolsMenu.classList.add('hidden');
       }
+    });
+  }
+})();
+
+// ==========================================================================
+// NOCTURNE STUDIO TRIPLE-THEME ENGINE CONTROLLER
+// 1. Apple Frosted Glass (Cupertino Translucent)
+// 2. Apple Clean Light Glass
+// 3. Nocturne Dark Obsidian & Gold
+// ==========================================================================
+const STUDIO_THEMES = {
+  'apple-frosted': {
+    id: 'apple-frosted',
+    icon: '🍏',
+    label: 'Apple Frosted',
+    name: 'Apple Frosted Glass (Cupertino Translucent)'
+  },
+  'apple-light': {
+    id: 'apple-light',
+    icon: '☀️',
+    label: 'Apple Light',
+    name: 'Apple Clean Light Glass'
+  },
+  'nocturne-dark': {
+    id: 'nocturne-dark',
+    icon: '🌙',
+    label: 'Nocturne Dark',
+    name: 'Nocturne Obsidian & Gold'
+  }
+};
+
+function applyStudioTheme(themeId, persist = true) {
+  const theme = STUDIO_THEMES[themeId] || STUDIO_THEMES['apple-frosted'];
+  const finalId = theme.id;
+
+  document.documentElement.setAttribute('data-theme', finalId);
+  if (document.body) {
+    document.body.setAttribute('data-theme', finalId);
+  }
+
+  const iconEl = document.getElementById('headerThemeIcon');
+  const labelEl = document.getElementById('headerThemeLabel');
+  if (iconEl) iconEl.textContent = theme.icon;
+  if (labelEl) labelEl.textContent = theme.label;
+
+  document.querySelectorAll('.theme-select-btn').forEach(btn => {
+    if (btn.getAttribute('data-theme-id') === finalId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  if (persist) {
+    try {
+      localStorage.setItem('nocturne_theme', finalId);
+    } catch (_) {}
+    if (typeof showToast === 'function') {
+      showToast(`🎨 ธีม: ${theme.name}`);
+    }
+  }
+}
+
+function cycleStudioTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'apple-frosted';
+  const order = ['apple-frosted', 'apple-light', 'nocturne-dark'];
+  const nextIdx = (order.indexOf(current) + 1) % order.length;
+  applyStudioTheme(order[nextIdx], true);
+}
+
+// Expose globally for testing & external hooks
+window.applyStudioTheme = applyStudioTheme;
+window.STUDIO_THEMES = STUDIO_THEMES;
+window.cycleStudioTheme = cycleStudioTheme;
+
+(function initThemeController() {
+  let savedTheme = 'apple-frosted';
+  try {
+    const stored = localStorage.getItem('nocturne_theme');
+    if (stored && STUDIO_THEMES[stored]) {
+      savedTheme = stored;
+    }
+  } catch (_) {}
+  applyStudioTheme(savedTheme, false);
+
+  const headerThemeMenuBtn = document.getElementById('headerThemeMenuBtn');
+  const headerThemeMenu = document.getElementById('headerThemeMenu');
+  const themeDropdownWrap = document.getElementById('headerThemeDropdownWrap');
+
+  if (headerThemeMenuBtn && headerThemeMenu) {
+    headerThemeMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const headerToolsMenu = document.getElementById('headerToolsMenu');
+      if (headerToolsMenu) headerToolsMenu.classList.add('hidden');
+      headerThemeMenu.classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('.theme-select-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const themeId = btn.getAttribute('data-theme-id');
+        applyStudioTheme(themeId, true);
+        headerThemeMenu.classList.add('hidden');
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (themeDropdownWrap && !e.target.closest('#headerThemeDropdownWrap')) {
+        headerThemeMenu.classList.add('hidden');
+      }
+    });
+  }
+
+  const toolThemeCycleBtn = document.getElementById('toolThemeCycleBtn');
+  if (toolThemeCycleBtn) {
+    toolThemeCycleBtn.addEventListener('click', () => {
+      cycleStudioTheme();
     });
   }
 })();

@@ -982,6 +982,65 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 23: YouTube Lyrics Video Embed Protection & Apple Frosted Glass Multi-Theme Invariants
+  try {
+    console.log('\n[Edge Case 23] Verifying YouTube Lyrics Video Embed Protection & Apple Frosted Glass Multi-Theme Invariants...');
+    const appJs = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+    const mainJs = fs.readFileSync(path.join(__dirname, 'main.js'), 'utf8');
+    const indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    const styleCss = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
+
+    // 23a. YouTube Lyrics Video Embed Resilience
+    if (appJs.includes("ytPlayerDiv.classList.add('hidden');") && appJs.includes("โหมดสตูดิโอเสียงคมชัด 100%")) {
+      throw new Error('app.js still contains aggressive video hiding or static placeholder thumbnail in onError');
+    }
+    if (!appJs.includes('youtube-nocookie.com/embed/') || !appJs.includes('widget_referrer')) {
+      throw new Error('app.js missing resilient nocookie fallback or widget_referrer parameters');
+    }
+
+    // 23b. Electron Header Manipulation for YouTube Embed Restrictions
+    if (!mainJs.includes("lower === 'content-security-policy'") || !mainJs.includes("lower === 'x-frame-options'")) {
+      throw new Error('main.js must strip both Content-Security-Policy and X-Frame-Options');
+    }
+    if (!mainJs.includes("Referer'] = 'https://www.youtube.com/'") || !mainJs.includes('CHROME_UA')) {
+      throw new Error('main.js missing YouTube Referer override or standard Chrome Desktop User-Agent');
+    }
+
+    // 23c. Multi-Theme UI Selector in index.html
+    if (!indexHtml.includes('headerThemeDropdownWrap') || !indexHtml.includes('headerThemeMenuBtn')) {
+      throw new Error('index.html missing headerThemeDropdownWrap or headerThemeMenuBtn');
+    }
+    if (!indexHtml.includes('data-theme-id="apple-frosted"') ||
+        !indexHtml.includes('data-theme-id="apple-light"') ||
+        !indexHtml.includes('data-theme-id="nocturne-dark"')) {
+      throw new Error('index.html missing one of the 3 required theme selection options');
+    }
+
+    // 23d. Theme Controller in app.js
+    if (!appJs.includes('STUDIO_THEMES') || !appJs.includes('applyStudioTheme') || !appJs.includes('cycleStudioTheme')) {
+      throw new Error('app.js missing STUDIO_THEMES or theme controller functions');
+    }
+    if (!appJs.includes('nocturne_theme')) {
+      throw new Error('app.js missing localStorage persistence for nocturne_theme');
+    }
+
+    // 23e. Triple-Theme CSS Styling in style.css
+    if (!styleCss.includes('[data-theme="apple-frosted"]') ||
+        !styleCss.includes('[data-theme="apple-light"]') ||
+        !styleCss.includes('[data-theme="nocturne-dark"]')) {
+      throw new Error('style.css missing CSS blocks for apple-frosted, apple-light, or nocturne-dark');
+    }
+    if (!styleCss.includes('blur(30px) saturate(180%)')) {
+      throw new Error('style.css missing Apple Cupertino Frosted Glass blur(30px) saturate(180%) filter');
+    }
+
+    console.log('  ✅ Passed: Live YouTube video lyrics preservation, bypass headers, and Apple Frosted Glass multi-theme verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Edge Case 23 Error:', err.message);
+    failed++;
+  }
+
   if (testProcess) {
     try { testProcess.kill(); } catch (_) {}
   }

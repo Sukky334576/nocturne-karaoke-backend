@@ -58,16 +58,10 @@ const readmeContent = `=========================================================
 for (const d of desktopPaths) {
   if (!fs.existsSync(d)) continue;
   const pkgDir = path.join(d, 'Nocturne-Studio-Tester-Package');
-  if (!fs.existsSync(pkgDir)) fs.mkdirSync(pkgDir, { recursive: true });
-
-  // Strictly remove all codes files from the distribution package
-  const existingFiles = fs.readdirSync(pkgDir);
-  for (const f of existingFiles) {
-    if (f.includes('CODE') || f.includes('โค้ด')) {
-      fs.unlinkSync(path.join(pkgDir, f));
-      console.log('Removed confidential code file from package:', f);
-    }
+  if (fs.existsSync(pkgDir)) {
+    fs.rmSync(pkgDir, { recursive: true, force: true });
   }
+  fs.mkdirSync(pkgDir, { recursive: true });
 
   // Copy Setup Exe and Readme only
   fs.copyFileSync(setupExe, path.join(pkgDir, 'Nocturne Studio Setup 1.0.0.exe'));

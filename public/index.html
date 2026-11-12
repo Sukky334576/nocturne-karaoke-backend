@@ -144,7 +144,7 @@
     }
   </style>
 </head>
-<body class="mode-karaoke">
+<body class="mode-karaoke" data-theme="apple-frosted">
   <div class="app-container">
     <!-- Studio Header -->
     <header class="app-header">
@@ -222,6 +222,42 @@
             <button id="headerPluginBtn" class="dropdown-item-btn" type="button">
               <span class="dropdown-item-icon">🧩</span>
               <span>จัดการปลั๊กอิน (Plugins)</span>
+            </button>
+            <button id="toolThemeCycleBtn" class="dropdown-item-btn" type="button">
+              <span class="dropdown-item-icon">🎨</span>
+              <span>สลับธีมสี (Apple / Dark)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2.5 Theme Customizer Dropdown (Apple Frosted / Apple Light / Nocturne Dark) -->
+        <div class="header-dropdown-wrap" id="headerThemeDropdownWrap">
+          <button id="headerThemeMenuBtn" type="button" class="btn btn-nav-glass" title="ปรับแต่งธีมสีสตูดิโอ (Theme Customizer)">
+            <span id="headerThemeIcon">🍏</span>
+            <span id="headerThemeLabel">Apple Frosted</span>
+            <span style="font-size: 10px; margin-left: 2px;">▾</span>
+          </button>
+          <div id="headerThemeMenu" class="header-dropdown-menu hidden" style="min-width: 210px;">
+            <button class="dropdown-item-btn theme-select-btn" data-theme-id="apple-frosted" type="button">
+              <span class="dropdown-item-icon">🍏</span>
+              <div class="theme-menu-text">
+                <div class="theme-menu-title">Apple Frosted Glass</div>
+                <div class="theme-menu-desc">Cupertino Translucent Blur</div>
+              </div>
+            </button>
+            <button class="dropdown-item-btn theme-select-btn" data-theme-id="apple-light" type="button">
+              <span class="dropdown-item-icon">☀️</span>
+              <div class="theme-menu-text">
+                <div class="theme-menu-title">Apple Clean Light</div>
+                <div class="theme-menu-desc">กระจกขาวใส Minimalist</div>
+              </div>
+            </button>
+            <button class="dropdown-item-btn theme-select-btn" data-theme-id="nocturne-dark" type="button">
+              <span class="dropdown-item-icon">🌙</span>
+              <div class="theme-menu-text">
+                <div class="theme-menu-title">Nocturne Obsidian</div>
+                <div class="theme-menu-desc">ดำทองสตูดิโอ ออริจินัล</div>
+              </div>
             </button>
           </div>
         </div>

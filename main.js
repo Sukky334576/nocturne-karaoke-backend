@@ -2,6 +2,12 @@ const { app, BrowserWindow, ipcMain, shell, Tray, Menu } = require('electron');
 const path = require('path');
 const http = require('http');
 
+// Global Desktop Chrome User-Agent to bypass YouTube bot/Electron embed restrictions
+const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+if (app && typeof app.userAgentFallback !== 'undefined') {
+  app.userAgentFallback = CHROME_UA;
+}
+
 let mainWindow = null;
 let tray = null;
 let serverInstance = null;
@@ -88,21 +94,44 @@ function createWindow() {
     return true;
   });
 
-  // Enable YouTube embed playback for restricted music videos (override Referer & X-Frame-Options)
+  // Enable YouTube embed playback for restricted music videos (override Referer, Origin, User-Agent & strip CSP/X-Frame-Options)
   const ytFilter = {
-    urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*']
+    urls: [
+      '*://*.youtube.com/*',
+      '*://youtube.com/*',
+      '*://*.youtube-nocookie.com/*',
+      '*://youtube-nocookie.com/*',
+      '*://*.googlevideo.com/*',
+      '*://googlevideo.com/*'
+    ]
   };
 
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders(ytFilter, (details, callback) => {
-    details.requestHeaders['Referer'] = 'https://www.youtube.com/';
-    details.requestHeaders['Origin'] = 'https://www.youtube.com';
-    callback({ cancel: false, requestHeaders: details.requestHeaders });
+    const reqHeaders = Object.assign({}, details.requestHeaders);
+    for (const k of Object.keys(reqHeaders)) {
+      const lower = k.toLowerCase();
+      if (lower === 'referer' || lower === 'origin' || lower === 'user-agent') {
+        delete reqHeaders[k];
+      }
+    }
+    reqHeaders['Referer'] = 'https://www.youtube.com/';
+    reqHeaders['Origin'] = 'https://www.youtube.com';
+    reqHeaders['User-Agent'] = CHROME_UA;
+    callback({ cancel: false, requestHeaders: reqHeaders });
   });
 
   mainWindow.webContents.session.webRequest.onHeadersReceived(ytFilter, (details, callback) => {
     const responseHeaders = Object.assign({}, details.responseHeaders);
-    delete responseHeaders['x-frame-options'];
-    delete responseHeaders['X-Frame-Options'];
+    for (const key of Object.keys(responseHeaders)) {
+      const lower = key.toLowerCase();
+      if (
+        lower === 'x-frame-options' ||
+        lower === 'content-security-policy' ||
+        lower === 'content-security-policy-report-only'
+      ) {
+        delete responseHeaders[key];
+      }
+    }
     callback({ cancel: false, responseHeaders });
   });
 
