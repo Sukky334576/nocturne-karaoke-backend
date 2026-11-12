@@ -908,6 +908,80 @@ async function runEdgeCaseTests() {
     failed++;
   }
 
+  // Edge Case 22: Copyright Compliance, Multi-Res Bespoke Icon, Procedural Acoustic Mesh & VB-Audio Technical Attribution
+  try {
+    console.log('\n[Edge Case 22] Verifying Bespoke Icon, Acoustic Mesh, Zero Colorlib Assets & VB-Audio Attribution...');
+    
+    // 1. Icon verification
+    const iconPath = path.join(__dirname, 'resources', 'icon.ico');
+    const iconPngPath = path.join(__dirname, 'resources', 'icon.png');
+    if (!fs.existsSync(iconPath) || !fs.existsSync(iconPngPath)) {
+      throw new Error('resources/icon.ico or resources/icon.png does not exist');
+    }
+    const icoBuffer = fs.readFileSync(iconPath);
+    if (icoBuffer.length < 6 || icoBuffer.readUInt16LE(0) !== 0 || icoBuffer.readUInt16LE(2) !== 1) {
+      throw new Error('resources/icon.ico is not a valid Windows ICO header');
+    }
+    const imageCount = icoBuffer.readUInt16LE(4);
+    if (imageCount < 6) {
+      throw new Error(`resources/icon.ico expected at least 6 resolutions, got ${imageCount}`);
+    }
+    const entryWidths = [];
+    for (let i = 0; i < imageCount; i++) {
+      const w = icoBuffer.readUInt8(6 + i * 16) || 256;
+      entryWidths.push(w);
+    }
+    const expectedSizes = [16, 32, 48, 64, 128, 256];
+    for (const size of expectedSizes) {
+      if (!entryWidths.includes(size)) {
+        throw new Error(`resources/icon.ico missing expected resolution: ${size}x${size}`);
+      }
+    }
+
+    // 2. Retired Colorlib assets verification
+    const bg1Path = path.join(__dirname, 'public', 'img', 'bg-1.jpg');
+    const bg2Path = path.join(__dirname, 'public', 'img', 'bg-2.jpg');
+    if (fs.existsSync(bg1Path) || fs.existsSync(bg2Path)) {
+      throw new Error('Colorlib stock images (bg-1.jpg / bg-2.jpg) still exist on disk');
+    }
+
+    // 3. CSS verification
+    const styleCss = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
+    if (styleCss.includes('bg-1.jpg') || styleCss.includes('bg-2.jpg')) {
+      throw new Error('public/style.css still references retired Colorlib background images');
+    }
+    if (!styleCss.includes('repeating-radial-gradient') || !styleCss.includes('radial-gradient')) {
+      throw new Error('public/style.css missing procedural acoustic mesh radial gradient');
+    }
+
+    // 4. Branding & Crest verification in index.html
+    const indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    if (indexHtml.includes('ONE <span class="brand-accent">MUSIC</span>') || indexHtml.includes('One Music Home')) {
+      throw new Error('public/index.html still contains legacy ONE MUSIC header branding');
+    }
+    if (!indexHtml.includes('NOCTURNE <span class="brand-accent">STUDIO</span>') || !indexHtml.includes('nocturne-crest-svg')) {
+      throw new Error('public/index.html missing NOCTURNE STUDIO title or bespoke crest SVG');
+    }
+    if (indexHtml.includes('btn-onemusic-primary')) {
+      throw new Error('public/index.html still contains legacy btn-onemusic-primary class');
+    }
+
+    // 5. VB-Audio CABLE Driver Technical Attribution
+    const requiredAttribution = 'Virtual Audio Subsystem powered by <strong>VB-Audio CABLE Technology</strong> (Donationware / OEM Evaluation)';
+    if (!indexHtml.includes(requiredAttribution)) {
+      throw new Error('public/index.html missing required VB-Audio Driver technical attribution');
+    }
+    if (!indexHtml.includes('dispatcher-driver-attribution') || !indexHtml.includes('footer-driver-attribution')) {
+      throw new Error('VB-Audio attribution must be present in both dispatcher and footer sections');
+    }
+
+    console.log('  ✅ Passed: Bespoke multi-res icon, acoustic mesh, zero Colorlib assets & VB-Audio attribution verified!');
+    passed++;
+  } catch (err) {
+    console.error('  ❌ Edge Case 22 Error:', err.message);
+    failed++;
+  }
+
   if (testProcess) {
     try { testProcess.kill(); } catch (_) {}
   }

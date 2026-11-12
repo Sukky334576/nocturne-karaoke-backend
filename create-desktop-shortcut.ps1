@@ -22,3 +22,12 @@ foreach ($d in $desktopPaths) {
         Write-Host "Created shortcut successfully at: $shortcutFile"
     }
 }
+
+# Flush Windows Explorer icon cache and trigger immediate desktop redraw
+try {
+    Start-Process -FilePath "ie4uinit.exe" -ArgumentList "-show" -Wait -ErrorAction SilentlyContinue
+    python -c "import ctypes; ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)"
+    Write-Host "Windows Explorer icon cache flushed and refreshed successfully!"
+} catch {
+    Write-Host "Note: Shell notification fallback triggered."
+}

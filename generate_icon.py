@@ -242,9 +242,8 @@ def create_nocturne_icon(size=1024):
 
 if __name__ == "__main__":
     master = create_nocturne_icon(1024)
-    master.save("resources/icon_1024.png", "PNG")
     
-    # Save standard PNG
+    # Save standard PNG master
     icon_256 = master.resize((256, 256), Image.Resampling.LANCZOS)
     icon_256.save("resources/icon.png", "PNG")
 

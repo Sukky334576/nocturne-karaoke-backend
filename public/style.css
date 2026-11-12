@@ -3055,6 +3055,7 @@ body {
 }
 
 /* 2. Studio Acoustic Hero Banner Area */
+.nocturne-hero-banner,
 .onemusic-hero-banner {
   position: relative;
   width: 100%;
@@ -3138,6 +3139,7 @@ body {
   flex-wrap: wrap;
 }
 
+.nocturne-hero-btn,
 .onemusic-hero-btn {
   display: inline-flex;
   align-items: center;
@@ -3153,6 +3155,7 @@ body {
   font-family: 'Poppins', sans-serif;
 }
 
+.nocturne-btn-gold,
 .onemusic-btn-gold {
   background: #d8b15d;
   color: #000000;
@@ -3160,6 +3163,7 @@ body {
   box-shadow: 0 4px 20px rgba(216, 177, 93, 0.4);
 }
 
+.nocturne-btn-gold:hover,
 .onemusic-btn-gold:hover {
   background: #ffffff;
   color: #000000;
@@ -3168,6 +3172,7 @@ body {
   box-shadow: 0 6px 25px rgba(255, 255, 255, 0.4);
 }
 
+.nocturne-btn-outline,
 .onemusic-btn-outline {
   background: rgba(0, 0, 0, 0.4);
   color: #ffffff;
@@ -3175,6 +3180,7 @@ body {
   backdrop-filter: blur(8px);
 }
 
+.nocturne-btn-outline:hover,
 .onemusic-btn-outline:hover {
   background: #ffffff;
   color: #000000;
@@ -3190,6 +3196,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
+.nocturne-logo-img,
 .onemusic-logo-img {
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
 }
@@ -3259,6 +3266,7 @@ body {
 }
 
 /* 3. Translucent Hero Banner (Acoustic Mesh) */
+.nocturne-hero-banner,
 .onemusic-hero-banner {
   background: 
     radial-gradient(circle at 50% 20%, rgba(216, 177, 93, 0.15) 0%, transparent 65%),
@@ -3596,7 +3604,7 @@ body {
 }
 
 /* Nocturne Studio Primary CTA (Gold) */
-.btn-onemusic-primary, .btn-nocturne-primary {
+.btn-nocturne-primary, .btn-onemusic-primary {
   background: #d8b15d !important;
   color: #08090d !important;
   border: 1px solid #d8b15d !important;
@@ -3615,7 +3623,7 @@ body {
   white-space: nowrap;
 }
 
-.btn-onemusic-primary:hover, .btn-nocturne-primary:hover {
+.btn-nocturne-primary:hover, .btn-onemusic-primary:hover {
   background: #ffffff !important;
   border-color: #ffffff !important;
   color: #08090d !important;
