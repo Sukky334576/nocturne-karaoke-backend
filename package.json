@@ -12,6 +12,7 @@
     "test": "node test-full-loop.js",
     "test:edge": "node test-edge-cases.js",
     "test:cable": "node test-cable-simulation.js",
+    "test:visual": "electron visual-tester.js",
     "test:all": "node test-full-loop.js && node test-edge-cases.js && node test-cable-simulation.js"
   },
   "build": {

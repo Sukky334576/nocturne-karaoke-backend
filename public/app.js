@@ -4997,6 +4997,10 @@ async function playTrack(track, seekSeconds = 0) {
     setPitchShift(0, false);
   }
 
+  if (searchResults) {
+    searchResults.classList.add('hidden');
+  }
+
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
@@ -5153,6 +5157,10 @@ function activateYtAudioFailover() {
 
 async function playTrackFromUrl(url) {
   await initAudioEngine();
+  if (searchResults) {
+    searchResults.classList.add('hidden');
+  }
+
   videoPlaceholder.classList.add('hidden');
   ytPlayerDiv.classList.remove('hidden');
 
