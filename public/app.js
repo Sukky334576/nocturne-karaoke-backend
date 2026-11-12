@@ -1969,6 +1969,17 @@ function sendYtCommand(func, args = []) {
     }
   }
 
+  // Direct Electron IPC hardware bridge
+  if (window.desktopApp) {
+    if (func === 'seekTo' && args.length > 0 && typeof window.desktopApp.ytSeek === 'function') {
+      window.desktopApp.ytSeek(args[0]);
+    } else if (func === 'playVideo' && typeof window.desktopApp.ytPlay === 'function') {
+      window.desktopApp.ytPlay();
+    } else if (func === 'pauseVideo' && typeof window.desktopApp.ytPause === 'function') {
+      window.desktopApp.ytPause();
+    }
+  }
+
   // Dual Fallback: Direct postMessage to iframe elements (100% fail-safe seek & volume)
   const frames = document.querySelectorAll('#ytPlayerWrapper iframe, #ytPlayerDiv iframe, iframe.video-iframe, #ytPlayerDiv, iframe');
   frames.forEach(f => {
@@ -2014,7 +2025,7 @@ function ensurePlayerVisible() {
 function renderYtFallbackIframe(videoId, startSec = 0, muteFlag = 1) {
   ensurePlayerVisible();
   const wrapper = document.getElementById('ytPlayerWrapper') || document.getElementById('ytPlayerDiv')?.parentElement || document.querySelector('.video-container');
-  const fallbackSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&origin=https%3A%2F%2Fwww.google.com&widget_referrer=https%3A%2F%2Fwww.google.com`;
+  const fallbackSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.google.com`;
   if (wrapper) {
     wrapper.innerHTML = `<iframe id="ytPlayerDiv" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
   }
@@ -2022,7 +2033,7 @@ function renderYtFallbackIframe(videoId, startSec = 0, muteFlag = 1) {
 
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
-  const origin = 'https://www.google.com';
+  const origin = window.location.origin;
   const isDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
   const muteFlag = isDirectOrTab ? 0 : 1;
   const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
@@ -2093,10 +2104,11 @@ function initYtPlayer(videoId, startSec = 0) {
         },
         onError: (e) => {
           console.warn('⚡ YouTube embed player notice (code ' + (e && e.data) + '). Audio continues cleanly through Nocturne DSP while retaining active lyrics video.');
-          // NEVER aggressively hide ytPlayerDiv! Karaoke video frames contain on-screen lyrics that users sing along to!
           ensurePlayerVisible();
-          // Direct fallback to clean nocookie iframe so the user can always see the video & lyrics
-          renderYtFallbackIframe(videoId, startSec, muteFlag);
+          const hasIframe = document.querySelector('#ytPlayerWrapper iframe, #ytPlayerDiv iframe, iframe.video-iframe');
+          if (!hasIframe) {
+            renderYtFallbackIframe(videoId, startSec, muteFlag);
+          }
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {

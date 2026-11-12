@@ -169,10 +169,82 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  // Automatic Ad Skipping & Real-Time Sync Subsystem for YouTube Karaoke Videos
+  const adSkipperInterval = setInterval(async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    try {
+      for (const frame of mainWindow.webContents.mainFrame.frames) {
+        if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
+          await frame.executeJavaScript(`
+            (() => {
+              const player = document.querySelector('.html5-video-player');
+              const isAdShowing = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+              const v = document.querySelector('video');
+              if (isAdShowing && v) {
+                v.muted = true;
+                v.playbackRate = 16.0;
+                v.currentTime = (v.duration && isFinite(v.duration)) ? v.duration : 9999;
+                const btn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
+                if (btn) btn.click();
+              }
+            })()
+          `).catch(() => {});
+        }
+      }
+    } catch (_) {}
+  }, 250);
+
   mainWindow.on('closed', () => {
+    clearInterval(adSkipperInterval);
     mainWindow = null;
   });
 }
+
+// Hardware accelerated YouTube player direct control IPC handlers
+ipcMain.on('yt-seek', (event, seekSec) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  for (const frame of mainWindow.webContents.mainFrame.frames) {
+    if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
+      frame.executeJavaScript(`
+        (() => {
+          const v = document.querySelector('video');
+          if (v) {
+            v.currentTime = ${Number(seekSec)};
+            v.play().catch(() => {});
+          }
+        })()
+      `).catch(() => {});
+    }
+  }
+});
+
+ipcMain.on('yt-play', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  for (const frame of mainWindow.webContents.mainFrame.frames) {
+    if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
+      frame.executeJavaScript(`
+        (() => {
+          const v = document.querySelector('video');
+          if (v && v.paused) v.play().catch(() => {});
+        })()
+      `).catch(() => {});
+    }
+  }
+});
+
+ipcMain.on('yt-pause', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  for (const frame of mainWindow.webContents.mainFrame.frames) {
+    if (frame.url.includes('youtube.com/embed') || frame.url.includes('youtube-nocookie.com/embed')) {
+      frame.executeJavaScript(`
+        (() => {
+          const v = document.querySelector('video');
+          if (v && !v.paused) v.pause();
+        })()
+      `).catch(() => {});
+    }
+  }
+});
 
 // Secure IPC handler for opening external URLs
 ipcMain.on('open-external', (event, url) => {
