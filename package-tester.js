@@ -8,7 +8,6 @@ const desktopPaths = [
 ];
 
 const setupExe = 'C:\\Users\\tong3\\.gemini\\antigravity\\scratch\\karaoke-sync-player\\dist\\Nocturne Studio Setup 1.0.0.exe';
-const testerCodes = 'C:\\Users\\tong3\\Desktop\\TESTER_CODES.txt';
 
 const readmeContent = `================================================================================
 🎙️ NOCTURNE STUDIO • PRECISION KARAOKE & VOCAL ENGINE
@@ -32,8 +31,8 @@ const readmeContent = `=========================================================
 --------------------------------------------------------------------------------
 1. เปิดโปรแกรม Nocturne Studio จากหน้าจอ Desktop
 2. ที่หน้าแรก หรือแถบเมนูด้านบน ให้กดปุ่ม "🔑 กรอกโค้ดทดลองใช้งาน (Redeem Tester Key)"
-3. นำรหัสจากไฟล์ "รหัสทดลองใช้งาน_TESTER_CODES.txt" มาวาง 1 โค้ด แล้วกดยืนยัน
-   (ตัวอย่างโค้ด: NOCTURNE-BETA-7K2X หรือพิมพ์แค่ 7K2X ก็ได้)
+3. นำรหัสที่คุณได้รับจากผู้ส่ง มาวางในช่องแล้วกดยืนยัน (1 รหัสต่อ 1 เครื่อง)
+   (ตัวอย่างรูปแบบโค้ด: NOCTURNE-BETA-XXXX หรือพิมพ์เฉพาะ 4 ตัวท้ายก็ได้)
 4. ระบบจะปลดล็อกสถานะ ✨ TESTER PRO ให้ใช้งานได้ทุกฟีเจอร์ทันที!
 
 --------------------------------------------------------------------------------
@@ -61,17 +60,32 @@ for (const d of desktopPaths) {
   const pkgDir = path.join(d, 'Nocturne-Studio-Tester-Package');
   if (!fs.existsSync(pkgDir)) fs.mkdirSync(pkgDir, { recursive: true });
 
-  fs.copyFileSync(setupExe, path.join(pkgDir, 'Nocturne Studio Setup 1.0.0.exe'));
-  if (fs.existsSync(testerCodes)) {
-    fs.copyFileSync(testerCodes, path.join(pkgDir, 'รหัสทดลองใช้งาน_TESTER_CODES.txt'));
+  // Strictly remove all codes files from the distribution package
+  const existingFiles = fs.readdirSync(pkgDir);
+  for (const f of existingFiles) {
+    if (f.includes('CODE') || f.includes('โค้ด')) {
+      fs.unlinkSync(path.join(pkgDir, f));
+      console.log('Removed confidential code file from package:', f);
+    }
   }
+
+  // Copy Setup Exe and Readme only
+  fs.copyFileSync(setupExe, path.join(pkgDir, 'Nocturne Studio Setup 1.0.0.exe'));
   fs.writeFileSync(path.join(pkgDir, 'คู่มือการติดตั้งและใช้งาน_README.txt'), readmeContent, 'utf8');
 
+  // Master file for Project Owner ONLY on desktop
+  const srcCodes = 'C:\\Users\\tong3\\Desktop\\TESTER_CODES.txt';
+  const ownerMasterFile = path.join(d, 'รหัสทดลองใช้งาน_สำหรับเจ้าของโปรเจกต์_TESTER_CODES.txt');
+  if (fs.existsSync(srcCodes)) {
+    fs.copyFileSync(srcCodes, ownerMasterFile);
+  }
+
+  // Re-zip the clean package (contains ONLY installer and readme)
   const zipFile = path.join(d, 'Nocturne-Studio-Tester-Package.zip');
   try {
     if (fs.existsSync(zipFile)) fs.unlinkSync(zipFile);
     execSync(`powershell.exe -NoProfile -Command "Compress-Archive -Path '${pkgDir}\\*' -DestinationPath '${zipFile}' -CompressionLevel Optimal"`, { stdio: 'inherit' });
-    console.log('Successfully zipped to:', zipFile);
+    console.log('Successfully re-zipped clean package to:', zipFile);
   } catch (err) {
     console.error('Zip creation note:', err.message);
   }
