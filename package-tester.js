@@ -57,6 +57,16 @@ const readmeContent = `=========================================================
 
 for (const d of desktopPaths) {
   if (!fs.existsSync(d)) continue;
+
+  // Direct Update to Desktop root: Nocturne Studio Setup 1.0.0.exe
+  const desktopSetupFile = path.join(d, 'Nocturne Studio Setup 1.0.0.exe');
+  try {
+    fs.copyFileSync(setupExe, desktopSetupFile);
+    console.log('Successfully updated desktop setup exe at:', desktopSetupFile);
+  } catch (err) {
+    console.warn('Desktop root copy note:', err.message);
+  }
+
   const pkgDir = path.join(d, 'Nocturne-Studio-Tester-Package');
   if (fs.existsSync(pkgDir)) {
     fs.rmSync(pkgDir, { recursive: true, force: true });

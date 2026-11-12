@@ -997,6 +997,9 @@ async function runEdgeCaseTests() {
     if (!appJs.includes('youtube-nocookie.com/embed/') || !appJs.includes('widget_referrer')) {
       throw new Error('app.js missing resilient nocookie fallback or widget_referrer parameters');
     }
+    if (!indexHtml.includes('id="ytPlayerWrapper"') || !appJs.includes('ensurePlayerVisible')) {
+      throw new Error('Missing persistent ytPlayerWrapper DOM architecture or ensurePlayerVisible guard');
+    }
 
     // 23b. Electron Header Manipulation for YouTube Embed Restrictions
     if (!mainJs.includes("lower === 'content-security-policy'") || !mainJs.includes("lower === 'x-frame-options'")) {
@@ -1004,6 +1007,9 @@ async function runEdgeCaseTests() {
     }
     if (!mainJs.includes("Referer'] = 'https://www.youtube.com/'") || !mainJs.includes('CHROME_UA')) {
       throw new Error('main.js missing YouTube Referer override or standard Chrome Desktop User-Agent');
+    }
+    if (!mainJs.includes('webSecurity: false')) {
+      throw new Error('main.js must set webSecurity: false to prevent Chromium cross-origin iframe blocking');
     }
 
     // 23c. Multi-Theme UI Selector in index.html

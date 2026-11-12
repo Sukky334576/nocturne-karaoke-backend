@@ -78,7 +78,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       backgroundThrottling: false, // Invariant: Never throttle Web Audio DSP when minimized or behind FiveM/Discord
-      autoplayPolicy: 'no-user-gesture-required' // Immediate audio playback
+      autoplayPolicy: 'no-user-gesture-required', // Immediate audio playback
+      webSecurity: false // Disable web security so Electron Chromium allows all embeds and cross-origin frames without restriction
     }
   });
 
@@ -94,7 +95,7 @@ function createWindow() {
     return true;
   });
 
-  // Enable YouTube embed playback for restricted music videos (override Referer, Origin, User-Agent & strip CSP/X-Frame-Options)
+  // Enable YouTube embed playback for restricted music videos (override Referer, Origin, User-Agent & strip CSP/X-Frame-Options/CORP)
   const ytFilter = {
     urls: [
       '*://*.youtube.com/*',
@@ -102,38 +103,53 @@ function createWindow() {
       '*://*.youtube-nocookie.com/*',
       '*://youtube-nocookie.com/*',
       '*://*.googlevideo.com/*',
-      '*://googlevideo.com/*'
+      '*://googlevideo.com/*',
+      '*://*.ytimg.com/*',
+      '*://ytimg.com/*'
     ]
   };
 
-  mainWindow.webContents.session.webRequest.onBeforeSendHeaders(ytFilter, (details, callback) => {
-    const reqHeaders = Object.assign({}, details.requestHeaders);
-    for (const k of Object.keys(reqHeaders)) {
-      const lower = k.toLowerCase();
-      if (lower === 'referer' || lower === 'origin' || lower === 'user-agent') {
-        delete reqHeaders[k];
+  const setupWebRequestBypass = (sess) => {
+    if (!sess || !sess.webRequest) return;
+    sess.webRequest.onBeforeSendHeaders(ytFilter, (details, callback) => {
+      const reqHeaders = Object.assign({}, details.requestHeaders);
+      for (const k of Object.keys(reqHeaders)) {
+        const lower = k.toLowerCase();
+        if (lower === 'referer' || lower === 'origin' || lower === 'user-agent') {
+          delete reqHeaders[k];
+        }
       }
-    }
-    reqHeaders['Referer'] = 'https://www.youtube.com/';
-    reqHeaders['Origin'] = 'https://www.youtube.com';
-    reqHeaders['User-Agent'] = CHROME_UA;
-    callback({ cancel: false, requestHeaders: reqHeaders });
-  });
+      reqHeaders['Referer'] = 'https://www.youtube.com/';
+      reqHeaders['Origin'] = 'https://www.youtube.com';
+      reqHeaders['User-Agent'] = CHROME_UA;
+      reqHeaders['Sec-Fetch-Site'] = 'same-origin';
+      callback({ cancel: false, requestHeaders: reqHeaders });
+    });
 
-  mainWindow.webContents.session.webRequest.onHeadersReceived(ytFilter, (details, callback) => {
-    const responseHeaders = Object.assign({}, details.responseHeaders);
-    for (const key of Object.keys(responseHeaders)) {
-      const lower = key.toLowerCase();
-      if (
-        lower === 'x-frame-options' ||
-        lower === 'content-security-policy' ||
-        lower === 'content-security-policy-report-only'
-      ) {
-        delete responseHeaders[key];
+    sess.webRequest.onHeadersReceived(ytFilter, (details, callback) => {
+      const responseHeaders = Object.assign({}, details.responseHeaders);
+      for (const key of Object.keys(responseHeaders)) {
+        const lower = key.toLowerCase();
+        if (
+          lower === 'x-frame-options' ||
+          lower === 'content-security-policy' ||
+          lower === 'content-security-policy-report-only' ||
+          lower === 'cross-origin-embedder-policy' ||
+          lower === 'cross-origin-opener-policy' ||
+          lower === 'cross-origin-resource-policy'
+        ) {
+          delete responseHeaders[key];
+        }
       }
-    }
-    callback({ cancel: false, responseHeaders });
-  });
+      callback({ cancel: false, responseHeaders });
+    });
+  };
+
+  setupWebRequestBypass(mainWindow.webContents.session);
+  const { session } = require('electron');
+  if (session && session.defaultSession && session.defaultSession !== mainWindow.webContents.session) {
+    setupWebRequestBypass(session.defaultSession);
+  }
 
   // Load local UI directly from embedded server with auto-retry
   const loadApp = () => {

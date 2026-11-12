@@ -1970,7 +1970,7 @@ function sendYtCommand(func, args = []) {
   }
 
   // Dual Fallback: Direct postMessage to iframe elements (100% fail-safe seek & volume)
-  const frames = document.querySelectorAll('#ytPlayerDiv iframe, iframe.video-iframe, #ytPlayerDiv');
+  const frames = document.querySelectorAll('#ytPlayerWrapper iframe, #ytPlayerDiv iframe, iframe.video-iframe, #ytPlayerDiv, iframe');
   frames.forEach(f => {
     try {
       const win = f.contentWindow;
@@ -1994,25 +1994,45 @@ window.onYouTubeIframeAPIReady = function() {
   }
 };
 
+function ensurePlayerVisible() {
+  const wrapper = document.getElementById('ytPlayerWrapper');
+  const player = document.getElementById('ytPlayerDiv');
+  if (wrapper) {
+    wrapper.classList.remove('hidden');
+    wrapper.style.display = 'block';
+  }
+  if (player) {
+    player.classList.remove('hidden');
+    player.style.display = 'block';
+  }
+  const placeholder = document.getElementById('videoPlaceholder');
+  if (placeholder) {
+    placeholder.classList.add('hidden');
+  }
+}
+
+function renderYtFallbackIframe(videoId, startSec = 0, muteFlag = 1) {
+  ensurePlayerVisible();
+  const wrapper = document.getElementById('ytPlayerWrapper') || document.getElementById('ytPlayerDiv')?.parentElement || document.querySelector('.video-container');
+  const fallbackSrc = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com`;
+  if (wrapper) {
+    wrapper.innerHTML = `<iframe id="ytPlayerDiv" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+  }
+}
+
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
-  const origin = window.location.origin;
+  const origin = 'https://www.youtube.com';
   const isDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
   const muteFlag = isDirectOrTab ? 0 : 1;
   const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
   const volInt = isHpMusicMuted ? 0 : Math.min(100, Math.round(hpVol * 100));
 
   // Invariant: Always ensure the video player screen is unhidden so karaoke lyrics are visible
-  if (ytPlayerDiv) {
-    ytPlayerDiv.classList.remove('hidden');
-    ytPlayerDiv.style.display = 'block';
-  }
-  if (videoPlaceholder) {
-    videoPlaceholder.classList.add('hidden');
-  }
+  ensurePlayerVisible();
 
   if (!window.YT || !window.YT.Player) {
-    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+    renderYtFallbackIframe(videoId, startSec, muteFlag);
     return;
   }
 
@@ -2034,7 +2054,11 @@ function initYtPlayer(videoId, startSec = 0) {
     }
   }
 
-  ytPlayerDiv.innerHTML = '';
+  const wrapper = document.getElementById('ytPlayerWrapper');
+  if (wrapper) {
+    wrapper.innerHTML = '<div id="ytPlayerDiv" class="video-iframe" style="width:100%;height:100%;"></div>';
+  }
+
   try {
     ytPlayer = new YT.Player('ytPlayerDiv', {
       height: '100%',
@@ -2055,11 +2079,7 @@ function initYtPlayer(videoId, startSec = 0) {
       events: {
         onReady: (e) => {
           isYtReady = true;
-          if (ytPlayerDiv) {
-            ytPlayerDiv.classList.remove('hidden');
-            ytPlayerDiv.style.display = 'block';
-          }
-          if (videoPlaceholder) videoPlaceholder.classList.add('hidden');
+          ensurePlayerVisible();
           const currentDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
           const curHpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
           const curVolInt = isHpMusicMuted ? 0 : Math.min(100, Math.round(curHpVol * 100));
@@ -2074,16 +2094,9 @@ function initYtPlayer(videoId, startSec = 0) {
         onError: (e) => {
           console.warn('⚡ YouTube embed player notice (code ' + (e && e.data) + '). Audio continues cleanly through Nocturne DSP while retaining active lyrics video.');
           // NEVER aggressively hide ytPlayerDiv! Karaoke video frames contain on-screen lyrics that users sing along to!
-          if (ytPlayerDiv) {
-            ytPlayerDiv.classList.remove('hidden');
-            ytPlayerDiv.style.display = 'block';
-          }
-          if (videoPlaceholder) {
-            videoPlaceholder.classList.add('hidden');
-          }
+          ensurePlayerVisible();
           // Direct fallback to clean nocookie iframe so the user can always see the video & lyrics
-          const fallbackSrc = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com`;
-          ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+          renderYtFallbackIframe(videoId, startSec, muteFlag);
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.PLAYING) {
@@ -2112,7 +2125,7 @@ function initYtPlayer(videoId, startSec = 0) {
     });
   } catch (err) {
     console.warn('YT.Player init fallback:', err);
-    ytPlayerDiv.innerHTML = `<iframe id="ytIframe" src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+    renderYtFallbackIframe(videoId, startSec, muteFlag);
   }
   startYtProgressTracker();
 }

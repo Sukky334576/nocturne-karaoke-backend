@@ -4050,9 +4050,70 @@ body {
 }
 
 /* ==========================================================================
+   CSS VARIABLES SYSTEM FOR MULTI-THEME ENGINE
+   ========================================================================== */
+:root[data-theme="apple-frosted"],
+[data-theme="apple-frosted"] {
+  --bg-space: #0b0d14;
+  --bg-surface: rgba(18, 22, 34, 0.62);
+  --bg-module: rgba(22, 27, 42, 0.52);
+  --bg-elevated: rgba(26, 32, 50, 0.65);
+  --bg-input: rgba(0, 0, 0, 0.38);
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-medium: rgba(255, 255, 255, 0.18);
+  --border-bright: rgba(41, 151, 255, 0.5);
+  --gold-primary: #2997ff;
+  --gold-bright: #64b5f6;
+  --gold-tint: rgba(41, 151, 255, 0.1);
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-muted: #6e6e73;
+}
+
+:root[data-theme="apple-light"],
+[data-theme="apple-light"] {
+  --bg-space: #f5f5f7;
+  --bg-surface: rgba(255, 255, 255, 0.85);
+  --bg-module: rgba(255, 255, 255, 0.78);
+  --bg-elevated: rgba(255, 255, 255, 0.95);
+  --bg-input: rgba(0, 0, 0, 0.04);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-medium: rgba(0, 0, 0, 0.14);
+  --border-bright: rgba(0, 113, 227, 0.4);
+  --gold-primary: #0071e3;
+  --gold-bright: #0077ed;
+  --gold-tint: rgba(0, 113, 227, 0.08);
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-muted: #86868b;
+  --text-gold: #0071e3;
+}
+
+:root[data-theme="nocturne-dark"],
+[data-theme="nocturne-dark"] {
+  --bg-space: #08090d;
+  --bg-surface: #10121a;
+  --bg-module: #141722;
+  --bg-elevated: #1a1e2d;
+  --bg-input: #0c0e14;
+  --border-subtle: rgba(216, 177, 93, 0.12);
+  --border-medium: rgba(216, 177, 93, 0.24);
+  --border-bright: rgba(216, 177, 93, 0.48);
+  --gold-primary: #d8b15d;
+  --gold-bright: #f4e6c3;
+  --gold-deep: #967524;
+  --gold-tint: rgba(216, 177, 93, 0.08);
+  --text-primary: #f5f6fa;
+  --text-secondary: #9aa0b4;
+  --text-muted: #585d70;
+  --text-gold: #e2c079;
+}
+
+/* ==========================================================================
    THEME 1: APPLE FROSTED GLASS (CUPERTINO TRANSLUCENT)
    ========================================================================== */
-[data-theme="apple-frosted"] body {
+[data-theme="apple-frosted"] body,
+body[data-theme="apple-frosted"] {
   background-color: #0b0d14 !important;
   background-image: 
     radial-gradient(circle at 15% 15%, rgba(0, 113, 227, 0.16) 0%, transparent 45%),
@@ -4143,7 +4204,8 @@ body {
 /* ==========================================================================
    THEME 2: APPLE CLEAN LIGHT GLASS
    ========================================================================== */
-[data-theme="apple-light"] body {
+[data-theme="apple-light"] body,
+body[data-theme="apple-light"] {
   background-color: #f5f5f7 !important;
   background-image: 
     radial-gradient(circle at 15% 10%, rgba(0, 113, 227, 0.08) 0%, transparent 45%),
@@ -4452,7 +4514,8 @@ body {
 /* ==========================================================================
    THEME 3: NOCTURNE OBSIDIAN & GOLD
    ========================================================================== */
-[data-theme="nocturne-dark"] body {
+[data-theme="nocturne-dark"] body,
+body[data-theme="nocturne-dark"] {
   background-color: #07080c !important;
   background-image: 
     repeating-radial-gradient(circle at 50% 160px, rgba(216, 177, 93, 0.03) 0, rgba(216, 177, 93, 0.03) 1px, transparent 1px, transparent 48px),
