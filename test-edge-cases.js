@@ -994,8 +994,8 @@ async function runEdgeCaseTests() {
     if (appJs.includes("ytPlayerDiv.classList.add('hidden');") && appJs.includes("โหมดสตูดิโอเสียงคมชัด 100%")) {
       throw new Error('app.js still contains aggressive video hiding or static placeholder thumbnail in onError');
     }
-    if (!appJs.includes('youtube-nocookie.com/embed/') || !appJs.includes('widget_referrer')) {
-      throw new Error('app.js missing resilient nocookie fallback or widget_referrer parameters');
+    if (!appJs.includes('youtube.com/embed/') || !appJs.includes('widget_referrer')) {
+      throw new Error('app.js missing resilient embed fallback or widget_referrer parameters');
     }
     if (!indexHtml.includes('id="ytPlayerWrapper"') || !appJs.includes('ensurePlayerVisible')) {
       throw new Error('Missing persistent ytPlayerWrapper DOM architecture or ensurePlayerVisible guard');
@@ -1005,8 +1005,8 @@ async function runEdgeCaseTests() {
     if (!mainJs.includes("lower === 'content-security-policy'") || !mainJs.includes("lower === 'x-frame-options'")) {
       throw new Error('main.js must strip both Content-Security-Policy and X-Frame-Options');
     }
-    if (!mainJs.includes("Referer'] = 'https://www.youtube.com/'") || !mainJs.includes('CHROME_UA')) {
-      throw new Error('main.js missing YouTube Referer override or standard Chrome Desktop User-Agent');
+    if (!mainJs.includes("Referer'] = 'https://www.google.com/'") || !mainJs.includes('CHROME_UA')) {
+      throw new Error('main.js missing YouTube Google Referer override or standard Chrome Desktop User-Agent');
     }
     if (!mainJs.includes('webSecurity: false')) {
       throw new Error('main.js must set webSecurity: false to prevent Chromium cross-origin iframe blocking');

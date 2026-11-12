@@ -2014,15 +2014,15 @@ function ensurePlayerVisible() {
 function renderYtFallbackIframe(videoId, startSec = 0, muteFlag = 1) {
   ensurePlayerVisible();
   const wrapper = document.getElementById('ytPlayerWrapper') || document.getElementById('ytPlayerDiv')?.parentElement || document.querySelector('.video-container');
-  const fallbackSrc = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&widget_referrer=https%3A%2F%2Fwww.youtube.com`;
+  const fallbackSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&mute=${muteFlag}&start=${Math.floor(startSec)}&enablejsapi=1&playsinline=1&origin=https%3A%2F%2Fwww.google.com&widget_referrer=https%3A%2F%2Fwww.google.com`;
   if (wrapper) {
-    wrapper.innerHTML = `<iframe id="ytPlayerDiv" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
+    wrapper.innerHTML = `<iframe id="ytPlayerDiv" src="${fallbackSrc}" class="video-iframe" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;height:100%;border:none;"></iframe>`;
   }
 }
 
 // Initialize YouTube Player
 function initYtPlayer(videoId, startSec = 0) {
-  const origin = 'https://www.youtube.com';
+  const origin = 'https://www.google.com';
   const isDirectOrTab = isUsingDirectYtAudio || isTabAudioActive;
   const muteFlag = isDirectOrTab ? 0 : 1;
   const hpVol = currentUser.preset.hpMusicVol !== undefined ? currentUser.preset.hpMusicVol : 0.9;
@@ -2063,7 +2063,7 @@ function initYtPlayer(videoId, startSec = 0) {
     ytPlayer = new YT.Player('ytPlayerDiv', {
       height: '100%',
       width: '100%',
-      host: 'https://www.youtube-nocookie.com',
+      host: 'https://www.youtube.com',
       videoId: videoId,
       playerVars: {
         autoplay: 1,
@@ -2071,7 +2071,7 @@ function initYtPlayer(videoId, startSec = 0) {
         mute: muteFlag,
         enablejsapi: 1,
         origin: origin,
-        widget_referrer: 'https://www.youtube.com',
+        widget_referrer: 'https://www.google.com',
         start: Math.floor(startSec),
         playsinline: 1,
         rel: 0

@@ -119,10 +119,9 @@ function createWindow() {
           delete reqHeaders[k];
         }
       }
-      reqHeaders['Referer'] = 'https://www.youtube.com/';
-      reqHeaders['Origin'] = 'https://www.youtube.com';
+      reqHeaders['Referer'] = 'https://www.google.com/';
+      reqHeaders['Origin'] = 'https://www.google.com';
       reqHeaders['User-Agent'] = CHROME_UA;
-      reqHeaders['Sec-Fetch-Site'] = 'same-origin';
       callback({ cancel: false, requestHeaders: reqHeaders });
     });
 
