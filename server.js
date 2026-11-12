@@ -26,12 +26,65 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '256kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Determine path to local binaries
-const localYtDlp = path.join(__dirname, 'bin', 'yt-dlp.exe');
-const ytDlpPath = fs.existsSync(localYtDlp) ? localYtDlp : 'yt-dlp';
+// Resilient Binary Resolver (Supports Packaged Electron, Dev Workspace, WinGet, Scoop, Choco & PATH)
+function resolveBinary(name) {
+  const exeName = process.platform === 'win32' ? (name.endsWith('.exe') ? name : `${name}.exe`) : name;
+  const candidates = [
+    // 1. Packaged Electron extraResources directory
+    process.resourcesPath ? path.join(process.resourcesPath, 'bin', exeName) : null,
+    // 2. Project local resources/bin directory
+    path.join(__dirname, 'resources', 'bin', exeName),
+    // 3. Project local bin directory
+    path.join(__dirname, 'bin', exeName),
+    // 4. Current working directory bin/resources
+    path.join(process.cwd(), 'resources', 'bin', exeName),
+    path.join(process.cwd(), 'bin', exeName),
+    // 5. Common WinGet directories on Windows
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links', exeName) : null,
+    // 6. User Profile scoop shims
+    process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'scoop', 'shims', exeName) : null,
+    // 7. Chocolatey bin
+    process.env.ALLUSERSPROFILE ? path.join(process.env.ALLUSERSPROFILE, 'chocolatey', 'bin', exeName) : null,
+    // 8. Standard system paths
+    `C:\\${name}\\${exeName}`,
+    `C:\\${name}\\bin\\${exeName}`
+  ];
 
-const localFfmpeg = path.join(__dirname, 'bin', 'ffmpeg.exe');
-const ffmpegPath = fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
+  for (const p of candidates) {
+    if (p && fs.existsSync(p)) {
+      return p;
+    }
+  }
+
+  // 9. WinGet packages folder deep scan fallback
+  if (process.env.LOCALAPPDATA && process.platform === 'win32') {
+    const wingetPkgDir = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Packages');
+    if (fs.existsSync(wingetPkgDir)) {
+      try {
+        const subdirs = fs.readdirSync(wingetPkgDir);
+        for (const dir of subdirs) {
+          if (dir.toLowerCase().includes(name.toLowerCase())) {
+            const directExe = path.join(wingetPkgDir, dir, exeName);
+            if (fs.existsSync(directExe)) return directExe;
+            const deeperBin = path.join(wingetPkgDir, dir, 'bin', exeName);
+            if (fs.existsSync(deeperBin)) return deeperBin;
+            const subsub = fs.readdirSync(path.join(wingetPkgDir, dir));
+            for (const s of subsub) {
+              const cand = path.join(wingetPkgDir, dir, s, 'bin', exeName);
+              if (fs.existsSync(cand)) return cand;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  return name; // Fallback to PATH
+}
+
+const ytDlpPath = resolveBinary('yt-dlp');
+const ffmpegPath = resolveBinary('ffmpeg');
+console.log(`⚡ Audio Engine Binaries: yt-dlp -> "${ytDlpPath}", ffmpeg -> "${ffmpegPath}"`);
 
 // In-Memory Search & Stream Cache with LRU Size Bound (Max 300 entries, TTL: 4 hours)
 const searchCache = new Map();
